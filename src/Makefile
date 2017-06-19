@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS= -std=c99 -O3 -fPIC
 
-SOURCES= LaplaceCoefficients.c 
+SOURCES= disturbing_function.c 
 OBJECTS=$(SOURCES:.c=.o)
 
 all: $(SOURCES) libcelmech.so
