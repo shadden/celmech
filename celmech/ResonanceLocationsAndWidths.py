@@ -1,4 +1,4 @@
-from . import disturbingfunction
+from celmech import disturbingfunction
 import numpy as np
 
 # taken from https://en.wikipedia.org/wiki/Farey_sequence
@@ -33,13 +33,19 @@ def resonance_pratio_halfwidth(mu1,mu2,Z0,res_j,res_k):
 
 	DeltaP = np.sqrt(prefactor_num / prefactor_denom )* np.sqrt(mu1) * Z0**(res_k/2.)
 	
+	Delta_per_ratio = (res_j-res_k) * 1.5 * (res_j + beta * (res_j-res_k) ) * DeltaP / (res_j)
+
+	return Delta_per_ratio
 
 def get_fg_coeffs(res_j,res_k):
 	"""Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
-	fK = disturbingfunction.general_order_coefficient(res_j, res_k, res_k, a)
-	gK = disturbingfunction.general_order_coefficient(res_j, res_k, 0 , a)
+	Cjkl = disturbingfunction.general_order_coefficient
+	fK = Cjkl(res_j, res_k, res_k, alpha)
+	gK = Cjkl(res_j, res_k, 0 , alpha)
+	# target fn
+#	err_sq = lambda x,y: np.total([(( Cjlk(res_j,res_k,l,alpha) - binom(res_k,l)* f**(l) * g**(res_k-l) ) /  Cjlk(res_j,res_k,l,alpha))**2 for l in range(0,res_k+1)])
 	f = -1 * np.abs(fK)**(1./res_k)
 	g =      np.abs(gK)**(1./res_k)
 	return f,g
