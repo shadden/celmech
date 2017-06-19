@@ -1,7 +1,6 @@
 *.so
 *.swp
 *.o
-/*.ipynb
 *.pyc
 *.pdf
 *.bin
