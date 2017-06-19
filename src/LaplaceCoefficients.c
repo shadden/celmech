@@ -12,8 +12,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
-//#include "shared.h"
-//#include "LaplaceCoefficients.h"
 
 double laplace(double s, int i, int j, double a);
 double GeneralOrderCoefficient(int res_j, int order, int epower,double a);

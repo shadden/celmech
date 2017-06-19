@@ -1,0 +1,8 @@
+*.so
+*.swp
+*.o
+/*.ipynb
+*.pyc
+*.pdf
+*.bin
+.ipynb_checkpoints
