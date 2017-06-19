@@ -23,4 +23,4 @@ from ctypes import cdll, c_char_p
 clibcelmech = cdll.LoadLibrary(pymodulepath+"/../src/libcelmech.so")#+suffix)
 
 from .hamiltonian import make_Hamiltonian
-from .laplacecoefficients import laplace_coefficient, general_order_coefficient
+from .disturbingfunction import laplace_coefficient, general_order_coefficient
