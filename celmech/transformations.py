@@ -1,4 +1,7 @@
-def poincare_from_sim(sim, inner, outer, m, averaged=False):
+from celmech import disturbing_function
+import numpy as np
+
+def sim_to_poincare(sim, inner, outer, average_synodic_terms=False):
     ps = sim.particles
     alpha = sim.particles[inner].a/sim.particles[outer].a
     m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior
@@ -17,25 +20,13 @@ def poincare_from_sim(sim, inner, outer, m, averaged=False):
     gamma2 = -ps[outer].pomega
     
     s=0
-    if averaged:
-        deltan = 2*np.pi/ps[inner].P-2*np.pi/ps[outer].P
+    if average_synodic_terms:
+        deltan = ps[inner].n-ps[outer].n
         prefac = mu2/Lambda2**2*ps[inner].m/ps[0].m/deltan
-        s = transform(ps[inner].l, ps[outer].l, alpha, prefac)
+        for j in range(1,150):
+            s += disturbing_function.laplace_coefficient(0.5, j, 0, alpha)*np.cos(j*(lambda1-lambda2))
+        s -= alpha*np.cos(lambda1-lambda2)
+        s *= prefac
     var =  {'Lambda1':Lambda1-s, 'Lambda2':Lambda2+s, 'lambda1':lambda1, 'lambda2':lambda2, 'Gamma1':Gamma1, 'Gamma2':Gamma2, 'gamma1':gamma1, 'gamma2':gamma2}
-    params = {'m1':m1jac, 'M1':M1jac, 'mu1':mu1, 'mu2':mu2, 'alpha':alpha, 'm':m}
+    params = {'m1':m1jac, 'M1':M1jac, 'mu1':mu1, 'mu2':mu2, 'alpha':alpha}
     return var, params
-
-'''
-def averaged_Lambda_correction(sim):
-def transform(lambda1, lambda2, alpha, prefac):
-    deltan = 2*np.pi/ps[inner].P-2*np.pi/ps[outer].P
-    prefac = mu2/Lambda2**2*ps[inner].m/ps[0].m/deltan
-    s=0
-    for j in range(1,150):
-        s += LaplaceCoefficient(0.5, j, alpha, 0)*np.cos(j*(lambda1-lambda2))
-    s -= alpha*np.cos(lambda1-lambda2)
-    s = s*prefac
-    return s
-nptransform = np.vectorize(transform)
-'''
-

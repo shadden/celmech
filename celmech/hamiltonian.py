@@ -3,6 +3,14 @@ from scipy.integrate import odeint
 import numpy as np
 
 def make_Hamiltonian(H, pqpairs, params):
+    try:
+        names = [param.name for param in params]
+    except:
+        raise TypeError("params must be a list of sympy symbols. Check contents.")
+    try:
+        names = [item.name for pqpair in pqpairs for item in pqpair]
+    except:
+        raise TypeError("pqpairs must be list of tuples of conjugate pairs of sympy symbols e.g.,[(p1,q1), (p2,q2)].")
     class Hamiltonian(object):
         def __init__(self, **kwargs):
             self.H = H
