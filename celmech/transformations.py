@@ -1,9 +1,10 @@
 from celmech import disturbing_function
 import numpy as np
+from sympy import S
+from celmech.disturbing_function import laplace_coefficient 
 
-def sim_to_poincare(sim, inner, outer, average_synodic_terms=False):
+def sim_to_poincare_vars(sim, inner, outer, m, average_synodic_terms=False):
     ps = sim.particles
-    alpha = sim.particles[inner].a/sim.particles[outer].a
     m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior
     m2jac = ps[outer].m*(ps[inner].m+ps[0].m)/(ps[outer].m+ps[inner].m+ps[0].m)
     M1jac = ps[0].m+ps[inner].m # jacobi Ms must multiply the jacobi masses to give m0*mN (N=1,2), see Deck Eq 1
@@ -20,13 +21,25 @@ def sim_to_poincare(sim, inner, outer, average_synodic_terms=False):
     gamma2 = -ps[outer].pomega
     
     s=0
+    alpha_res = (float(m)/(m+1))**(2./3.)
     if average_synodic_terms:
         deltan = ps[inner].n-ps[outer].n
         prefac = mu2/Lambda2**2*ps[inner].m/ps[0].m/deltan
         for j in range(1,150):
-            s += disturbing_function.laplace_coefficient(0.5, j, 0, alpha)*np.cos(j*(lambda1-lambda2))
-        s -= alpha*np.cos(lambda1-lambda2)
+            s += disturbing_function.laplace_coefficient(0.5, j, 0, alpha_res)*np.cos(j*(lambda1-lambda2))
+        s -= alpha_res*np.cos(lambda1-lambda2)
         s *= prefac
-    var =  {'Lambda1':Lambda1-s, 'Lambda2':Lambda2+s, 'lambda1':lambda1, 'lambda2':lambda2, 'Gamma1':Gamma1, 'Gamma2':Gamma2, 'gamma1':gamma1, 'gamma2':gamma2}
-    params = {'m1':m1jac, 'M1':M1jac, 'mu1':mu1, 'mu2':mu2}
-    return var, params
+    return [Lambda1-s, lambda1+s, Lambda2, lambda2, Gamma1, gamma1, Gamma2, gamma2]
+
+def sim_to_poincare_params(sim, inner, outer, m):
+    ps = sim.particles
+    m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior
+    m2jac = ps[outer].m*(ps[inner].m+ps[0].m)/(ps[outer].m+ps[inner].m+ps[0].m)
+    M1jac = ps[0].m+ps[inner].m # jacobi Ms must multiply the jacobi masses to give m0*mN (N=1,2), see Deck Eq 1
+    M2jac = ps[0].m*(ps[0].m+ps[inner].m+ps[outer].m)/(ps[0].m+ps[inner].m)
+    mu1 = sim.G**2*M1jac**2*m1jac**3
+    mu2 = sim.G**2*M2jac**2*m2jac**3
+    alpha_res = (float(m)/(m+1))**(2./3.)
+    f27 = 1./2*(-2*(m+1)*laplace_coefficient(0.5, m+1, 0, alpha_res) - alpha_res*laplace_coefficient(0.5, m+1, 1, alpha_res))
+    f31 = 1./2*((2*m+1)*laplace_coefficient(0.5, m, 0, alpha_res) + alpha_res*laplace_coefficient(0.5, m, 1, alpha_res))        
+    return [m1jac, M1jac, mu1, mu2, m, f27, f31]
