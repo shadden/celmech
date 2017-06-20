@@ -29,7 +29,7 @@ def sim_to_poincare_vars(sim, inner, outer, m, average_synodic_terms=False):
             s += disturbing_function.laplace_coefficient(0.5, j, 0, alpha_res)*np.cos(j*(lambda1-lambda2))
         s -= alpha_res*np.cos(lambda1-lambda2)
         s *= prefac
-    return [Lambda1-s, lambda1+s, Lambda2, lambda2, Gamma1, gamma1, Gamma2, gamma2]
+    return [Lambda1-s, lambda1, Lambda2+s, lambda2, Gamma1, gamma1, Gamma2, gamma2]
 
 def sim_to_poincare_params(sim, inner, outer, m):
     ps = sim.particles
@@ -43,3 +43,42 @@ def sim_to_poincare_params(sim, inner, outer, m):
     f27 = 1./2*(-2*(m+1)*laplace_coefficient(0.5, m+1, 0, alpha_res) - alpha_res*laplace_coefficient(0.5, m+1, 1, alpha_res))
     f31 = 1./2*((2*m+1)*laplace_coefficient(0.5, m, 0, alpha_res) + alpha_res*laplace_coefficient(0.5, m, 1, alpha_res))        
     return [m1jac, M1jac, mu1, mu2, m, f27, f31]
+
+def sim_to_theta_vars(sim, inner, outer, m, average_synodic_terms=False, scales=None):
+    var, params = sim_to_poincare_vars(sim, inner, outer, average_synodic_terms=average_synodic_terms)
+    Theta = var['Lambda2']/(m+1)
+    Theta1 = m/(m+1)*var['Lambda2'] + var['Lambda1']
+    theta = (m+1)*var['lambda2'] - m*var['lambda1']
+    theta1 = var['lambda1']
+    
+    actionscale = scales['actionscale']
+    var =  {'Theta':Theta/actionscale, 'Theta1':Theta1/actionscale, 'theta':theta, 'theta1':theta1, 'Gamma1':var['Gamma1']/actionscale, 'Gamma2':var['Gamma2']/actionscale, 'gamma1':var['gamma1'], 'gamma2':var['gamma2']}
+    return var, params, scales
+
+def sim_to_theta_params(sim, inner, outer, m, average_synodic_terms=False, scales=None):
+    var, params = sim_to_poincare(sim, inner, outer, average_synodic_terms=average_synodic_terms)
+    params['m'] = m
+    params['zeta'] = params['mu1']/params['mu2']
+    Theta = var['Lambda2']/(m+1)
+    Theta1 = m/(m+1)*var['Lambda2'] + var['Lambda1']
+    theta = (m+1)*var['lambda2'] - m*var['lambda1']
+    theta1 = var['lambda1']
+    
+    if scales is None:
+        scales = {'actionscale':Theta1, 'timescale':Theta1**3/params['mu2']}
+    
+    actionscale = scales['actionscale']
+    var =  {'Theta':Theta/actionscale, 'Theta1':Theta1/actionscale, 'theta':theta, 'theta1':theta1, 'Gamma1':var['Gamma1']/actionscale, 'Gamma2':var['Gamma2']/actionscale, 'gamma1':var['gamma1'], 'gamma2':var['gamma2']}
+    return var, params, scales
+def sim_to_theta_scales(sim, inner, outer, m, average_synodic_terms=False, scales=None):
+    m1jac, M1jac, mu1, mu2, m, f27, f31 = sim_to_poincare_params(sim, inner, outer, m, average_synodic_terms=average_synodic_terms)
+    zeta = params['mu1']/params['mu2']
+   
+ 
+    if scales is None:
+        scales = {'actionscale':Theta1, 'timescale':Theta1**3/params['mu2']}
+    
+    actionscale = scales['actionscale']
+    var =  {'Theta':Theta/actionscale, 'Theta1':Theta1/actionscale, 'theta':theta, 'theta1':theta1, 'Gamma1':var['Gamma1']/actionscale, 'Gamma2':var['Gamma2']/actionscale, 'gamma1':var['gamma1'], 'gamma2':var['gamma2']}
+    return var, params, scales
+
