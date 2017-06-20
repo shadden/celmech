@@ -28,5 +28,5 @@ def sim_to_poincare(sim, inner, outer, average_synodic_terms=False):
         s -= alpha*np.cos(lambda1-lambda2)
         s *= prefac
     var =  {'Lambda1':Lambda1-s, 'Lambda2':Lambda2+s, 'lambda1':lambda1, 'lambda2':lambda2, 'Gamma1':Gamma1, 'Gamma2':Gamma2, 'gamma1':gamma1, 'gamma2':gamma2}
-    params = {'m1':m1jac, 'M1':M1jac, 'mu1':mu1, 'mu2':mu2, 'alpha':alpha}
+    params = {'m1':m1jac, 'M1':M1jac, 'mu1':mu1, 'mu2':mu2}
     return var, params
