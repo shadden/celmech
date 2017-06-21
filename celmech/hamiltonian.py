@@ -10,6 +10,7 @@ class Hamiltonian(object):
         self.pqpairs = pqpairs
         self.params = params
         self.Nparams = Nparams
+        self.initial_conditions = initial_conditions
         self.H = H
         self._update()
     def integrate(self, time):
@@ -28,7 +29,7 @@ class Hamiltonian(object):
         self.nh = self.h
         for i, param in enumerate(self.params):
             try:
-                self.nh = self.nh.subs(param, self.nparams[i])
+                self.nh = self.nh.subs(param, self.Nparams[i])
             except keyerror:
                 raise attributeerror("need to pass keyword {0} to hamiltonian.integrate".format(param))
         symvars = [item for pqpair in self.pqpairs for item in pqpair]
@@ -42,7 +43,7 @@ class Hamiltonian(object):
             dydt = [deriv(*y) for deriv in self.Nderivs]
             return dydt
         self.integrator = ode(diffeq).set_integrator('lsoda')
-        self.integrator.set_initial_value(initial_conditions, 0)
+        self.integrator.set_initial_value(self.initial_conditions, 0)
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self, Lambdas, lambdas, Gammas, gammas):
@@ -62,17 +63,17 @@ class HamiltonianPoincare(Hamiltonian):
 		self.Gamma = list(symbols("Gamma\{0:{0}\}".format(sim.N)))
 		self.gamma = list(symbols("gamma\{0:{0}\}".format(sim.N)))
 ################			
-        actionanglepairs = [ ]
-        for i in range(sim.N):
-        	actionanglepairs += [(self.Lambda[i],self.lam[i])]
-        	actionanglepairs += [(self.Gamma[i], self.gamma[i])]
 
-        params = self.mu
+        self.pqpairs = [ ]
+        for i in range(sim.N):
+        	self.pqpairs += [(self.Lambda[i],self.lam[i])]
+        	self.pqpairs += [(self.Gamma[i], self.gamma[i])]
+        self.params = self.mu + self.mjac + self.Mjac
+        self.Nparams = Nmu + Nmjac + NMjac
+        self.initial_conditions = poincare_vars_from_sim(sim)
+        self._update()
         
-        Nparams = [mjac[inner], Mjac[inner], mu[inner], mu[outer], m, Nf27, Nf31]
-        initial_conditions = poincare_vars_from_sim(sim)[:8]
-        
-        super(HamiltonianPoincare, self).__init__(H, actionanglepairs, initial_conditions, params, Nparams)
+#        super(HamiltonianPoincare, self).__init__(H, actionanglepairs, initial_conditions, params, Nparams)
 
     def add_single_resonance(idIn,idOut,res_jkl,alpha):
 	    """
