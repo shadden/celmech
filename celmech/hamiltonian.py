@@ -54,24 +54,27 @@ class HamiltonianPoincare(Hamiltonian):
         Nmjac, NMjac, Nmu = jacobi_masses_from_sim(sim)
         initial_conditions = poincare_vars_from_sim(sim)
 
-        self.mjac = symbols("mjac\{0:{0}\}".format(sim.N))
-        self.Mjac = symbols("Mjac\{0:{0}\}".format(sim.N))
-        self.mu =  symbols("mu\{0:{0}\}".format(sim.N))
+        self.mjac = list(symbols("mjac\{0:{0}\}".format(sim.N)))
+        self.Mjac = list(symbols("Mjac\{0:{0}\}".format(sim.N)))
+        self.mu = list(symbols("mu\{0:{0}\}".format(sim.N)))
 ################
-		self.Lambda = symbols("Lambda\{0:{0}\}".format(sim.N))
-		self.lam = symbols("lambda\{0:{0}\}".format(sim.N))
-		self.Gamma = symbols("Gamma\{0:{0}\}".format(sim.N))
-		self.gamma = symbols("gamma\{0:{0}\}".format(sim.N))
-			
+		self.Lambda = list(symbols("Lambda\{0:{0}\}".format(sim.N)))
+		self.lam = list(symbols("lambda\{0:{0}\}".format(sim.N)))
+		self.Gamma = list(symbols("Gamma\{0:{0}\}".format(sim.N)))
+		self.gamma = list(symbols("gamma\{0:{0}\}".format(sim.N)))
+################			
         actionanglepairs = [ ]
         for i in range(sim.N):
         	actionanglepairs += [(self.Lambda[i],self.lam[i])]
         	actionanglepairs += [(self.Gamma[i], self.gamma[i])]
+
+        params = self.mu
         
-        params = self.mu        
         Nparams = [mjac[inner], Mjac[inner], mu[inner], mu[outer], m, Nf27, Nf31]
         initial_conditions = poincare_vars_from_sim(sim)[:8]
+        
         super(HamiltonianPoincare, self).__init__(H, actionanglepairs, initial_conditions, params, Nparams)
+
     def add_single_resonance(idIn,idOut,res_jkl,alpha):
 	    """
 	    Add a single term associated the j:j-k MMR between planets 'idIn' and 'idOut'.
