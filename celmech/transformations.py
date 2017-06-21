@@ -4,6 +4,7 @@ from sympy import S
 from celmech.disturbing_function import laplace_coefficient 
 
 def jacobi_masses_from_sim(sim):
+    ps = sim.particles
     mjac, Mjac, mu = np.zeros(sim.N), np.zeros(sim.N), np.zeros(sim.N)
     interior_mass = ps[0].m
     for i in range(1,sim.N):
@@ -21,7 +22,7 @@ def poincare_vars_from_sim(sim):
         Lambda = mjac[i]*np.sqrt(sim.G*Mjac[i]*ps[i].a)
         pvars.append(Lambda)
         pvars.append(ps[i].l)                               # lambda
-        pvars.append(Lambda*(1.-np.sqrt(1.-ps[i].e**2))     # Gamma
+        pvars.append(Lambda*(1.-np.sqrt(1.-ps[i].e**2)))    # Gamma
         pvars.append(-ps[i].pomega)                         # gamma
 
     return pvars
