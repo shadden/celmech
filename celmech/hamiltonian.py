@@ -12,38 +12,38 @@ class Hamiltonian(object):
         self.Nparams = Nparams
         self.H = H
         self.derivs = {}
-        for pqpair in pqpairs:
-            p,q = pqpair
-            self.derivs[p] = -diff(self.H, q)
-            self.derivs[q] = diff(self.H, p)
-        
-        self._calculate_numerical_expressions(Nparams)
-        def diffeq(t, y):
-            dydt = [deriv(*y) for deriv in self.Nderivs]
-            #print(t, y, dydt)
-            return dydt
-        self.integrator = ode(diffeq).set_integrator('lsoda')
-        self.integrator.set_initial_value(initial_conditions, 0)
-        self.state = initial_conditions
+
+        self._update(H, pqpairs, initial_conditions, params, Nparams)
     def integrate(self, time):
         if time > self.integrator.t:
             try:
                 self.integrator.integrate(time)
             except:
                 raise AttributeError("Need to initialize Hamiltonian")
-    def _calculate_numerical_expressions(self, Nparams):
-        self.NH = self.H
-        for i, param in enumerate(self.params):
-            try:
-                self.NH = self.NH.subs(param, Nparams[i])
-            except KeyError:
-                raise AttributeError("Need to pass keyword {0} to Hamiltonian.integrate".format(param))
-        symvars = [item for pqpair in self.pqpairs for item in pqpair]
-        self.Nderivs = []
+    def _update(self, h, pqpairs, initial_conditions, params, nparams):
         for pqpair in self.pqpairs:
             p,q = pqpair
-            self.Nderivs.append(lambdify(symvars, -diff(self.NH, q), 'numpy'))
-            self.Nderivs.append(lambdify(symvars, diff(self.NH, p), 'numpy'))
+            self.derivs[p] = -diff(self.h, q)
+            self.derivs[q] = diff(self.h, p)
+        
+        self.nh = self.h
+        for i, param in enumerate(self.params):
+            try:
+                self.nh = self.nh.subs(param, self.nparams[i])
+            except keyerror:
+                raise attributeerror("need to pass keyword {0} to hamiltonian.integrate".format(param))
+        symvars = [item for pqpair in self.pqpairs for item in pqpair]
+        self.nderivs = []
+        for pqpair in self.pqpairs:
+            p,q = pqpair
+            self.nderivs.append(lambdify(symvars, -diff(self.nh, q), 'numpy'))
+            self.nderivs.append(lambdify(symvars, diff(self.nh, p), 'numpy'))
+        
+        def diffeq(t, y):
+            dydt = [deriv(*y) for deriv in self.Nderivs]
+            return dydt
+        self.integrator = ode(diffeq).set_integrator('lsoda')
+        self.integrator.set_initial_value(initial_conditions, 0)
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
