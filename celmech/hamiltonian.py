@@ -56,12 +56,15 @@ class Particle(object): pass
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self, Lambdas, lambdas, Gammas, gammas):
         pass
-    def initialize_from_sim(self, sim):
-        self.particles = [Particle() for i in range(sim.N)]
-        #makeactionanglepairs()
-        #makeparams()
-        masses = jacobi_masses_from_sim(sim, self.particles)
-        #getNparams()
+    def initialize_from_sim(self, sim, inner, outer, m):
+        Lambda1, Lambda2, lambda1, lambda2, Gamma1, Gamma2, gamma1, gamma2 = symbols('Lambda1, Lambda2, lambda1, lambda2, Gamma1, Gamma2, gamma1, gamma2')
+        actionanglepairs = [(Lambda1, lambda1), (Gamma1, gamma1), (Lambda2, lambda2), (Gamma2, gamma2)]
+        m1, M1, mu1, mu2, m, f27, f31 = symbols('m1, M1, mu1, mu2, m, f27, f31')
+        params = [m1, M1, mu1, mu2, m, f27, f31]
+        mjac, Mjac, mu = jacobi_masses_from_sim(sim, self.particles)
+        Nf27, Nf31 = self.calculate_fs(m)
+        Nparams = [mjac[inner], Mjac[inner], mu[inner], mu[outer], m, Nf27, Nf31]
+        initial_conditions = poincare_vars_from_sim(sim)
         #getic()
         self.H = ...
         #super(HamiltonianPoincare, self).__init__(H, pqpairs, initial_conditions, params, Nparams)
