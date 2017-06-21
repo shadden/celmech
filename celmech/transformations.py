@@ -12,7 +12,7 @@ def jacobi_masses_from_sim(sim):
         Mjac[i] = ps[0].m*(ps[i].m+interior_mass)/interior_mass # mjac[i]*Mjac[i] always = ps[i].m*ps[0].m
         mu[i] = sim.G**2*Mjac[i]**2*mjac[i]**3 # Deck (2013) notation
     mjac[0] = interior_mass
-    return mjac, Mjac, mu
+    return list(mjac), list(Mjac), list(mu)
 
 def poincare_vars_from_sim(sim):
     ps = sim.particles

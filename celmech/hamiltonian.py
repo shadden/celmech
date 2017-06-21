@@ -23,21 +23,21 @@ class Hamiltonian(object):
         self.derivs = {}
         for pqpair in self.pqpairs:
             p,q = pqpair
-            self.derivs[p] = -diff(self.h, q)
-            self.derivs[q] = diff(self.h, p)
+            self.derivs[p] = -diff(self.H, q)
+            self.derivs[q] = diff(self.H, p)
         
-        self.nh = self.h
+        self.NH = self.H
         for i, param in enumerate(self.params):
             try:
-                self.nh = self.nh.subs(param, self.Nparams[i])
-            except keyerror:
-                raise attributeerror("need to pass keyword {0} to hamiltonian.integrate".format(param))
+                self.NH = self.NH.subs(param, self.Nparams[i])
+            except KeyError:
+                raise AttributeError("need to pass keyword {0} to hamiltonian.integrate".format(param))
         symvars = [item for pqpair in self.pqpairs for item in pqpair]
-        self.nderivs = []
+        self.Nderivs = []
         for pqpair in self.pqpairs:
             p,q = pqpair
-            self.nderivs.append(lambdify(symvars, -diff(self.nh, q), 'numpy'))
-            self.nderivs.append(lambdify(symvars, diff(self.nh, p), 'numpy'))
+            self.Nderivs.append(lambdify(symvars, -diff(self.NH, q), 'numpy'))
+            self.Nderivs.append(lambdify(symvars, diff(self.NH, p), 'numpy'))
         
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
@@ -46,99 +46,90 @@ class Hamiltonian(object):
         self.integrator.set_initial_value(self.initial_conditions, 0)
 
 class HamiltonianPoincare(Hamiltonian):
-    def __init__(self, Lambdas, lambdas, Gammas, gammas):
+    def __init__(self):
         self.resonance_indices = []
-        self.integrator = None 
-        self.H = 0
+        self.integrator = None
     def initialize_from_sim(self, sim):
-        Nmjac, NMjac, Nmu = jacobi_masses_from_sim(sim)
+        self.H = S(0)
+        Nm, NM, Nmu = jacobi_masses_from_sim(sim)
         initial_conditions = poincare_vars_from_sim(sim)
 
-        self.mjac = list(symbols("mjac\{0:{0}\}".format(sim.N)))
-        self.Mjac = list(symbols("Mjac\{0:{0}\}".format(sim.N)))
-        self.mu = list(symbols("mu\{0:{0}\}".format(sim.N)))
+        self.m = list(symbols("m0:{0}".format(sim.N)))
+        self.M = list(symbols("M0:{0}".format(sim.N)))
+        self.mu = list(symbols("mu0:{0}".format(sim.N)))
 ################
-		self.Lambda = list(symbols("Lambda\{0:{0}\}".format(sim.N)))
-		self.lam = list(symbols("lambda\{0:{0}\}".format(sim.N)))
-		self.Gamma = list(symbols("Gamma\{0:{0}\}".format(sim.N)))
-		self.gamma = list(symbols("gamma\{0:{0}\}".format(sim.N)))
-################			
-
-        self.pqpairs = [ ]
-        for i in range(sim.N):
-        	self.pqpairs += [(self.Lambda[i],self.lam[i])]
-        	self.pqpairs += [(self.Gamma[i], self.gamma[i])]
-        self.params = self.mu + self.mjac + self.Mjac
-        self.Nparams = Nmu + Nmjac + NMjac
+        self.Lambda = list(symbols("Lambda0:{0}".format(sim.N)))
+        self.lam = list(symbols("lambda0:{0}".format(sim.N)))
+        self.Gamma = list(symbols("Gamma0:{0}".format(sim.N)))
+        self.gamma = list(symbols("gamma0:{0}".format(sim.N)))
+################            
+        self.params = self.mu + self.m + self.M
+        self.Nparams = Nmu + Nm + NM
         self.initial_conditions = poincare_vars_from_sim(sim)
+        self.pqpairs = [ ]
+        for i in range(1,sim.N):
+            self.pqpairs.append((self.Lambda[i],self.lam[i]))
+            self.pqpairs.append((self.Gamma[i], self.gamma[i]))
+            self.add_Hkep_term(i)
         self._update()
-        
-#        super(HamiltonianPoincare, self).__init__(H, actionanglepairs, initial_conditions, params, Nparams)
-
-    def add_single_resonance(idIn,idOut,res_jkl,alpha):
-	    """
-	    Add a single term associated the j:j-k MMR between planets 'idIn' and 'idOut'.
-	    Inputs:
-	    idIn-ID of the inner planet
-	    idOut	-	ID of the outer planet
-    	res_jkl	-	Ordered triple (j,k,l) specifying resonant term. 
-    				 The 'l' index picks out the eIn^(l) * eOut^(k-l) subdterm
-    	alpha	-	The semi-major axis ratio aIn/aOut
-    	"""
-		# Canonical variables
-		LambdaIn,lambdaIn,GammaIn,gammaIn = self._get_single_id_variables(idIn)
-		LambdaOut,lambdaOut,GammaOut,gammaOut = self._get_single_id_variables(idIn)
-	
-		# Mass variables
-		muOut = self.mu[idOut]
-		Mout= self.Mjac[idOut]
-		mIn  = self.mjac[idIn]
-	
-		# Resonance index
-		j,k,l = res_jkl
-		assert l<=k, "Invalid resonance term, l>k."
-	
-		# Resonance components
-		from celmech.disturbing_function import general_order_coefficient
-		#
-		Cjkl = symbol( "\{C_\{{0},{1},{2}\}\}".format(j,k,l) )
-		self.params.append(Cjkl)
-		self.Nparams.append(general_order_coefficient(j,k,l,alpha))
-		#
-		eccIn = sqrt(2*GammaIn/LambdaIn)
-		eccOut = sqrt(2*GammaOut/LambdaOut)
-		#
-		costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
-		#
-		prefactor = -muOut *( mIn / Mout) / (LambdaOut**2)
-	
-		# Keep track of resonances
-		self.resonance_indicies.append((idIn,idOut,res_jkl))
-		# Update Hamiltonian
-		self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
     
-    def add_all_resonance_subterms(idIn,idOut,res_j,res_k,alpha):
-  		"""
-    	Add a single term associated the j:j-k MMR between planets 'idIn' and 'idOut'.
-    	Inputs:
-        idIn    -    ID of the inner planet
-        idOut    -    ID of the outer planet
+    def add_Hkep_term(self, index):
+        """
+        Add the Keplerian component of the Hamiltonian for planet ''.
+        """
+        m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
+        self.H +=  -mu / (2 * Lambda**2)
+    
+    def add_single_resonance(self, indexIn,indexOut,res_jkl,alpha):
+        """
+        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -   index of the inner planet
+        indexOut    -   index of the outer planet
+        res_jkl     -   Ordered triple (j,k,l) specifying resonant term. 
+                        The 'l' index picks out the eIn^(l) * eOut^(k-l) subdterm
+        alpha       -   The semi-major axis ratio aIn/aOut
+        """
+        # Canonical variables
+        mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
+        mOut, MOut, muOut, LambdaOut, lambdaOut, GammaOut, gammaOut = self._get_symbols(indexOut)
+        
+        # Resonance index
+        j,k,l = res_jkl
+        assert l<=k, "Inval resonance term, l>k."
+    
+        # Resonance components
+        from celmech.disturbing_function import general_order_coefficient
+        #
+        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
+        self.params.append(Cjkl)
+        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
+        #
+        eccIn = sqrt(2*GammaIn/LambdaIn)
+        eccOut = sqrt(2*GammaOut/LambdaOut)
+        #
+        costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
+        #
+        prefactor = -muOut *( mIn / MOut) / (LambdaOut**2)
+    
+        # Keep track of resonances
+        self.resonance_indices.append((indexIn,indexOut,res_jkl))
+        # Update Hamiltonian
+        self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
+        self._update()
+    
+    def add_all_resonance_subterms(self, indexIn, indexOut, res_j, res_k, alpha):
+        """
+        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn    -    index of the inner planet
+        indexOut    -    index of the outer planet
         res_j    -    Together with 'res_k' specifies the MMR 'res_j:res_j-res_k'
         res_k    -    Order of the resonance
         alpha    -    The semi-major axis ratio aIn/aOut
-  		"""
-  		for res_l in range(res_k+1):
-  			self.add_single_resonance(inIn,idOut,(res_j,res_k,res_l),alpha)
-  	def add_Hkep_term(id):
-		"""
-		Add the Keplerian component of the Hamiltonian for planet 'id'.
-		"""
-		Lambda,lam,Gamma,gamma = self._get_single_id_variables(id)
-		Mjac = self.Mjac[id]
-		mjac = self.mjac[id]
-		mu = self.mu[id]
-		self.H +=  -mu / (2 * Lambda * Lambda)
-	def _get_single_id_variables(id):
-		Lambda,lam =  actionanglepairs[2 * (id - 1) ]
-		Gamma,gamma =  actionanglepairs[2 * (id-1) +1]
-		return (Lambda,lam,Gamma,gamma)
+        """
+        for res_l in range(res_k+1):
+            self.add_single_resonance(indexIn,indexOut,(res_j,res_k,res_l),alpha)
+    def _get_symbols(self, index):
+        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
+
