@@ -11,16 +11,15 @@ class Hamiltonian(object):
         self.params = params
         self.Nparams = Nparams
         self.H = H
-        self.derivs = {}
-
-        self._update(H, pqpairs, initial_conditions, params, Nparams)
+        self._update()
     def integrate(self, time):
         if time > self.integrator.t:
             try:
                 self.integrator.integrate(time)
             except:
                 raise AttributeError("Need to initialize Hamiltonian")
-    def _update(self, h, pqpairs, initial_conditions, params, nparams):
+    def _update(self):
+        self.derivs = {}
         for pqpair in self.pqpairs:
             p,q = pqpair
             self.derivs[p] = -diff(self.h, q)
