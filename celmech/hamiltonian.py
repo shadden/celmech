@@ -55,6 +55,7 @@ class Particle(object): pass
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self, Lambdas, lambdas, Gammas, gammas):
+    	self.resonance_indices = []
         pass
     def initialize_from_sim(self, sim, inner, outer, m):
         Lambda1, Lambda2, lambda1, lambda2, Gamma1, Gamma2, gamma1, gamma2 = symbols('Lambda1, Lambda2, lambda1, lambda2, Gamma1, Gamma2, gamma1, gamma2')
@@ -72,3 +73,72 @@ class HamiltonianPoincare(Hamiltonian):
         for p in sim.particles[1:]:
             self.particles[-1].a = p.a
             self.particles[-1].e = p.e
+
+	def add_single_resonance(idIn,idOut,res_jkl,alpha):
+		"""
+		Add a single term associated the j:j-k MMR between planets 'idIn' and 'idOut'.
+		Inputs:
+			idIn	-	ID of the inner planet
+			idOut	-	ID of the outer planet
+			res_jkl	-	Ordered triple (j,k,l) specifying resonant term. 
+						 The 'l' index picks out the eIn^(l) * eOut^(k-l) subdterm
+			alpha	-	The semi-major axis ratio aIn/aOut
+		"""
+		# Canonical variables
+		LambdaIn,lambdaIn,GammaIn,gammaIn = self._get_single_id_variables(idIn)
+		LambdaOut,lambdaOut,GammaOut,gammaOut = self._get_single_id_variables(idIn)
+
+		# Mass variables
+		muOut = mu[idOut]
+		Mout=Mjac[idOut]
+		mIn  = mjac[idIn]
+
+		# Resonance index
+		j,k,l = res_jkl
+		assert l<=k, "Invalid resonance term, l>k."
+
+		# Resonance components
+		Cjkl = general_order_coefficient(j,k,l,alpha)
+		#
+		eccIn = sqrt(2*GammaIn/LambdaIn)
+		eccOut = sqrt(2*GammaOut/LambdaOut)
+		#
+		costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
+		#
+		prefactor = -muOut *( mIn / Mout) / (LambdaOut**2)
+
+		# Keep track of resonances
+		self.resonance_indicies.append((idIn,idOut,res_jkl))
+		# Update Hamiltonian
+		self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
+
+	def add_all_resonance_subterms(idIn,idOut,res_j,res_k,alpha):
+		"""
+		Add a single term associated the j:j-k MMR between planets 'idIn' and 'idOut'.
+		Inputs:
+			idIn	-	ID of the inner planet
+			idOut	-	ID of the outer planet
+			res_j	-	Together with 'res_k' specifies the MMR 'res_j:res_j-res_k'
+			res_k	-	Order of the resonance
+			alpha	-	The semi-major axis ratio aIn/aOut
+		"""
+		for res_l in range(res_k+1):
+			self.add_single_resonance(inIn,idOut,(res_j,res_k,res_l),alpha)
+
+	def add_Hkep_term(id):
+		"""
+		Add the Keplerian component of the Hamiltonian for planet 'id'.
+		"""
+		Lambda,lam,Gamma,gamma = self._get_single_id_variables(id)
+		Mjac = self.Mjac[id]
+		mjac = self.mjac[id]
+		mu = self.mu[id]
+		self.H +=  -mu / (2 * Lambda * Lambda)
+		
+	def _get_single_id_variables(id):
+
+		Lambda,lam =  actionanglepairs[2 * (id - 1) ]
+		Gamma,gamma =  actionanglepairs[2 * (id-1) +1]
+		return (Lambda,lam,Gamma,gamma)
+
+		
