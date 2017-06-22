@@ -44,6 +44,7 @@ class Hamiltonian(object):
         
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
+            #print(t, y, dydt)
             return dydt
         self.integrator = ode(diffeq).set_integrator('lsoda',nsteps=1e4)
         self.integrator.set_initial_value(self.initial_conditions, 0)
@@ -56,6 +57,16 @@ class AndoyerHamiltonian(Hamiltonian):
         self.Nparams = [NPhiprime]
         self.initial_conditions = [Phi0, phi0]
         self.H = S(1)/2*(Phi-Phiprime)**2 + Phi**(k/S(2))*cos(phi)
+        self._update()
+
+class CartesianAndoyerHamiltonian(Hamiltonian):
+    def __init__(self, k, NPhiprime, Phi0, phi0):
+        X,Y,Phiprime = symbols('X, Y, Phiprime')
+        self.pqpairs = [(X, Y)]
+        self.params = [Phiprime]
+        self.Nparams = [NPhiprime]
+        self.initial_conditions = [np.sqrt(2.*Phi0)*np.cos(phi0), np.sqrt(2.*Phi0)*np.sin(phi0)]
+        self.H = S(1)/2*((X**2 + Y**2)/S(2)-Phiprime)**2 + S(1)/sqrt(S(2))*X*((X**2+Y**2)/2)**((k-1)/S(2))
         self._update()
 
 class HamiltonianThetas(Hamiltonian):
