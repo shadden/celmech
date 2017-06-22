@@ -45,8 +45,25 @@ class Hamiltonian(object):
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
             return dydt
-        self.integrator = ode(diffeq).set_integrator('lsoda')
+        self.integrator = ode(diffeq).set_integrator('lsoda',nsteps=1e4)
         self.integrator.set_initial_value(self.initial_conditions, 0)
+
+class AndoyerHamiltonian(Hamiltonian):
+    def __init__(self, k, NPhiprime, Phi0, phi0):
+        Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
+        self.pqpairs = [(Phi, phi)]
+        self.params = [Phiprime]
+        self.Nparams = [NPhiprime]
+        self.initial_conditions = [Phi0, phi0]
+        self.H = S(1)/2*(Phi-Phiprime)**2 + Phi**(k/S(2))*cos(phi)
+        self._update()
+
+class HamiltonianThetas(Hamiltonian):
+    def __init__(self, sim, j, k):
+        self.pham = HamiltonianPoincare()
+        self.pham.initialize_from_sim(sim)
+        self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
+        print(self.pham.H)
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
@@ -89,22 +106,22 @@ class HamiltonianPoincare(Hamiltonian):
         m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         self.H +=  -mu / (2 * Lambda**2)
 
-    def add_single_resonance(self, indexIn,indexOut,res_jkl):
+    def add_single_resonance(self, indexIn, indexOut, j, k, l):
         """
         Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
         indexIn     -   index of the inner planet
         indexOut    -   index of the outer planet
-        res_jkl     -   Ordered triple (j,k,l) specifying resonant term. 
-                        The 'l' index picks out the eIn^(l) * eOut^(k-l) subdterm
+        j           -   together with k specifies the MMR j:j-k
+        k           -   order of the resonance
+        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
         """
         # Canonical variables
         mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
         mOut, MOut, muOut, LambdaOut, lambdaOut, GammaOut, gammaOut = self._get_symbols(indexOut)
         
         # Resonance index
-        j,k,l = res_jkl
-        assert l<=k, "Inval resonance term, l>k."
+        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
         alpha = self.a[indexIn]/self.a[indexOut]
 
         # Resonance components
@@ -119,27 +136,31 @@ class HamiltonianPoincare(Hamiltonian):
         #
         costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
         #
-        prefactor = -muOut *( mIn / MOut) / (LambdaOut**2)
+        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
     
         # Keep track of resonances
-        self.resonance_indices.append((indexIn,indexOut,res_jkl))
+        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
         # Update Hamiltonian
         self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
         self._update()
     
-    def add_all_resonance_subterms(self, indexIn, indexOut, res_j, res_k):
+    def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
         """
-        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
-        indexIn    -    index of the inner planet
+        indexIn     -    index of the inner planet
         indexOut    -    index of the outer planet
-        res_j    -    Together with 'res_k' specifies the MMR 'res_j:res_j-res_k'
-        res_k    -    Order of the resonance
+        j           -    together with k specifies the MMR j:j-k
+        k           -    order of the resonance
         """
-        for res_l in range(res_k+1):
-            self.add_single_resonance(indexIn,indexOut,(res_j,res_k,res_l))
+        for l in range(k+1):
+            self.add_single_resonance(indexIn,indexOut, j, k, l)
 
     def synodic_Lambda_correction(self, sim):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the synodic terms we do not include in the Hamiltonian.
+        """
         ps = sim.particles
         pairs = combinations(range(1,sim.N), 2)
         for indexIn, indexOut in pairs:

@@ -27,19 +27,6 @@ def poincare_vars_from_sim(sim):
 
     return pvars
 
-def sim_to_poincare_params(sim, inner, outer, m):
-    ps = sim.particles
-    m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior
-    m2jac = ps[outer].m*(ps[inner].m+ps[0].m)/(ps[outer].m+ps[inner].m+ps[0].m)
-    M1jac = ps[0].m+ps[inner].m # jacobi Ms must multiply the jacobi masses to give m0*mN (N=1,2), see Deck Eq 1
-    M2jac = ps[0].m*(ps[0].m+ps[inner].m+ps[outer].m)/(ps[0].m+ps[inner].m)
-    mu1 = sim.G**2*M1jac**2*m1jac**3
-    mu2 = sim.G**2*M2jac**2*m2jac**3
-    alpha_res = (float(m)/(m+1))**(2./3.)
-    f27 = 1./2*(-2*(m+1)*laplace_coefficient(0.5, m+1, 0, alpha_res) - alpha_res*laplace_coefficient(0.5, m+1, 1, alpha_res))
-    f31 = 1./2*((2*m+1)*laplace_coefficient(0.5, m, 0, alpha_res) + alpha_res*laplace_coefficient(0.5, m, 1, alpha_res))        
-    return [m1jac, M1jac, mu1, mu2, m, f27, f31]
-
 def sim_to_theta_vars(sim, inner, outer, m, average_synodic_terms=False, scales=None):
     var, params = sim_to_poincare_vars(sim, inner, outer, average_synodic_terms=average_synodic_terms)
     Theta = var['Lambda2']/(m+1)
