@@ -26,19 +26,7 @@ def poincare_vars_from_sim(sim):
         pvars.append(-ps[i].pomega)                         # gamma
 
     return pvars
-    
-'''    
-    s=0
-    alpha_res = (float(m)/(m+1))**(2./3.)
-    if average_synodic_terms:
-        deltan = ps[inner].n-ps[outer].n
-        prefac = mu2/Lambda2**2*ps[inner].m/ps[0].m/deltan
-        for j in range(1,150):
-            s += disturbing_function.laplace_coefficient(0.5, j, 0, alpha_res)*np.cos(j*(lambda1-lambda2))
-        s -= alpha_res*np.cos(lambda1-lambda2)
-        s *= prefac
-return [Lambda1-s, lambda1, Lambda2+s, lambda2, Gamma1, gamma1, Gamma2, gamma2]
-'''
+
 def sim_to_poincare_params(sim, inner, outer, m):
     ps = sim.particles
     m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior

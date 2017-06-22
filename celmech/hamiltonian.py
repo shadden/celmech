@@ -1,6 +1,7 @@
 from sympy import S, diff, lambdify, symbols, sqrt, cos, numbered_symbols, simplify
 from scipy.integrate import ode
 import numpy as np
+from itertools import combinations
 import rebound
 from celmech.transformations import jacobi_masses_from_sim, poincare_vars_from_sim
 from celmech.disturbing_function import laplace_coefficient
@@ -13,12 +14,14 @@ class Hamiltonian(object):
         self.initial_conditions = initial_conditions
         self.H = H
         self._update()
+
     def integrate(self, time):
         if time > self.integrator.t:
             try:
                 self.integrator.integrate(time)
             except:
                 raise AttributeError("Need to initialize Hamiltonian")
+
     def _update(self):
         self.derivs = {}
         for pqpair in self.pqpairs:
@@ -49,38 +52,43 @@ class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
         self.resonance_indices = []
         self.integrator = None
-    def initialize_from_sim(self, sim):
-        self.H = S(0)
-        Nm, NM, Nmu = jacobi_masses_from_sim(sim)
-        initial_conditions = poincare_vars_from_sim(sim)
 
+    def initialize_from_sim(self, sim):
+        # add sympy symbols
         self.m = list(symbols("m0:{0}".format(sim.N)))
         self.M = list(symbols("M0:{0}".format(sim.N)))
         self.mu = list(symbols("mu0:{0}".format(sim.N)))
-################
         self.Lambda = list(symbols("Lambda0:{0}".format(sim.N)))
         self.lam = list(symbols("lambda0:{0}".format(sim.N)))
         self.Gamma = list(symbols("Gamma0:{0}".format(sim.N)))
         self.gamma = list(symbols("gamma0:{0}".format(sim.N)))
-################            
-        self.a = [0]+[sim.particles[i].a for i in range(1,sim.N)] # add dummy for star to match indices
+        
+        # add symbols needed by base Hamiltonian class
+        self.H = S(0)
         self.params = self.mu + self.m + self.M
-        self.Nparams = Nmu + Nm + NM
-        self.initial_conditions = poincare_vars_from_sim(sim)
-        self.pqpairs = [ ]
+        self.pqpairs = []
         for i in range(1,sim.N):
             self.pqpairs.append((self.Lambda[i],self.lam[i]))
             self.pqpairs.append((self.Gamma[i], self.gamma[i]))
             self.add_Hkep_term(i)
+        
+        # add numerical values
+        self.a = [0]+[sim.particles[i].a for i in range(1,sim.N)] # add dummy for star to match indices
+        self.Nm, self.NM, self.Nmu = jacobi_masses_from_sim(sim)
+        self.Nparams = self.Nmu + self.Nm + self.NM
+        self.initial_conditions = poincare_vars_from_sim(sim)
+        self.synodic_Lambda_correction(sim)
+        
+        # calculate Hamilton's equations symbolically and substitute numerical values
         self._update()
-    
+
     def add_Hkep_term(self, index):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.
         """
         m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         self.H +=  -mu / (2 * Lambda**2)
-    
+
     def add_single_resonance(self, indexIn,indexOut,res_jkl):
         """
         Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
@@ -130,6 +138,23 @@ class HamiltonianPoincare(Hamiltonian):
         """
         for res_l in range(res_k+1):
             self.add_single_resonance(indexIn,indexOut,(res_j,res_k,res_l))
+
+    def synodic_Lambda_correction(self, sim):
+        ps = sim.particles
+        pairs = combinations(range(1,sim.N), 2)
+        for indexIn, indexOut in pairs:
+            s=0
+            alpha = self.a[indexIn]/self.a[indexOut]
+            deltan = ps[indexIn].n-ps[indexOut].n
+            LambdaOut = self.initial_conditions[4*(indexOut-1)]
+            prefac = self.Nmu[indexOut]/LambdaOut**2*self.Nm[indexIn]/self.NM[indexIn]/deltan
+            for j in range(1,150):
+                s += laplace_coefficient(0.5, j, 0, alpha)*np.cos(j*(ps[indexIn].l - ps[indexOut].l))
+            s -= alpha*np.cos(ps[indexIn].l - ps[indexOut].l)
+            s *= prefac
+            self.initial_conditions[4*(indexIn-1)] -= s # update numerical value of Lambda
+            self.initial_conditions[4*(indexOut-1)] += s
+
     def _get_symbols(self, index):
         return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
 
