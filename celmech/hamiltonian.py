@@ -45,8 +45,19 @@ class Hamiltonian(object):
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
             return dydt
-        self.integrator = ode(diffeq).set_integrator('lsoda')
+        self.integrator = ode(diffeq).set_integrator('lsoda',nsteps=1e4)
         self.integrator.set_initial_value(self.initial_conditions, 0)
+
+class AndoyerHamiltonian(Hamiltonian):
+    def __init__(self, k, NPhiprime, Phi0, phi0):
+        Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
+        self.pqpairs = [(Phi, phi)]
+        self.params = [Phiprime]
+        self.Nparams = [NPhiprime]
+        self.initial_conditions = [Phi0, phi0]
+        self.H = S(1)/2*(Phi-Phiprime)**2 + Phi**(k/S(2))*cos(phi)
+        self._update()
+
 class HamiltonianThetas(Hamiltonian):
     def __init__(self, sim, j, k):
         self.pham = HamiltonianPoincare()
