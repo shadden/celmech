@@ -63,6 +63,7 @@ class HamiltonianPoincare(Hamiltonian):
         self.Gamma = list(symbols("Gamma0:{0}".format(sim.N)))
         self.gamma = list(symbols("gamma0:{0}".format(sim.N)))
 ################            
+        self.a = [0]+[sim.particles[i].a for i in range(1,sim.N)] # add dummy for star to match indices
         self.params = self.mu + self.m + self.M
         self.Nparams = Nmu + Nm + NM
         self.initial_conditions = poincare_vars_from_sim(sim)
@@ -80,7 +81,7 @@ class HamiltonianPoincare(Hamiltonian):
         m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         self.H +=  -mu / (2 * Lambda**2)
     
-    def add_single_resonance(self, indexIn,indexOut,res_jkl,alpha):
+    def add_single_resonance(self, indexIn,indexOut,res_jkl):
         """
         Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
@@ -88,7 +89,6 @@ class HamiltonianPoincare(Hamiltonian):
         indexOut    -   index of the outer planet
         res_jkl     -   Ordered triple (j,k,l) specifying resonant term. 
                         The 'l' index picks out the eIn^(l) * eOut^(k-l) subdterm
-        alpha       -   The semi-major axis ratio aIn/aOut
         """
         # Canonical variables
         mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
@@ -97,7 +97,8 @@ class HamiltonianPoincare(Hamiltonian):
         # Resonance index
         j,k,l = res_jkl
         assert l<=k, "Inval resonance term, l>k."
-    
+        alpha = self.a[indexIn]/self.a[indexOut]
+
         # Resonance components
         from celmech.disturbing_function import general_order_coefficient
         #
@@ -118,7 +119,7 @@ class HamiltonianPoincare(Hamiltonian):
         self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
         self._update()
     
-    def add_all_resonance_subterms(self, indexIn, indexOut, res_j, res_k, alpha):
+    def add_all_resonance_subterms(self, indexIn, indexOut, res_j, res_k):
         """
         Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
@@ -126,10 +127,9 @@ class HamiltonianPoincare(Hamiltonian):
         indexOut    -    index of the outer planet
         res_j    -    Together with 'res_k' specifies the MMR 'res_j:res_j-res_k'
         res_k    -    Order of the resonance
-        alpha    -    The semi-major axis ratio aIn/aOut
         """
         for res_l in range(res_k+1):
-            self.add_single_resonance(indexIn,indexOut,(res_j,res_k,res_l),alpha)
+            self.add_single_resonance(indexIn,indexOut,(res_j,res_k,res_l))
     def _get_symbols(self, index):
         return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
 
