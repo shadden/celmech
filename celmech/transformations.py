@@ -27,6 +27,19 @@ def poincare_vars_from_sim(sim):
 
     return pvars
 
+def sim_to_poincare_params(sim, inner, outer, m):
+    ps = sim.particles
+    m1jac = ps[inner].m*ps[0].m/(ps[inner].m+ps[0].m) # jacobi masses are reduced masses with masses interior
+    m2jac = ps[outer].m*(ps[inner].m+ps[0].m)/(ps[outer].m+ps[inner].m+ps[0].m)
+    M1jac = ps[0].m+ps[inner].m # jacobi Ms must multiply the jacobi masses to give m0*mN (N=1,2), see Deck Eq 1
+    M2jac = ps[0].m*(ps[0].m+ps[inner].m+ps[outer].m)/(ps[0].m+ps[inner].m)
+    mu1 = sim.G**2*M1jac**2*m1jac**3
+    mu2 = sim.G**2*M2jac**2*m2jac**3
+    alpha_res = (float(m)/(m+1))**(2./3.)
+    f27 = 1./2*(-2*(m+1)*laplace_coefficient(0.5, m+1, 0, alpha_res) - alpha_res*laplace_coefficient(0.5, m+1, 1, alpha_res))
+    f31 = 1./2*((2*m+1)*laplace_coefficient(0.5, m, 0, alpha_res) + alpha_res*laplace_coefficient(0.5, m, 1, alpha_res))        
+    return [m1jac, M1jac, mu1, mu2, m, f27, f31]
+
 def sim_to_theta_vars(sim, inner, outer, m, average_synodic_terms=False, scales=None):
     var, params = sim_to_poincare_vars(sim, inner, outer, average_synodic_terms=average_synodic_terms)
     Theta = var['Lambda2']/(m+1)
@@ -82,44 +95,51 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,jres,kres
        H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
     """
     from celmech.disturbing_function import get_fg_coeffs
-    Lambda1, lambda1, Lambda2, lambda2, Gamma1, gamma1, Gamma2, gamma2 = poincare_vars
+    Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = poincare_vars
     pratio_res = (jres-kres)/float(jres)
     alpha = pratio_res**(2./3.)
     if actionScale is None:
         actionScale = 1.
+    
+    #Lambda1, Lambda2, Gamma1, Gamma2 = np.array([Lambda1, Lambda2, Gamma1, Gamma2]) / actionScale
+
     if Lambda0s is None:
         Lambda0s=(Lambda1,Lambda2)
 
     dL1,dL2 = Lambda1-Lambda0s[0],Lambda2-Lambda0s[1]
+
     f,g = get_fg_coeffs(jres,kres)
     ff  = f / np.sqrt(Lambda0s[0])
     gg  = g / np.sqrt(Lambda0s[1])
+
+    print Gamma1 / actionScale 
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
-    
     # derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
+    print Z / actionScale, W / actionScale
     Dn1DL1,Dn2DL2 = -3 * n1 / Lambda0s[0] , -3 * n2 / Lambda0s[1]
     Pa = -dL1 / (j-k) 
     K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
     # Lambda1,Lambda2,Gamma1,Gamma2 = actionScale *  np.array([Lambda1,Lambda2,Gamma1,Gamma2])
 
-    Brouwer = Pa - Phi
-    Acoeff = Dn1DL1 * (j-k)**2 + dn2DL2 * j**2
+    Brouwer = Pa - Z
+    Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
     Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
-    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  * np.sqrt(ff*ff+gg*gg) / ( Lambda0s[1]**2 ) 
-    
-    Q = j * lambda2 - (j-k) * lambda1 + phi 
-    P = Phi
-    return [P,Q,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
+    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  * np.sqrt(ff*ff+gg*gg)**(k) / ( Lambda0s[1]**2 ) 
+    print [Ccoeff,np.sqrt(ff*ff+gg*gg)**(k),Ccoeff*(actionScale)**(k/2-1.)]
+    Q = j * lambda2 - (j-k) * lambda1 + z
+    P = Z
+    print [n1,n2]
+    return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(k/2-1.)]
     
 
-def Rotate_Poincare_Gammas_To_PhiW(Gamma1,gamma1,Gamma2,gamma2,f,g):
+def Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g):
         X1,Y1 = ActionAngleToXY(Gamma1,gamma1)
         X2,Y2 = ActionAngleToXY(Gamma2,gamma2)
         norm = np.sqrt(f*f + g*g)
         rotation_matrix = np.array([[f,g],[-g,f]]) / norm
-        PhiX,WX = np.dot(rotation_matrix , np.array([X1,X2]) )
-        PhiY,WY = np.dot(rotation_matrix , np.array([Y1,Y2]) )
-        Phi,phi = XYToActionAngle(PhiX,PhiY)
+        ZX,WX = np.dot(rotation_matrix , np.array([X1,X2]) )
+        ZY,WY = np.dot(rotation_matrix , np.array([Y1,Y2]) )
+        Z,z = XYToActionAngle(ZX,ZY)
         W,w = XYToActionAngle(WX,WY)
-        return Phi,phi,W,w
+        return Z,z,W,w
 
