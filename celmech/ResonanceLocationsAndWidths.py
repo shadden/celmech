@@ -1,4 +1,4 @@
-from celmech import disturbingfunction
+from celmech import disturbing_function as df
 import numpy as np
 
 # taken from https://en.wikipedia.org/wiki/Farey_sequence
@@ -11,18 +11,6 @@ def farey_sequence(n):
         a, b, c, d = c, d, (k*c-a), (k*d-b)
         sequence.append( (a,b) )
     return sequence
-def get_fg_coeffs(res_j,res_k):
-	"""Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
-	res_pratio = float(res_j - res_k) /float(res_j)
-	alpha = res_pratio**(2./3.)
-	Cjkl = disturbingfunction.general_order_coefficient
-	fK = Cjkl(res_j, res_k, res_k, alpha)
-	gK = Cjkl(res_j, res_k, 0 , alpha)
-	# target fn
-#	err_sq = lambda x,y: np.total([(( Cjlk(res_j,res_k,l,alpha) - binom(res_k,l)* f**(l) * g**(res_k-l) ) /  Cjlk(res_j,res_k,l,alpha))**2 for l in range(0,res_k+1)])
-	f = -1 * np.abs(fK)**(1./res_k)
-	g =      np.abs(gK)**(1./res_k)
-	return f,g
 def resonant_period_ratios(min_per_ratio,max_per_ratio,order):
 	"""Return the period ratios of all resonances up to order 'order' between 'min_per_ratio' and 'max_per_ratio' """
 	minJ = int(np.floor(1. /(1. - min_per_ratio)))
@@ -54,7 +42,7 @@ def resonance_pratio_span(mu1,mu2,Z0,res_j,res_k):
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
 	beta = mu2 / mu1 / np.sqrt(alpha)
-	f,g = get_fg_coeffs(res_j,res_k)
+	f,g = df.get_fg_coeffs(res_j,res_k)
 
 	# Pendulum approximation: 
 	#		H(P,Q) = 	(1/2)A P^2 + B cos(Q)
@@ -71,7 +59,7 @@ def pendulum_approx_coeffs(mu1,mu2,res_j,res_k):
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
 	beta = mu2 / mu1 / np.sqrt(alpha)
-	f,g = get_fg_coeffs(res_j,res_k)
+	f,g = df.get_fg_coeffs(res_j,res_k)
 	# Pendulum approximation: 
 	#		H(P,Q) = 	(1/2)A P^2 + B * Z0^k cos(Q)
 	A = 1.5 * (res_j*res_j + beta * res_j * (res_j-res_k))
