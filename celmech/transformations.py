@@ -87,7 +87,14 @@ def ActionAngleToXY(Action,angle):
 def XYToActionAngle(X,Y):
         return 0.5 * (X*X+Y*Y), np.arctan2(Y,X)
 
-def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,Lambda10,Lambda20,actionScale=None):
+def andoyer_vars_from_sim(sim, j, k, a10, a20, average_synodic_terms=False):
+    mjac, Mjac, mu = jacobi_masses_from_sim(sim)
+    pvars = pointcare_vars_from_sim(sim)
+    Phi, phi, W, w, B, K, A, B, C = poincare_vars_to_andoyer_vars(pvars, sim.G, sim.particles[0].m, mjac[1], mjac[2], j, k,a10,a20)
+    Phiscale, timescale, Phiprime = get_andoyer_params(A, B, C, k)
+    return [Phi/Phiscale, phi], [Phiscale, timescale]
+
+def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
     """
      Convert the poincare variables in Hamiltonian
        H_kep + eps * Hres
@@ -95,12 +102,11 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,Lambda10,La
        H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
     """
     from celmech.disturbing_function import get_fg_coeffs
+    Lambda10 = mIn*np.sqrt(G*Mstar*aIn0)
+    Lambda20 = mOut*np.sqrt(G*Mstar*aOut0)
     Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = poincare_vars
     pratio_res = (j-k)/float(j)
     alpha = pratio_res**(2./3.)
-    
-    if actionScale is None:
-        actionScale = 1.
     
     dL1,dL2 = Lambda1-Lambda10,Lambda2-Lambda20
     
@@ -109,7 +115,7 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,Lambda10,La
     gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
     
-   # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
+    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     n1 = mIn**3*(G*Mstar)**2/Lambda10**3
     n2 = mOut**3*(G*Mstar)**2/Lambda20**3
     Dn1DL1,Dn2DL2 = -3 * n1 / Lambda10, -3 * n2 / Lambda20
@@ -120,21 +126,21 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,Lambda10,La
     Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
     Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
     Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
-    Q = j * lambda2 - (j-k) * lambda1 + k * z
-    P = Z / k 
-    return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(k/2.-1.)]
+    phi = j * lambda2 - (j-k) * lambda1 + k * z
+    Phi = Z / k 
+    return [Phi,phi,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
 
-def get_scaled_andoyer_params(A,B,C,k):
+def get_andoyer_params(A,B,C,k):
     """
     Rescale momenta of the Hamiltonion
        H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
     by factor eta such that it can be written as
        H(p,q) = (1/2) (p-p')^2 + sqrt(p)^k cos(q)  
     """
-    eta = (C / A)**(2./(4.-k))
-    tScale = 1./(eta*A)
-    p1 = -B * tScale
-    return [eta,tScale,p1]
+    Phiscale = (C / A)**(2./(4.-k))
+    timescale = 1./(eta*A)
+    Phiprime = -B * tScale
+    return [Phiscale, timescale, Phiprime]
 
 def Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g):
         X1,Y1 = ActionAngleToXY(Gamma1,gamma1)
