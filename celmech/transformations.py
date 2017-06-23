@@ -87,7 +87,7 @@ def ActionAngleToXY(Action,angle):
 def XYToActionAngle(X,Y):
         return 0.5 * (X*X+Y*Y), np.arctan2(Y,X)
 
-def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,jres,kres,actionScale=None,Lambda0s=None):
+def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,actionScale=None,Lambda0s=None):
     """
      Convert the poincare variables in Hamiltonian
        H_kep + eps * Hres
@@ -96,7 +96,7 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,jres,kres
     """
     from celmech.disturbing_function import get_fg_coeffs
     Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = poincare_vars
-    pratio_res = (jres-kres)/float(jres)
+    pratio_res = (j-k)/float(j)
     alpha = pratio_res**(2./3.)
 
     if actionScale is None:
@@ -106,7 +106,7 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,jres,kres
 
     dL1,dL2 = Lambda1-Lambda0s[0],Lambda2-Lambda0s[1]
 
-    f,g = get_fg_coeffs(jres,kres)
+    f,g = get_fg_coeffs(j,k)
     ff  = np.sqrt(2) * f / np.sqrt(Lambda0s[0])
     gg  = np.sqrt(2) * g / np.sqrt(Lambda0s[1])
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
@@ -130,9 +130,9 @@ def get_scaled_andoyer_params(A,B,C,k):
     by factor eta such that it can be written as
        H(p,q) = (1/2) (p-p')^2 + sqrt(p)^k cos(q)  
     """
-    eta = (C / A)**(2./(2.-k))
-    tScale = eta*A
-    p1 = B / tScale
+    eta = (C / A)**(2./(4.-k))
+    tScale = 1./(eta*A)
+    p1 = -B * tScale
     return [eta,tScale,p1]
 
 def Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g):
