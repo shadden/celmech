@@ -217,4 +217,17 @@ class HamiltonianPoincare(Hamiltonian):
 
     def _get_symbols(self, index):
         return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
+    
+    @property
+    def NLambda(self):
+        return self.integrator.y[::4]
+    @property
+    def Nlambda(self):
+        return np.mod(self.integrator.y[1::4],2*np.pi)
+    @property
+    def NGamma(self):
+        return self.integrator.y[2::4]
+    @property
+    def Nlambda(self):
+        return np.mod(self.integrator.y[3::4],2*np.pi)
 
