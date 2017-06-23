@@ -49,6 +49,16 @@ class Hamiltonian(object):
         self.integrator = ode(diffeq).set_integrator('lsoda',nsteps=1e4)
         self.integrator.set_initial_value(self.initial_conditions, 0)
 
+class newAndoyerHamiltonian(Hamiltonian):
+    def __init__(self, k, NA, NB, NC, Phi0, phi0):
+        Phi, phi, A, B, C = symbols('Phi, phi, A, B, C')
+        self.pqpairs = [(Phi, phi)]
+        self.params = [A, B, C]
+        self.Nparams = [NA, NB, NC]
+        self.initial_conditions = [Phi0, phi0]
+        self.H = S(1)/2*A*Phi**2 + B*Phi + C*Phi**(k/S(2))*cos(phi)
+        self._update()
+
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, k, NPhiprime, Phi0, phi0):
         Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
