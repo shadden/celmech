@@ -31,7 +31,7 @@ def get_fg_coeffs(res_j,res_k):
 	"""Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
-	Cjkl = disturbingfunction.general_order_coefficient
+	Cjkl = general_order_coefficient
 	fK = Cjkl(res_j, res_k, res_k, alpha)
 	gK = Cjkl(res_j, res_k, 0 , alpha)
 	# target fn
