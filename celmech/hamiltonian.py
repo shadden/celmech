@@ -76,6 +76,24 @@ class HamiltonianThetas(Hamiltonian):
         self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
         print(self.pham.H)
 
+class HamiltonianCombineEccentricityTransform(Hamiltonian):
+    def __init__(self):
+        self.resonance_indices = []
+        self.integrator = None
+    def initialize_from_sim(self,sim):
+        # add sympy symbols
+        #
+        #  parameters
+        self.m = list(symbols("m0:{0}".format(sim.N)))
+        self.M = list(symbols("M0:{0}".format(sim.N)))
+        self.mu = list(symbols("mu0:{0}".format(sim.N)))
+        #  canonical variables
+        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
+        self.psi = list(symbols("psi0:{0}".format(sim.N)))
+        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
+        self.phi = list(symbols("phi0:{0}".format(sim.N)))
+        
+
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
         self.resonance_indices = []
