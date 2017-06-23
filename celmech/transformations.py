@@ -112,16 +112,16 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,actio
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     Dn1DL1,Dn2DL2 = -3 * n1 / Lambda0s[0] , -3 * n2 / Lambda0s[1]
-    Pa = -dL1 / (jres-kres) 
-    K  = ( jres * dL1 + (jres-kres) * dL2 ) / (jres-kres)
+    Pa = -dL1 / (j-k) 
+    K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
 
-    Brouwer = Pa - Z
-    Acoeff = Dn1DL1 * (jres-kres)**2 + Dn2DL2 * jres**2
-    Bcoeff = jres * n2 - (jres-kres) * n1 + Acoeff * Brouwer
+    Brouwer = Pa - Z/k
+    Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
+    Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
     Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda0s[1]**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
-    Q = jres * lambda2 - (jres-kres) * lambda1 + kres * z
-    P = Z / kres 
-    return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(kres/2.-1.)]
+    Q = j * lambda2 - (j-k) * lambda1 + k * z
+    P = Z / k 
+    return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(k/2.-1.)]
     
 def get_scaled_andoyer_params(A,B,C,k):
     """

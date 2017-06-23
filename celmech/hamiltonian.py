@@ -86,50 +86,50 @@ class HamiltonianThetas(Hamiltonian):
         self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
         print(self.pham.H)
 
-class HamiltonianCombineEccentricityTransform(Hamiltonian):
-    def __init__(self):
-        self.resonance_indices = []
-        self.integrator = None
-    def initialize_from_sim(self,sim):
-        # add sympy symbols
-        #
-        #  parameters
-        self.m = list(symbols("m0:{0}".format(sim.N)))
-        self.M = list(symbols("M0:{0}".format(sim.N)))
-        self.mu = list(symbols("mu0:{0}".format(sim.N)))
-        #  canonical variables
-        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
-        self.psi = list(symbols("psi0:{0}".format(sim.N)))
-        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
-        self.phi = list(symbols("phi0:{0}".format(sim.N)))
-    def initialize_from_PoincareHamiltonian(self,PHam):
-        # add sympy symbols
-        #
-        #  parameters
-        self.m = PHam.m
-        self.M = PHam.M
-        self.mu = Pham.mu
-        #  canonical variables
-        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
-        self.psi = list(symbols("psi0:{0}".format(sim.N)))
-        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
-        self.phi = list(symbols("phi0:{0}".format(sim.N)))
-        
-        self.H = S(0)
-        self.params = PHam.params
-        self.pqpairs = []
-        for i in range(1,PHam.N):
-            self.pqpairs.append((self.Psi[i],self.psi[i]))
-            self.pqpairs.append((self.Phi[i], self.phi[i]))
-            self.add_Hkep_term(i)
-    def add_Hkep_term(i):
-
-    def _get_symbols(self, index):
-        if i==self.N:
-            Lambda = self.Psi[i]
-        else:
-            Lambda = self.Psi[index+1] - self.Psi[index]
-        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
+#class HamiltonianCombineEccentricityTransform(Hamiltonian):
+#    def __init__(self):
+#        self.resonance_indices = []
+#        self.integrator = None
+#    def initialize_from_sim(self,sim):
+#        # add sympy symbols
+#        #
+#        #  parameters
+#        self.m = list(symbols("m0:{0}".format(sim.N)))
+#        self.M = list(symbols("M0:{0}".format(sim.N)))
+#        self.mu = list(symbols("mu0:{0}".format(sim.N)))
+#        #  canonical variables
+#        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
+#        self.psi = list(symbols("psi0:{0}".format(sim.N)))
+#        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
+#        self.phi = list(symbols("phi0:{0}".format(sim.N)))
+#    def initialize_from_PoincareHamiltonian(self,PHam):
+#        # add sympy symbols
+#        #
+#        #  parameters
+#        self.m = PHam.m
+#        self.M = PHam.M
+#        self.mu = Pham.mu
+#        #  canonical variables
+#        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
+#        self.psi = list(symbols("psi0:{0}".format(sim.N)))
+#        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
+#        self.phi = list(symbols("phi0:{0}".format(sim.N)))
+#        
+#        self.H = S(0)
+#        self.params = PHam.params
+#        self.pqpairs = []
+#        for i in range(1,PHam.N):
+#            self.pqpairs.append((self.Psi[i],self.psi[i]))
+#            self.pqpairs.append((self.Phi[i], self.phi[i]))
+#            self.add_Hkep_term(i)
+#    def add_Hkep_term(i):
+#
+#    def _get_symbols(self, index):
+#        if i==self.N:
+#            Lambda = self.Psi[i]
+#        else:
+#            Lambda = self.Psi[index+1] - self.Psi[index]
+#        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
