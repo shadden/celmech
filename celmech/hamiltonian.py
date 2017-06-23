@@ -68,7 +68,11 @@ class AndoyerHamiltonian(Hamiltonian):
         self.initial_conditions = [Phi0, phi0]
         self.H = S(1)/2*(Phi-Phiprime)**2 + Phi**(k/S(2))*cos(phi)
         self._update()
+    @classmethod
+    def from_Simulation(cls, sim, j, k):
 
+        return cls(k, NPhiprime, Phi0, phi0)
+        
 class CartesianAndoyerHamiltonian(Hamiltonian):
     def __init__(self, k, NPhiprime, Phi0, phi0):
         X,Y,Phiprime = symbols('X, Y, Phiprime')

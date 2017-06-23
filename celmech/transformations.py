@@ -87,7 +87,7 @@ def ActionAngleToXY(Action,angle):
 def XYToActionAngle(X,Y):
         return 0.5 * (X*X+Y*Y), np.arctan2(Y,X)
 
-def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,Lambda0s=None,actionScale=None):
+def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,Lambda10,Lambda20,actionScale=None):
     """
      Convert the poincare variables in Hamiltonian
        H_kep + eps * Hres
@@ -101,24 +101,18 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,Lambd
     
     if actionScale is None:
         actionScale = 1.
-    if Lambda0s is None:
-        Lambda0s=(Lambda1,Lambda2)
     
-    dL1,dL2 = Lambda1-Lambda0s[0],Lambda2-Lambda0s[1]
+    dL1,dL2 = Lambda1-Lambda10,Lambda2-Lambda20
     
     f,g = get_fg_coeffs(j,k)
     ff  = np.sqrt(2) * f / np.sqrt(Lambda10)
     gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
-    #Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
-    Dn1DL1,Dn2DL2 = -3 * n1 / Lambda0s[0] , -3 * n2 / Lambda0s[1]
     
    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     n1 = mIn**3*(G*Mstar)**2/Lambda10**3
     n2 = mOut**3*(G*Mstar)**2/Lambda20**3
     Dn1DL1,Dn2DL2 = -3 * n1 / Lambda10, -3 * n2 / Lambda20
-    Pa = -dL1 / (j-k) 
->>>>>>> bb8274d0533e0899f29aa13c64bd86e319cc9fc3
     K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
     Pa = -dL1 / (j-k) 
     Brouwer = Pa - Z/k
@@ -128,13 +122,8 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,Lambd
     Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
     Q = j * lambda2 - (j-k) * lambda1 + k * z
     P = Z / k 
-<<<<<<< HEAD
     return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(k/2.-1.)]
 
-=======
-    return [P,Q,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
-    
->>>>>>> bb8274d0533e0899f29aa13c64bd86e319cc9fc3
 def get_scaled_andoyer_params(A,B,C,k):
     """
     Rescale momenta of the Hamiltonion
