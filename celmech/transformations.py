@@ -107,23 +107,34 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,n1,n2,j,k,Lambd
     dL1,dL2 = Lambda1-Lambda0s[0],Lambda2-Lambda0s[1]
     
     f,g = get_fg_coeffs(j,k)
-    ff  = np.sqrt(2) * f / np.sqrt(Lambda0s[0])
-    gg  = np.sqrt(2) * g / np.sqrt(Lambda0s[1])
+    ff  = np.sqrt(2) * f / np.sqrt(Lambda10)
+    gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
     Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,ff,gg)
     #Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     Dn1DL1,Dn2DL2 = -3 * n1 / Lambda0s[0] , -3 * n2 / Lambda0s[1]
     
+   # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
+    n1 = mIn**3*(G*Mstar)**2/Lambda10**3
+    n2 = mOut**3*(G*Mstar)**2/Lambda20**3
+    Dn1DL1,Dn2DL2 = -3 * n1 / Lambda10, -3 * n2 / Lambda20
+    Pa = -dL1 / (j-k) 
+>>>>>>> bb8274d0533e0899f29aa13c64bd86e319cc9fc3
     K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
     Pa = -dL1 / (j-k) 
     Brouwer = Pa - Z/k
     
     Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
     Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
-    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda0s[1]**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
+    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
     Q = j * lambda2 - (j-k) * lambda1 + k * z
     P = Z / k 
+<<<<<<< HEAD
     return [P/actionScale,Q,W/actionScale ,w,Brouwer/actionScale ,K/actionScale ,Acoeff*actionScale,Bcoeff,Ccoeff*(actionScale)**(k/2.-1.)]
 
+=======
+    return [P,Q,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
+    
+>>>>>>> bb8274d0533e0899f29aa13c64bd86e319cc9fc3
 def get_scaled_andoyer_params(A,B,C,k):
     """
     Rescale momenta of the Hamiltonion
