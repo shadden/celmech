@@ -89,88 +89,116 @@ class HamiltonianThetas(Hamiltonian):
         self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
         print(self.pham.H)
 
-#class HamiltonianCombineEccentricityTransform(Hamiltonian):
-#    def __init__(self):
-#        self.resonance_indices = []
-#        self.integrator = None
-#    def initialize_from_sim(self,sim):
-#        # add sympy symbols
-#        #
-#        #  parameters
-#        self.m = list(symbols("m0:{0}".format(sim.N)))
-#        self.M = list(symbols("M0:{0}".format(sim.N)))
-#        self.mu = list(symbols("mu0:{0}".format(sim.N)))
-#        #  canonical variables
-#        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
-#        self.psi = list(symbols("psi0:{0}".format(sim.N)))
-#        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
-#        self.phi = list(symbols("phi0:{0}".format(sim.N)))
-#    def initialize_from_PoincareHamiltonian(self,PHam):
-#        # add sympy symbols
-#        #
-#        #  parameters
-#        self.m = PHam.m
-#        self.M = PHam.M
-#        self.mu = Pham.mu
-#        #  canonical variables
-#        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
-#        self.psi = list(symbols("psi0:{0}".format(sim.N)))
-#        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
-#        self.phi = list(symbols("phi0:{0}".format(sim.N)))
-#        
-#        self.H = S(0)
-#        self.params = PHam.params
-#        self.pqpairs = []
-#        for i in range(1,PHam.N):
-#            self.pqpairs.append((self.Psi[i],self.psi[i]))
-#            self.pqpairs.append((self.Phi[i], self.phi[i]))
-#            self.add_Hkep_term(i)
-#    def add_Hkep_term(i):
-#        m, M, mu, Lambda = self._get_HKep_symbols(index)
-#        self.H +=  -mu / (2 * Lambda**2)
-#    def add_resonance(self, indexIn, indexOut, j, k, l):
-#        """
-#        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
-#        Inputs:
-#        indexIn     -   index of the inner planet
-#        indexOut    -   index of the outer planet
-#        j           -   together with k specifies the MMR j:j-k
-#        k           -   order of the resonance
-#        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
-#        """
-#        # Canonical variables
-#        mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
-#        mOut, MOut, muOut, LambdaOut, lambdaOut, GammaOut, gammaOut = self._get_symbols(indexOut)
-#        
-#        # Resonance index
-#        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
-#        alpha = self.a[indexIn]/self.a[indexOut]
-#
-#        # Resonance components
-#        from celmech.disturbing_function import general_order_coefficient
-#        #
-#        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
-#        self.params.append(Cjkl)
-#        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
-#        #
-#        eccIn = sqrt(2*GammaIn/LambdaIn)
-#        eccOut = sqrt(2*GammaOut/LambdaOut)
-#        #
-#        costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
-#        #
-#        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
-#    
-#        # Keep track of resonances
-#        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
-#        # Update Hamiltonian
-#        self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
-#        self._update()
-#    def _get_HKep_symbols(self, index):
-#        if i==self.N:
-#            Lambda = self.Psi[i]
-#        else:
-#            Lambda = self.Psi[index+1] - self.Psi[index]
-#        return self.m[index], self.M[index], self.mu[index], self.Lambda[index]
+class HamiltonianCombineEccentricityTransform(Hamiltonian):
+    def __init__(self):
+        self.resonance_indices = []
+        self.integrator = None
+        self.N = 0
+    def initialize_from_sim(self,sim):
+        # add sympy symbols
+        #
+        #  parameters
+        self.m = list(symbols("m0:{0}".format(sim.N)))
+        self.M = list(symbols("M0:{0}".format(sim.N)))
+        self.mu = list(symbols("mu0:{0}".format(sim.N)))
+        #  canonical variables
+        self.Psi = list(symbols("Psi0:{0}".format(sim.N)))
+        self.psi = list(symbols("psi0:{0}".format(sim.N)))
+        self.Phi = list(symbols("Phi0:{0}".format(sim.N)))
+        self.phi = list(symbols("phi0:{0}".format(sim.N)))
+    def initialize_from_PoincareHamiltonian(self,PHam):
+        # add sympy symbols
+        #
+        #  parameters
+        self.m = PHam.m
+        self.M = PHam.M
+        self.mu = PHam.mu
+        self.N = PHam.N
+        #  canonical variables
+        self.Psi = list(symbols("Psi0:{0}".format(self.N)))
+        self.psi = list(symbols("psi0:{0}".format(self.N)))
+        self.Phi = list(symbols("Phi0:{0}".format(self.N)))
+        self.phi = list(symbols("phi0:{0}".format(self.N)))
+        
+        self.H = S(0)
+        self.params = PHam.params
+        self.pqpairs = []
+        for i in range(1,PHam.N):
+            self.pqpairs.append((self.Psi[i],self.psi[i]))
+            self.pqpairs.append((self.Phi[i], self.phi[i]))
+            self.add_Hkep_term(i)
+    
+        self.a = PHam.a # add dummy for star to match indices
+        self.Nm, self.NM, self.Nmu = PHam.Nm, PHam.NM, PHam.Nmu
+        self.Nparams = self.Nmu + self.Nm + self.NM
+        self.initial_conditions = PHam.initial_conditions
+        self._update()
+
+    def add_Hkep_term(self,index):
+        m, M, mu, Lambda = self._get_HKep_symbols(index)
+        self.H +=  -mu / (2 * Lambda**2)
+    def _get_HKep_symbols(self, index):
+        if index==1:
+            Lambda = self.Phi[index]-self.Psi[index]
+        else:
+            Lambda = self.Phi[index] - self.Psi[index] + self.Psi[index-1]
+        return self.m[index], self.M[index], self.mu[index], Lambda 
+
+    def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
+        """
+        Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -    index of the inner planet
+        indexOut    -    index of the outer planet
+        j           -    together with k specifies the MMR j:j-k
+        k           -    order of the resonance
+        """
+        for l in range(k+1):
+            self.add_single_resonance(indexIn,indexOut, j, k, l)
+
+    def add_single_resonance(self, indexIn, indexOut, j, k, l):
+        """
+        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -   index of the inner planet
+        indexOut    -   index of the outer planet
+        j           -   together with k specifies the MMR j:j-k
+        k           -   order of the resonance
+        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
+        """
+        # Canonical variables
+        assert indexOut == indexIn + 1,"Only resonances for adjacent pairs are currently supported"
+        mIn, MIn, muIn, mOut, MOut, muOut, LambdaIn, LambdaOut, psi, PhiIn, phiIn, PhiOut, phiOut = self._get_pair_symbols(indexIn,indexOut)
+        
+        # Resonance index
+        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
+        alpha = self.a[indexIn]/self.a[indexOut]
+
+        # Resonance components
+        from celmech.disturbing_function import general_order_coefficient
+        #
+        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
+        self.params.append(Cjkl)
+        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
+        #
+        eccIn = sqrt(2*PhiIn/LambdaIn)
+        eccOut = sqrt(2*PhiOut/LambdaOut)
+        #
+        costerm = cos( (j-k+l) * psi + l * phiIn + (k-l) * phiOut )
+        #
+        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
+        # Keep track of resonances
+        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
+        # Update Hamiltonian
+        self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
+        self._update()
+    def _get_pair_symbols(self,indexIn,indexOut):
+        mIn, MIn, muIn, LambdaIn = self._get_HKep_symbols(indexIn)
+        mOut, MOut, muOut, LambdaOut = self._get_HKep_symbols(indexOut)
+        psi = self.psi[indexIn]
+        PhiIn, PhiOut = self.Phi[indexIn],self.Phi[indexOut]
+        phiIn, phiOut = self.phi[indexIn],self.phi[indexOut]
+        return mIn, MIn, muIn, mOut, MOut, muOut, LambdaIn, LambdaOut, psi, PhiIn, phiIn, PhiOut, phiOut
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
