@@ -127,13 +127,51 @@ class HamiltonianThetas(Hamiltonian):
 #            self.pqpairs.append((self.Phi[i], self.phi[i]))
 #            self.add_Hkep_term(i)
 #    def add_Hkep_term(i):
+#        m, M, mu, Lambda = self._get_HKep_symbols(index)
+#        self.H +=  -mu / (2 * Lambda**2)
+#    def add_resonance(self, indexIn, indexOut, j, k, l):
+#        """
+#        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+#        Inputs:
+#        indexIn     -   index of the inner planet
+#        indexOut    -   index of the outer planet
+#        j           -   together with k specifies the MMR j:j-k
+#        k           -   order of the resonance
+#        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
+#        """
+#        # Canonical variables
+#        mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
+#        mOut, MOut, muOut, LambdaOut, lambdaOut, GammaOut, gammaOut = self._get_symbols(indexOut)
+#        
+#        # Resonance index
+#        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
+#        alpha = self.a[indexIn]/self.a[indexOut]
 #
-#    def _get_symbols(self, index):
+#        # Resonance components
+#        from celmech.disturbing_function import general_order_coefficient
+#        #
+#        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
+#        self.params.append(Cjkl)
+#        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
+#        #
+#        eccIn = sqrt(2*GammaIn/LambdaIn)
+#        eccOut = sqrt(2*GammaOut/LambdaOut)
+#        #
+#        costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
+#        #
+#        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
+#    
+#        # Keep track of resonances
+#        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
+#        # Update Hamiltonian
+#        self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
+#        self._update()
+#    def _get_HKep_symbols(self, index):
 #        if i==self.N:
 #            Lambda = self.Psi[i]
 #        else:
 #            Lambda = self.Psi[index+1] - self.Psi[index]
-#        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
+#        return self.m[index], self.M[index], self.mu[index], self.Lambda[index]
 
 class HamiltonianPoincare(Hamiltonian):
     def __init__(self):
