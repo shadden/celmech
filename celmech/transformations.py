@@ -58,10 +58,10 @@ def XYToActionAngle(X,Y):
 
 def andoyer_vars_from_sim(sim, j, k, a10, a20, i1=1, i2=2, average_synodic_terms=False):
     mjac, Mjac, mu = jacobi_masses_from_sim(sim)
-    poincare_vars = poincare_vars_from_sim(sim)
-    Phi, phi, W, w, B, K, A, B, C = poincare_vars_to_andoyer_vars(pvars, sim.G, sim.particles[0].m, mjac[1], mjac[2], j, k,a10,a20)
+    poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
+    Phi, phi, W, w, B, K, A, B, C = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, Mjac[1], mjac[1], mjac[2], j, k,a10,a20)
     Phiscale, timescale, Phiprime = get_andoyer_params(A, B, C, k)
-    return [Phi/Phiscale, phi], [Phiscale, timescale]
+    return [Phi/Phiscale, phi, W/Phiscale, w, B/Phiscale, K/Phiscale, A, B, C], [Phiscale, timescale, Phiprime]
 
 def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
     """
