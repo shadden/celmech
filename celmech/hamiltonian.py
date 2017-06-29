@@ -1,4 +1,4 @@
-from sympy import S, diff, lambdify, symbols, sqrt, cos, numbered_symbols, simplify
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify
 from scipy.integrate import ode
 import numpy as np
 import rebound
@@ -89,11 +89,140 @@ class HamiltonianThetas(Hamiltonian):
         self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
         print(self.pham.H)
 
+class HamiltonianPoincareXY(Hamiltonian):
+    def __init__(self):
+        self.resonance_indices = []
+        self.integrator = None
+        self.N = 0
+    def initialize_from_PoincareHamiltonian(self,PHam):
+        # add sympy symbols
+        #
+        #  parameters
+        self.m = PHam.m
+        self.M = PHam.M
+        self.mu = PHam.mu
+        self.N = PHam.N
+        #  canonical variables
+        self.X = list(symbols("X0:{0}".format(self.N)))
+        self.Y = list(symbols("Y0:{0}".format(self.N)))
+        self.Lambda = list(PHam.Lambda)
+        self.lam = list(PHam.lam)
+        
+        self.H = S(0)
+        self.params = list(PHam.params)
+        self.pqpairs = []
+        for i in range(1,PHam.N):
+            self.pqpairs.append((self.Lambda[i],self.lam[i]))
+            self.pqpairs.append((self.X[i], self.Y[i]))
+            self.add_Hkep_term(i)
+    
+        self.a = list(PHam.a)
+        self.Nm, self.NM, self.Nmu = list(PHam.Nm), list(PHam.NM), list(PHam.Nmu)
+        self.Nparams = self.Nmu + self.Nm + self.NM
+        pham_initial_conditions = list(PHam.initial_conditions)
+        
+        self.initial_conditions=[]
+        for i,y0 in enumerate(pham_initial_conditions):
+            if i%3==0 or i%4==0:
+                self.initial_conditions.append(y0)
+            else:
+                 self.initial_conditions.append(y0)
+        
+        self._update()
+
+    def add_Hkep_term(self,index):
+        m, M, mu, Lambda,lam,X,Y = self._get_symbols(index)
+        self.H +=  -mu / (2 * Lambda**2)
+
+    def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
+        """
+        Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -    index of the inner planet
+        indexOut    -    index of the outer planet
+        j           -    together with k specifies the MMR j:j-k
+        k           -    order of the resonance
+        """
+        for l in range(k+1):
+            self.add_single_resonance(indexIn,indexOut, j, k, l)
+
+    def add_single_resonance(self, indexIn, indexOut, j, k, l):
+        """
+        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -   index of the inner planet
+        indexOut    -   index of the outer planet
+        j           -   together with k specifies the MMR j:j-k
+        k           -   order of the resonance
+        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
+        """
+        # Canonical variables
+        assert indexOut == indexIn + 1,"Only resonances for adjacent pairs are currently supported"
+        mIn, MIn, muIn, LambdaIn,lambdaIn,XIn,YIn = self._get_symbols(indexIn)
+        mOut, MOut, muOut, LambdaOut,lambdaOut,XOut,YOut = self._get_symbols(indexOut)
+        
+        # Resonance index
+        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
+        alpha = self.a[indexIn]/self.a[indexOut]
+
+        # Resonance components
+        from celmech.disturbing_function import general_order_coefficient
+        #
+        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
+        self.params.append(Cjkl)
+        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
+        #
+        costerm = cos(j * lambdaOut  - (j-k) * lambdaIn )
+        sinterm = sin(j * lambdaOut  - (j-k) * lambdaIn )
+        #
+        from sympy import binomial, summation
+        i=symbols('i')
+        lBy2 = int(np.floor(l/2.))
+        k_l = k-l
+        k_lBy2 = int(np.floor((k_l)/2.))
+
+        if l> 0:
+            z_to_p_In_re = summation( binomial(l,(2*i)) * XIn**(l-(2*i)) * YIn**(2*i) * (-1)**(i) , (i, 0, lBy2 ))
+            z_to_p_In_im = summation( binomial(l,(2*i+1)) * XIn**(l-(2*i+1)) * YIn**(2*i+1) * (-1)**(i) , (i, 0, lBy2 ))
+        else:
+            z_to_p_In_re = 1
+            z_to_p_In_im = 0
+        if k_l>0:
+            z_to_p_Out_re = summation( binomial(k_l,(2*i)) * XOut**(k_l-(2*i)) * YOut**(2*i) * (-1)**(i) , (i, 0, k_lBy2 ))
+            z_to_p_Out_im = summation( binomial(k_l,(2*i+1)) * XOut**(k_l-(2*i+1)) * YOut**(2*i+1) * (-1)**(i) , (i, 0, k_lBy2 ))
+        else:
+            z_to_p_Out_re = 1
+            z_to_p_Out_im = 0
+        reFactor = (z_to_p_In_re * z_to_p_Out_re - z_to_p_In_im * z_to_p_Out_im) / sqrt(LambdaIn)**l / sqrt(LambdaOut)**k_l
+        imFactor = (z_to_p_In_im * z_to_p_Out_re + z_to_p_In_re * z_to_p_Out_im) / sqrt(LambdaIn)**l / sqrt(LambdaOut)**k_l
+        #
+        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
+        # Keep track of resonances
+        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
+        # Update Hamiltonian
+        self.H += prefactor * Cjkl * (reFactor * costerm - imFactor * sinterm)
+        self._update()
+    def _get_symbols(self, index):
+        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.X[index], self.Y[index]
+    @property
+    def NLambda(self):
+        return self.integrator.y[::4]
+    @property
+    def Nlambda(self):
+        return np.mod(self.integrator.y[1::4],2*np.pi)
+    @property
+    def NX(self):
+        return self.integrator.y[2::4]
+    @property
+    def NT(self):
+        return self.integrator.y[3::4]
+
 class HamiltonianCombineEccentricityTransform(Hamiltonian):
     def __init__(self):
         self.resonance_indices = []
         self.integrator = None
         self.N = 0
+        self.special_pairs = []
     def initialize_from_sim(self,sim):
         # add sympy symbols
         #
@@ -115,10 +244,14 @@ class HamiltonianCombineEccentricityTransform(Hamiltonian):
         self.mu = PHam.mu
         self.N = PHam.N
         #  canonical variables
+        self.special_indices = [ i for pair in special_pairs for i in pair ]
         self.Psi = list(symbols("Psi0:{0}".format(self.N)))
         self.psi = list(symbols("psi0:{0}".format(self.N)))
         self.Phi = list(symbols("Phi0:{0}".format(self.N)))
         self.phi = list(symbols("phi0:{0}".format(self.N)))
+       # for i in self.special_indices:
+       #     self.Phi[i]
+       #     self.phi.remove(symbols("phi0:{0}".format(i))))
         
         self.H = S(0)
         self.params = PHam.params
