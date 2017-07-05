@@ -241,3 +241,85 @@ class HamiltonianPoincare(Hamiltonian):
     def Ngamma(self):
         return np.mod(self.integrator.y[3::4],2*np.pi)
 
+class FastHamiltonianPoincare(Hamiltonian):
+    def __init__(self, sim):
+        self.initial_conditions = poincare_vars_from_sim(sim, average_synodic_terms=True)
+        self.integrator = ode(lambda s: None)
+        self.integrator.set_initial_value(self.initial_conditions, 0)
+        
+    def initialize_from_sim(self, sim):
+        self.initial_conditions = poincare_vars_from_sim(sim, average_synodic_terms=True)
+    def add_Hkep_term(self, index):
+        """
+        Add the Keplerian component of the Hamiltonian for planet ''.
+        """
+        m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
+        self.H +=  -mu / (2 * Lambda**2)
+
+    def add_single_resonance(self, indexIn, indexOut, j, k, l):
+        """
+        Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -   index of the inner planet
+        indexOut    -   index of the outer planet
+        j           -   together with k specifies the MMR j:j-k
+        k           -   order of the resonance
+        l           -   picks out the eIn^(l) * eOut^(k-l) subterm
+        """
+        # Canonical variables
+        mIn, MIn, muIn, LambdaIn, lambdaIn, GammaIn, gammaIn = self._get_symbols(indexIn)
+        mOut, MOut, muOut, LambdaOut, lambdaOut, GammaOut, gammaOut = self._get_symbols(indexOut)
+        
+        # Resonance index
+        assert l<=k, "Invalid resonance term, l must be less than or equal to k."
+        alpha = self.a[indexIn]/self.a[indexOut]
+
+        # Resonance components
+        from celmech.disturbing_function import general_order_coefficient
+        #
+        Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )
+        self.params.append(Cjkl)
+        self.Nparams.append(general_order_coefficient(j,k,l,alpha))
+        #
+        eccIn = sqrt(2*GammaIn/LambdaIn)
+        eccOut = sqrt(2*GammaOut/LambdaOut)
+        #
+        costerm = cos( j * lambdaOut - (j-k) * lambdaIn + l * gammaIn + (k-l) * gammaOut )
+        #
+        prefactor = -muOut *( mIn / MIn) / (LambdaOut**2)
+    
+        # Keep track of resonances
+        self.resonance_indices.append((indexIn,indexOut,(j,k,l)))
+        # Update Hamiltonian
+        self.H += prefactor * Cjkl * (eccIn**l) * (eccOut**(k-l)) * costerm
+        self._update()
+    
+    def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
+        """
+        Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
+        Inputs:
+        indexIn     -    index of the inner planet
+        indexOut    -    index of the outer planet
+        j           -    together with k specifies the MMR j:j-k
+        k           -    order of the resonance
+        """
+        for l in range(k+1):
+            self.add_single_resonance(indexIn,indexOut, j, k, l)
+
+    def _get_symbols(self, index):
+        return self.m[index], self.M[index], self.mu[index], self.Lambda[index], self.lam[index], self.Gamma[index], self.gamma[index]
+    
+    @property
+    def NLambda(self):
+        return self.integrator.y[::4]
+    @property
+    def Nlambda(self):
+        return np.mod(self.integrator.y[1::4],2*np.pi)
+    @property
+    def NGamma(self):
+        return self.integrator.y[2::4]
+    @property
+    def Ngamma(self):
+        return np.mod(self.integrator.y[3::4],2*np.pi)
+
+
