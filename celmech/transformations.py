@@ -123,44 +123,11 @@ def XYToActionAngle(X,Y):
 def andoyer_vars_from_sim(sim, j, k, a10, a20, i1=1, i2=2, average_synodic_terms=False):
     mjac, Mjac, mu = jacobi_masses_from_sim(sim)
     poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
-    Phi, phi, W, w, B, K, A, B, C = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, Mjac[1], mjac[1], mjac[2], j, k,a10,a20)
+    andvars, coeff = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, Mjac[1], mjac[1], mjac[2], j, k,a10,a20)
+    Phi, phi, W, w, B, K, deltalambda, lambda1 = andvars
+    A,B,C = coeff
     Phiscale, timescale, Phiprime = get_andoyer_params(A, B, C, k)
-    return [Phi/Phiscale, phi, W/Phiscale, w, B/Phiscale, K/Phiscale, A, B, C], [Phiscale, timescale, Phiprime]
-
-def poincare_vars_to_andoyer_vars2(pvars1,pvars2,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
-    """
-     Convert the poincare variables in Hamiltonian
-       H_kep + eps * Hres
-     to variables of a model Andoyer Hamiltonian for the j:j-k resonance:
-       H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
-    """
-    from celmech.disturbing_function import get_fg_coeffs
-    Lambda10 = mIn*np.sqrt(G*Mstar*aIn0)
-    Lambda20 = mOut*np.sqrt(G*Mstar*aOut0)
-    pratio_res = (j-k)/float(j)
-    alpha = pratio_res**(2./3.)
-    
-    dL1,dL2 = pvars1['Lambda']-Lambda10,pvars2['Lambda']-Lambda20
-    
-    f,g = get_fg_coeffs(j,k)
-    ff  = np.sqrt(2) * f / np.sqrt(Lambda10)
-    gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
-    Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(pvars1['Gamma'],pvars1['gamma'],pvars2['Gamma'], pvars2['gamma'],ff,gg)
-    
-    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
-    n1 = mIn**3*(G*Mstar)**2/Lambda10**3
-    n2 = mOut**3*(G*Mstar)**2/Lambda20**3
-    Dn1DL1,Dn2DL2 = -3 * n1 / Lambda10, -3 * n2 / Lambda20
-    K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
-    Pa = -dL1 / (j-k) 
-    Brouwer = Pa - Z/k
-    
-    Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
-    Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
-    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
-    phi = j * pvars2['lambda'] - (j-k) * pvars1['lambda'] + k * z
-    Phi = Z / k 
-    return [Phi,phi,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
+    return [Phi/Phiscale, phi, W/Phiscale, w, B/Phiscale, K/Phiscale, deltalambda, lambda1], [Phiscale, timescale, Phiprime]
 
 def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
     """
@@ -173,8 +140,6 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0)
     Lambda10 = mIn*np.sqrt(G*Mstar*aIn0)
     Lambda20 = mOut*np.sqrt(G*Mstar*aOut0)
     Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = poincare_vars
-    pratio_res = (j-k)/float(j)
-    alpha = pratio_res**(2./3.)
     
     dL1,dL2 = Lambda1-Lambda10,Lambda2-Lambda20
     
@@ -196,7 +161,7 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0)
     Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
     phi = j * lambda2 - (j-k) * lambda1 + k * z
     Phi = Z / k 
-    return [Phi,phi,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
+    return [Phi,phi,W,w,Brouwer,K,lambda2-lambda1,lambda1],[Acoeff,Bcoeff,Ccoeff]
 
 def get_andoyer_params(A,B,C,k):
     """
@@ -231,7 +196,11 @@ def Rotate_ZW_To_Poincare_Gammas(Z,z,W,w,f,g):
         Gamma1,gamma1 = XYToActionAngle(X1,Y1)
         Gamma2,gamma2 = XYToActionAngle(X2,Y2)
         return Gamma1,gamma1,Gamma2,gamma2
-        
+
+def andoyer_vars_to_sim(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,aOut0,lambda0s=(0,0),actionScale=None):
+    pvars = andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,aOut0,lambda0s=(0,0),actionScale=None)
+    return poincare_vars_to_sim(pvars, G, [Mstar, mIn, mOut])
+
 def my_andoyer_vars_to_poincare_vars(Phi, phi, W, w, B, a20, deltalambda, lambda1, j, k):
     from celmech.disturbing_function import get_fg_coeffs
     lambda1,lambda2 = lambda0s     
@@ -254,7 +223,7 @@ def my_andoyer_vars_to_poincare_vars(Phi, phi, W, w, B, a20, deltalambda, lambda
 
    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     return [ Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
-def andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,aOut0,lambda0s=(0,0),actionScale=None):
+def andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,aOut0,actionScale=None):
     """
      Convert the poincare variables in Hamiltonian
        H_kep + eps * Hres
@@ -262,11 +231,11 @@ def andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,a
        H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
     """
     from celmech.disturbing_function import get_fg_coeffs
-    P,Q,W,w,Brouwer,K,Acoeff,Bcoeff,Coeff = andoyer_vars
+    P,Q,W,w,Brouwer,K,deltalambda,lambda1 = andoyer_vars
+    lambda2 = lambda1 + deltalambda
     if actionScale is None:
         actionScale = 1.
     P,W,Brouwer,K = np.array([P,W,Brouwer,K]) * actionScale
-    lambda1,lambda2 = lambda0s     
     Z = k*P
     # ! Need to specify lambdas
     z = np.mod( (Q - j * lambda2 + (j-k)*lambda1) / k ,2*np.pi)
