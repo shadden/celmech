@@ -1,9 +1,34 @@
 from celmech import disturbing_function
 import numpy as np
+from collections import OrderedDict
 from sympy import S
 from celmech.disturbing_function import laplace_coefficient 
 from itertools import combinations
+import rebound
 
+'''
+class cartesianvars():
+    def __init__(self, N):
+        self.__dict = {0s}
+        self.scales = {'p':1, 'q':1, 't':1}
+
+def cart_to_poin(G, m, cart)
+
+def poin_to_cart(G, m, cart)
+
+
+
+class vars():
+    def __init__
+    def from_sim(G, physical masses, cartesianvars, scales)
+    def to_sim (G, phyisical masses, poincarevars, scales)
+    def set
+    def
+
+class andoyer():
+    def from_sim(G, physical masses, cartesianvars, scales)
+    def to_sim(G, physical masses, andoyervars, scales)
+'''
 def jacobi_masses_from_sim(sim):
     ps = sim.particles
     mjac, Mjac, mu = np.zeros(sim.N), np.zeros(sim.N), np.zeros(sim.N)
@@ -14,6 +39,32 @@ def jacobi_masses_from_sim(sim):
         mu[i] = sim.G**2*Mjac[i]**2*mjac[i]**3 # Deck (2013) notation
     mjac[0] = interior_mass
     return list(mjac), list(Mjac), list(mu)
+
+def jacobi_masses(masses):
+    N = len(masses)
+    mjac, Mjac, mu = np.zeros(N), np.zeros(N), np.zeros(N)
+    interior_mass = masses[0]
+    for i in range(1,N):
+        mjac[i] = masses[i]*interior_mass/(masses[i]+interior_mass) # reduced mass with interior mass
+        Mjac[i] = masses[0]*(masses[i]+interior_mass)/interior_mass # mjac[i]*Mjac[i] always = m[i]*m[0]
+    mjac[0] = interior_mass
+    return list(mjac), list(Mjac)
+
+def poincare_vars_from_sim2(sim, average_synodic_terms=False):
+    ps = sim.particles
+    mjac, Mjac, mu = jacobi_masses_from_sim(sim)
+    pvars = [OrderedDict() for i in range(sim.N)]
+    for i in range(1,sim.N):
+        Lambda = mjac[i]*np.sqrt(sim.G*Mjac[i]*ps[i].a)
+        pvars[i]['Lambda'] = Lambda
+        pvars[i]['lambda'] = ps[i].l
+        pvars[i]['Gamma'] = Lambda*(1.-np.sqrt(1.-ps[i].e**2))
+        pvars[i]['gamma'] = -ps[i].pomega
+    if average_synodic_terms is True:    
+        pairs = combinations(range(1,sim.N), 2)
+        for i1, i2 in pairs:
+            pvars[i1]['Lambda'], pvars[i2]['Lambda'] = synodic_Lambda_correction(sim, i1, i2, pvars[i1]['Lambda'], pvars[i2]['Lambda']) 
+    return pvars
 
 def poincare_vars_from_sim(sim, average_synodic_terms=False):
     ps = sim.particles
@@ -31,6 +82,19 @@ def poincare_vars_from_sim(sim, average_synodic_terms=False):
             pvars[4*(i1-1)], pvars[4*(i2-1)] = synodic_Lambda_correction(sim, i1, i2, pvars[4*(i1-1)], pvars[4*(i2-1)])
 
     return pvars
+
+def poincare_vars_to_sim(pvars, G, masses, average_synodic_terms=False):
+    mjac, Mjac = jacobi_masses(masses) 
+    sim = rebound.Simulation()
+    sim.G = G
+    sim.add(m=masses[0])
+    for i in range(1, len(masses)):
+        Lambda, l, Gamma, gamma = pvars[4*(i-1):4*i]
+        a = Lambda**2/mjac[i]**2/G/Mjac[i]
+        e = np.sqrt(1.-(1.-Gamma/Lambda)**2)
+        sim.add(m=masses[i], a=a, e=e, pomega=-gamma, l=l)
+    sim.move_to_com()
+    return sim
 
 def synodic_Lambda_correction(sim, i1, i2, Lambda1, Lambda2):
     """
@@ -62,6 +126,41 @@ def andoyer_vars_from_sim(sim, j, k, a10, a20, i1=1, i2=2, average_synodic_terms
     Phi, phi, W, w, B, K, A, B, C = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, Mjac[1], mjac[1], mjac[2], j, k,a10,a20)
     Phiscale, timescale, Phiprime = get_andoyer_params(A, B, C, k)
     return [Phi/Phiscale, phi, W/Phiscale, w, B/Phiscale, K/Phiscale, A, B, C], [Phiscale, timescale, Phiprime]
+
+def poincare_vars_to_andoyer_vars2(pvars1,pvars2,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
+    """
+     Convert the poincare variables in Hamiltonian
+       H_kep + eps * Hres
+     to variables of a model Andoyer Hamiltonian for the j:j-k resonance:
+       H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
+    """
+    from celmech.disturbing_function import get_fg_coeffs
+    Lambda10 = mIn*np.sqrt(G*Mstar*aIn0)
+    Lambda20 = mOut*np.sqrt(G*Mstar*aOut0)
+    pratio_res = (j-k)/float(j)
+    alpha = pratio_res**(2./3.)
+    
+    dL1,dL2 = pvars1['Lambda']-Lambda10,pvars2['Lambda']-Lambda20
+    
+    f,g = get_fg_coeffs(j,k)
+    ff  = np.sqrt(2) * f / np.sqrt(Lambda10)
+    gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
+    Z,z,W,w = Rotate_Poincare_Gammas_To_ZW(pvars1['Gamma'],pvars1['gamma'],pvars2['Gamma'], pvars2['gamma'],ff,gg)
+    
+    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
+    n1 = mIn**3*(G*Mstar)**2/Lambda10**3
+    n2 = mOut**3*(G*Mstar)**2/Lambda20**3
+    Dn1DL1,Dn2DL2 = -3 * n1 / Lambda10, -3 * n2 / Lambda20
+    K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
+    Pa = -dL1 / (j-k) 
+    Brouwer = Pa - Z/k
+    
+    Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
+    Bcoeff = j * n2 - (j-k) * n1 + Acoeff * Brouwer
+    Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
+    phi = j * pvars2['lambda'] - (j-k) * pvars1['lambda'] + k * z
+    Phi = Z / k 
+    return [Phi,phi,W,w,Brouwer,K,Acoeff,Bcoeff,Ccoeff]
 
 def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0,aOut0):
     """
