@@ -111,6 +111,7 @@ def get_andoyer_params(A,B,C,k):
     Phiprime = -B * timescale
     return [Phiscale, timescale, Phiprime]
 
+
 def Rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g):
         X1,Y1 = ActionAngleToXY(Gamma1,gamma1)
         X2,Y2 = ActionAngleToXY(Gamma2,gamma2)
@@ -189,3 +190,28 @@ def andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,a
    # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
     return [ Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
 
+# Functions for solving for the equilibrium points of first-order MMRs
+def first_order_equilibrium_p(p1):
+    """
+    Determine the value, p*, of stable equilibirium point of hamiltonian 
+        h(p,q) = (1/2) * (p-p1)^2 + sqrt(p) * cos(q)
+    so that dh(p*,pi)/dp = 0.
+    """
+    alpha = 2**(4./3.) *  p1 / 3.
+    assert alpha >= 1.0 , "No separatrix present for 'p1' value"
+    xstar = np.sqrt(alpha) * np.cos( np.arccos(-1 * alpha**(-1.5) ) / 3. + 2 * np.pi / 3. ) 
+    pstar =  xstar * xstar * 2**(2./3.)
+    return pstar
+def get_p1_value(p_eq):
+    """
+    Solve for the value of parameter p1 in hamiltonian
+        h(p,q) = (1/2) * (p-p1)^2 + sqrt(p) * cos(q)
+    such that p_eq is the (stable) equilibrium value of p
+    """
+    from scipy.optimize import brentq
+    # Search range over p1
+    p1min = 3. * 2**(-4./3.) + 1e-14
+    p1max = 1.5 * p_eq
+    # find p1 value that corresponds to equilibrium p_eq
+    rootfn = lambda x: p_eq - first_order_equilibrium_p(x)
+    return brentq(rootfn,p1min,p1max)
