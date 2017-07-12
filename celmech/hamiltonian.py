@@ -12,7 +12,16 @@ class Ham():
         self.vars
         self.params
 need vars and params for transfor
+
+pqpairs = [(x,px), (y,py)]
+initial_conditions = [1,5,3,5]
+params = [m, G, k]
+Nparams = [3, 4, 5]
+H = p^2/2m + 1/2kx^2
+
+{x:1, px:5, 
 '''
+
 
 class Hamiltonian(object):
     def __init__(self, H, pqpairs, params, initial_conditions=None, Nparams=None):
@@ -74,15 +83,15 @@ class Hamiltonian(object):
         self.integrator = ode(diffeq).set_integrator('lsoda')
         self.integrator.set_initial_value(list(self.y.values()), 0)
 
-class newAndoyerHamiltonian(Hamiltonian):
-    def __init__(self, k, NA, NB, NC, Phi0, phi0):
-        Phi, phi, A, B, C = symbols('Phi, phi, A, B, C')
-        self.pqpairs = [(Phi, phi)]
-        self.params = [A, B, C]
-        self.Nparams = [NA, NB, NC]
-        self.initial_conditions = [Phi0, phi0]
-        self.H = S(1)/2*A*Phi**2 + B*Phi + C*Phi**(k/S(2))*cos(phi)
-        self._update()
+class EquibAndoyerHamiltonian(Hamiltonian):
+    def __init__(self, k, NPhiprime, Phi0, phi0):
+        Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
+        pqpairs = [(Phi, phi)]
+        params = [Phiprime]
+        Nparams = [NPhiprime]
+        initial_conditions = [Phi0, phi0]
+        H = S(4)*Phi**2 - 3*Phiprime*Phi + (S(2)*Phi)**(k/S(2))*cos(phi)
+        super(EquibAndoyerHamiltonian, self).__init__(H, pqpairs, params, initial_conditions, Nparams)
 
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, k, NPhiprime, Phi0, phi0):
