@@ -125,7 +125,7 @@ def ActionAngleToXY(Action,angle):
 def XYToActionAngle(X,Y):
         return 0.5 * (X*X+Y*Y), np.arctan2(Y,X)
 
-def equib_andoyer_vars_from_sim(sim, j, k, a10, a20, i1=1, i2=2, average_synodic_terms=False):
+def equib_andoyer_vars_from_sim(sim, j, k, a10, i1=1, i2=2, average_synodic_terms=False):
     mjac, Mjac, mu = jacobi_masses_from_sim(sim)
     ps = sim.particles
     poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
@@ -198,71 +198,108 @@ def poincare_vars_to_andoyer_vars(poincare_vars,G,Mstar,mIn,mOut,j,k,aIn0):
     Bcoeff = j * n20 - (j-k) * n10 + Acoeff * Brouwer
     Ccoeff = -1 * G**2 * Mstar * mOut**3 * mIn  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
     return [Phi,phi,W,w,Brouwer,K,lambda2-lambda1,lambda1],[Acoeff,Bcoeff,Ccoeff]
-
-def my_andoyer_vars_to_poincare_vars(andvars, G, masses, a10, a20, j, k):
-    from celmech.disturbing_function import get_fg_coeffs
-    Phi, phi, W, w, B, K, deltalambda, lambda1 = andvars
-    lambda2 = lambda1 + deltalambda
-    Z = k*Phi
-    theta = j*deltalambda + k*lambda1 # jlambda2 - (j-k)lambda1
-    z = np.mod( (phi - theta) / k ,2*np.pi)
-    Pa = B + Z/float(k)
+def my_andoyer_vars_to_poincare_vars(v, G, masses, a10, j, k):
+    lambda2 = v.lambda1 + v.deltalambda
+    Z = k*v.Phi
+    theta = j*v.deltalambda + k*v.lambda1 # jlambda2 - (j-k)lambda1
+    z = np.mod( (v.phi - theta) / k ,2*np.pi)
+    Pa = v.Brouwer + Z/float(k)
     dL1 = -Pa*(j-k)    
-    dL2 =((j-k) * K - j * dL1)/(j-k) 
-    Lambda10 = masses[1]*np.sqrt(G*masses[0]*a10)
-    Lambda20 = masses[2]*np.sqrt(G*masses[0]*a20)
-    Lambda0s = [Lambda10, Lambda20]
-    Lambda1,Lambda2 = Lambda0s[0]+dL1, Lambda0s[1]+dL2 
-    #print('my')
-    #print(Phi, B)
-    #print(dL1/Lambda10, dL2/Lambda20)
-    #print(K)
+    dL2 =((j-k) * v.K - j * dL1)/(j-k) 
 
-    from celmech.disturbing_function import get_fg_coeffs
+    p = get_andoyer_params(G, masses, j, k, a10)
+    Lambda1 = p['Lambda10']+dL1
+    Lambda2 = p['Lambda20']+dL2 
+
+    Gamma1,gamma1,Gamma2,gamma2 = Rotate_ZW_To_Poincare_Gammas(Z,z,v.W,v.w,p['ff'],p['gg'])
+    return [ Lambda1, v.lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
+
+# Phix Phiy Wx Wy K B deltalambda lambda1
+class AndoyerVars(object):
+    def __init__(self, Phix=0., Phiy=0., Wx=0., Wy=0., Brouwer=0.,K=0.,deltalambda=np.pi, lambda1=0., a10=1., Phiprime=0., Phiscale=1., timescale=1.): 
+        self.state = OrderedDict([('Phix', Phix), 
+                        ('Phiy', Phiy), 
+                        ('Wx', Wx), 
+                        ('Wy', Wy), 
+                        ('Brouwer', Brouwer), 
+                        ('K', K), 
+                        ('deltalambda', deltalambda), 
+                        ('lambda1', lambda1)])
+        self.params = OrderedDict([('Phiprime', Phiprime), ('a10', a10), ('Phiscale', Phiscale), ('timescale', timescale)])
+
+    @property
+    def Phix(self):
+        return self.state['Phix'] 
+    @property
+    def Phiy(self):
+        return self.state['Phiy'] 
+    @property
+    def Wx(self):
+        return self.state['Wx'] 
+    @property
+    def Wy(self):
+        return self.state['Wy'] 
+    @property
+    def Brouwer(self):
+        return self.state['Brouwer'] 
+    @property
+    def K(self):
+        return self.state['K'] 
+    @property
+    def deltalambda(self):
+        return self.state['deltalambda'] 
+    @property
+    def lambda1(self):
+        return self.state['lambda1'] 
+    @property
+    def Phi(self):
+        return np.sqrt(self.state['Phix']**2 + self.state['Phiy']**2)
+    @property
+    def phi(self):
+        return np.arctan2(self.state['Phiy'], self.state['Phix'])
+    @property
+    def W(self):
+        return np.sqrt(self.state['Wx']**2 + self.state['Wy']**2)
+    @property
+    def w(self):
+        return np.arctan2(self.state['Wy'], self.state['Wx'])
+
+def get_andoyer_params(G, masses, j, k, a10):
+    p = {'a10':a10}
+    p['a20'] = a10*(j/(j-k))**(2./3.)
+    p['Lambda10'] = masses[1]*np.sqrt(G*masses[0]*p['a10'])
+    p['Lambda20'] = masses[2]*np.sqrt(G*masses[0]*p['a20'])
+    p['n10'] = masses[1]**3*(G*masses[0])**2/p['Lambda10']**3
+    p['n20'] = masses[2]**3*(G*masses[0])**2/p['Lambda20']**3
+    Dn1DL1 = -3. * p['n10']/ p['Lambda10']
+    Dn2DL2 = -3. * p['n20'] / p['Lambda20']
     f,g = get_fg_coeffs(j,k)
-    ff  = np.sqrt(2) * f / np.sqrt(Lambda0s[0])
-    gg  = np.sqrt(2) * g / np.sqrt(Lambda0s[1])
-    Gamma1,gamma1,Gamma2,gamma2 = Rotate_ZW_To_Poincare_Gammas(Z,z,W,w,ff,gg)
-
-   # Derivatives of mean motions w.r.t. Lambdas evaluated at Lambda0s
-    return [ Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
+    p['ff']  = np.sqrt(2)*f/np.sqrt(p['Lambda10'])
+    p['gg']  = np.sqrt(2)*g/np.sqrt(p['Lambda20'])
+    fac = np.sqrt(2.*k*(p['ff']**2+p['gg']**2))**k
+    p['Acoeff'] = Dn1DL1*(j-k)**2 + Dn2DL2*j**2
+    p['Ccoeff'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
+    p['Phiscale'] = 2.**((k-6.)/(k-4.))*(p['Ccoeff']/p['Acoeff'])**(2./(4.-k))
+    p['timescale'] = 8./(p['Phiscale']*p['Acoeff'])
+    p['Delta'] = (j-k)*p['n10']/(j*p['n20'])-1. # Lithwick et al. 2011 Eq 6
+    return p
 
 def setup_res(G, masses, j, k, Phistar, a10=1., libfac=0., W=0., w=0., K=0.,deltalambda=np.pi, lambda1=0.):
-    a20 = a10*(j/(j-k))**(2./3.)
-    Lambda10 = masses[1]*np.sqrt(G*masses[0]*a10)
-    Lambda20 = masses[2]*np.sqrt(G*masses[0]*a20)
-    Lambda0s = [Lambda10, Lambda20]
-    n10 = masses[1]**3*(G*masses[0])**2/Lambda10**3
-    n20 = masses[2]**3*(G*masses[0])**2/Lambda20**3
-    Dn1DL1,Dn2DL2 = -3 * n10 / Lambda10, -3 * n20 / Lambda20
-    f,g = get_fg_coeffs(j,k)
-    ff  = np.sqrt(2) * f / np.sqrt(Lambda10)
-    gg  = np.sqrt(2) * g / np.sqrt(Lambda20)
-    norm = np.sqrt(ff*ff+gg*gg)**k
-    Acoeff = Dn1DL1 * (j-k)**2 + Dn2DL2 * j**2
-    Ccoeff = -1 * G**2 * masses[0] * masses[2]**3 * masses[1]  / ( Lambda20**2 ) * ( np.sqrt(ff*ff+gg*gg)**k * np.sqrt(2*k)**k )
-    Phiscale = 2.**((k-6.)/(k-4.))*(Ccoeff / Acoeff)**(2./(4.-k))
-    timescale = 8./(Phiscale*Acoeff)
-    
-    W *= Phiscale
-    K *= Phiscale
-    
+    p = get_andoyer_params(G, masses, j,k, a10)
     Phi = Phistar
     Xstar = np.sqrt(2*Phistar)
     alpha = get_second_order_phiprime(Xstar)
-    Bcoeff = -3.*alpha/timescale
-    Brouwer = (Bcoeff - (j*n20 - (j-k)*n10))/Acoeff
-
+    Bcoeff = -3.*alpha/p['timescale']
+    Brouwer = (Bcoeff + j*p['n20']*p['Delta'])/p['Acoeff']#- (j*n20 - (j-k)*n10))/Acoeff
+    Brouwer /= p['Phiscale']
+    Phiprime = -Bcoeff * p['timescale']/3.
     phi = np.pi
     
     #print("setup", Phi, Brouwer, '*')
 
-    Phi = Phistar*Phiscale
-    #Brouwer *= Phiscale
-    
-    andvars=[Phi,phi,W,w,Brouwer,K,deltalambda,lambda1]
+    andvars=AndoyerVars(Phi*np.cos(phi), Phi*np.sin(phi), W*np.cos(w), W*np.sin(w), Brouwer, K, deltalambda, lambda1, a10, Phiprime=0., Phiscale=p['Phiscale'], timescale=p['timescale'])
     #print(andvars)
-    pvars = my_andoyer_vars_to_poincare_vars(andvars, G, masses, a10, a20, j, k) 
+    pvars = my_andoyer_vars_to_poincare_vars(andvars, G, masses, a10, j, k) 
     #print(pvars)
     sim = poincare_vars_to_sim(pvars, G, masses)
     #print(poincare_vars_from_sim(sim))
@@ -280,7 +317,7 @@ def get_equib_andoyer_params(A,B,C,k):
     Phiprime = -B * timescale/3.
     return [Phiscale, timescale, Phiprime]
 
-def get_andoyer_params(A,B,C,k):
+def get_andoyer_params2(A,B,C,k):
     """
     Rescale momenta of the Hamiltonion
        H(p,q) = (1/2) A * (p)^2 +B p + C sqrt(p)^k cos(q)
@@ -367,7 +404,6 @@ def andoyer_vars_to_poincare_vars(andoyer_vars,G,Mstar,mIn,mOut,n1,n2,j,k,aIn0,a
     Lambda20 = mOut*np.sqrt(G*Mstar*aOut0)
     Lambda0s = [Lambda10, Lambda20]
     Lambda1,Lambda2 = Lambda0s[0]+dL1, Lambda0s[1]+dL2 
-    from celmech.disturbing_function import get_fg_coeffs
     f,g = get_fg_coeffs(j,k)
     ff  = np.sqrt(2) * f / np.sqrt(Lambda0s[0])
     gg  = np.sqrt(2) * g / np.sqrt(Lambda0s[1])

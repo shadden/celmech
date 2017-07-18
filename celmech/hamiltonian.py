@@ -22,7 +22,6 @@ H = p^2/2m + 1/2kx^2
 {x:1, px:5, 
 '''
 
-
 class Hamiltonian(object):
     def __init__(self, H, pqpairs, params, initial_conditions=None, Nparams=None):
         self._pqpairs = pqpairs
