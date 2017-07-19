@@ -1,3 +1,4 @@
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from scipy.integrate import quad
@@ -39,3 +40,55 @@ def get_fg_coeffs(res_j,res_k):
 	f = -1 * np.abs(fK)**(1./res_k)
 	g =      np.abs(gK)**(1./res_k)
 	return f,g
+
+def Xlm0(l,m,e):
+    """ 
+        Get a closed-form expression for the Hansen coefficient X^(l,m)_0
+        which appears in the secular component of the disturbing function (e.g., Mardling 2013) 
+    """
+    a =  (m-l-1) / S(2)
+    b = a + 1/ S(2)
+    c = m + 1
+    fn = hyperexpand(hyper([a,b],[c],e*e))
+    return (-e / 2)**m * binomial(l+m+1,m) * fn
+
+def secular_eps_l_Df_m(l,m,e,e1):
+    """
+        Get the secularly-averaged value of 
+            eps^l * exp[ i*m*(f'-f) ] 
+        where l and m are integers, f' and f are true anamolies, and
+            eps =  (r/a) / (r'/a')  - 1
+        where r and a are radial distance and semi-major axis.
+    """
+    s = 0
+    for i in range(l+1):
+        s = s + binomial(l,i)*(-1)**(l-i) * Xlm0(i,m,e) * Xlm0(-i-1,m,e1)
+    return s
+def secular_DF_harmonic_term(e,e1,dw,m,order):
+    s = 0
+    b = Function('b') 
+    alpha = symbols('alpha')
+    if order%2==0:
+        maxk = order + 1
+    else:
+        maxk=order
+    for i in range(maxk):
+     s = s + alpha**i *  b(1/S(2),m,i) / factorial(i) * secular_eps_l_Df_m(i,m,e,e1)
+    return s * cos(m*dw)
+def secular_DF_full(e,e1,w,w1,order):
+    s = 0
+    dw = w1 - w
+    maxM = int( np.floor( order / 2.) )
+    for i in range(maxM+1):
+        s = s + secular_DF_harmonic_term(e,e1,dw,i,order) 
+    return s
+def secular_DF_taylor(e,e1,w,w1,order):
+    s = 0
+    dw = w1 - w
+    eps = S('epsilon')
+    maxM = int( np.floor( order / 2.) )
+    for i in range(maxM+1):
+        term = secular_DF_harmonic_term(eps*e,eps*e1,dw,i,order) 
+        term = term.series(eps,0,order+1).removeO()
+        s = s + term  
+    return s.subs(eps,1)
