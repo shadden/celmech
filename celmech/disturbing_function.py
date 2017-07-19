@@ -75,10 +75,20 @@ def secular_DF_harmonic_term(e,e1,dw,m,order):
     for i in range(maxk):
      s = s + alpha**i *  b(1/S(2),m,i) / factorial(i) * secular_eps_l_Df_m(i,m,e,e1)
     return s * cos(m*dw)
-def secular_DF(e,e1,w,w1,order):
+def secular_DF_full(e,e1,w,w1,order):
     s = 0
     dw = w1 - w
     maxM = int( np.floor( order / 2.) )
     for i in range(maxM+1):
         s = s + secular_DF_harmonic_term(e,e1,dw,i,order) 
     return s
+def secular_DF_taylor(e,e1,w,w1,order):
+    s = 0
+    dw = w1 - w
+    eps = S('epsilon')
+    maxM = int( np.floor( order / 2.) )
+    for i in range(maxM+1):
+        term = secular_DF_harmonic_term(eps*e,eps*e1,dw,i,order) 
+        term = term.series(eps,0,order+1).removeO()
+        s = s + term  
+    return s.subs(eps,1)
