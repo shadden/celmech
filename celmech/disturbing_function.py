@@ -1,3 +1,4 @@
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from scipy.integrate import quad
@@ -39,3 +40,10 @@ def get_fg_coeffs(res_j,res_k):
 	f = -1 * np.abs(fK)**(1./res_k)
 	g =      np.abs(gK)**(1./res_k)
 	return f,g
+
+def Xlm0(l,m,e):
+    a =  (m-l-1) / S(2)
+    b = a + 1/ S(2)
+    c = m + 1
+    fn = hyperexpand(hyper([a,b],[c],e*e))
+    return (-e / 2)**m * binomial(l+m+1,m) * fn
