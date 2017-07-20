@@ -43,7 +43,7 @@ def get_fg_coeffs(res_j,res_k):
 
 def Xlm0(l,m,e):
     """ 
-        Get a closed-form expression for the Hansen coefficient X^(l,m)_0
+        Get the closed-form expression for the Hansen coefficient X^(l,m)_0
         which appears in the secular component of the disturbing function (e.g., Mardling 2013) 
     """
     a =  (m-l-1) / S(2)
@@ -75,16 +75,16 @@ def secular_DF_harmonic_term(e,e1,dw,m,order):
     for i in range(maxk):
      s = s + alpha**i *  b(1/S(2),m,i) / factorial(i) * secular_eps_l_Df_m(i,m,e,e1)
     return s * cos(m*dw)
-def secular_DF_full(e,e1,w,w1,order):
+def secular_DF(e,e1,w,w1,order):
+    """ 
+    Return the secular component of the disturbing function for coplanet planets up to
+    the specified order in the planets' eccentricities for an inner plaent with eccentricity 
+    and longitude of periapse (e,w) and outer planet eccentricity/longitude of periape (e1,w1)
+    """
     s = 0
     dw = w1 - w
-    maxM = int( np.floor( order / 2.) )
-    for i in range(maxM+1):
-        s = s + secular_DF_harmonic_term(e,e1,dw,i,order) 
-    return s
-def secular_DF_taylor(e,e1,w,w1,order):
-    s = 0
-    dw = w1 - w
+    # Introduce `eps' as order parameter multiplying eccentricities. 
+    # 'eps' is set to 1 at teh end of calculation.
     eps = S('epsilon')
     maxM = int( np.floor( order / 2.) )
     for i in range(maxM+1):
@@ -92,3 +92,15 @@ def secular_DF_taylor(e,e1,w,w1,order):
         term = term.series(eps,0,order+1).removeO()
         s = s + term  
     return s.subs(eps,1)
+def secular_DF_full(e,e1,w,w1,order):
+    """ 
+    Same as 'secular_DF' but uses the full expression for the Hansen coefficients that enter
+    the disturbing function. While these expressions are typically more complicated when written
+    in terms of eccentricity, they may be simpler when written in terms of canoncial momenta.
+    """
+    s = 0
+    dw = w1 - w
+    maxM = int( np.floor( order / 2.) )
+    for i in range(maxM+1):
+        s = s + secular_DF_harmonic_term(e,e1,dw,i,order) 
+    return s
