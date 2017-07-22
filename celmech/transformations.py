@@ -167,22 +167,6 @@ class AndoyerVars(object):
             self.state[action] *= scale
     
     @property
-    def Acoeff(self):
-        p = get_andoyer_params(G, masses, j,k, a10)
-        return p['Acoeff']
-    @property
-    def Bcoeff(self):
-        p = get_andoyer_params(G, masses, j,k, a10)
-        return p['Acoeff']*self.Brouwer - j*p['n20']*p['Delta']
-    @property
-    def Ccoeff(self):
-        p = get_andoyer_params(G, masses, j,k, a10)
-        return p['Ccoeff']
-    @property
-    def Phiprime(self):
-        p = get_andoyer_params(G, masses, j,k, a10)
-        return -self.Bcoeff * p['timescale']/3.
-    @property
     def Phix(self):
         return self.state['Phix'] 
     @property
@@ -219,6 +203,11 @@ class AndoyerVars(object):
     def w(self):
         return np.arctan2(self.state['Wy'], self.state['Wx'])
 
+def andoyer_phiprime(andvars, G, masses, j, k, a10):
+    p = get_andoyer_params(G, masses, j,k, a10)
+    Bcoeff = p['Acoeff']*andvars.Brouwer
+    return -Bcoeff*p['timescale']/3.
+
 def get_andoyer_params(G, masses, j, k, a10):
     p = {'a10':a10}
     p['a20'] = a10*(j/(j-k))**(2./3.)
@@ -236,7 +225,6 @@ def get_andoyer_params(G, masses, j, k, a10):
     p['Ccoeff'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
     p['Phiscale'] = 2.**((k-6.)/(k-4.))*(p['Ccoeff']/p['Acoeff'])**(2./(4.-k))
     p['timescale'] = 8./(p['Phiscale']*p['Acoeff'])
-    p['Delta'] = (j-k)*p['n10']/(j*p['n20'])-1. # Lithwick et al. 2011 Eq 6
     return p
 
 def setup_res(G, masses, j, k, Phistar, a10=1., libfac=0., W=0., w=0., K=0.,deltalambda=np.pi, lambda1=0.):
@@ -245,7 +233,7 @@ def setup_res(G, masses, j, k, Phistar, a10=1., libfac=0., W=0., w=0., K=0.,delt
     Xstar = np.sqrt(2*Phistar)
     alpha = get_second_order_phiprime(Xstar)
     Bcoeff = -3.*alpha/p['timescale']
-    Brouwer = (Bcoeff + j*p['n20']*p['Delta'])/p['Acoeff']
+    Brouwer = Bcoeff/p['Acoeff']
     Brouwer /= p['Phiscale']
     phi = np.pi
     

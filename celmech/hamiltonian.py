@@ -5,40 +5,12 @@ import numpy as np
 import rebound
 from celmech.transformations import jacobi_masses_from_sim, poincare_vars_from_sim
 from celmech.disturbing_function import laplace_coefficient
-'''
-class Ham():
-    def __init__():
-        self.pqpairs
-        self.vars
-        self.params
-need vars and params for transfor
-
-pqpairs = [(x,px), (y,py)]
-initial_conditions = [1,5,3,5]
-params = [m, G, k]
-Nparams = [3, 4, 5]
-H = p^2/2m + 1/2kx^2
-
-{x:1, px:5, 
-'''
 
 class Hamiltonian(object):
-    def __init__(self, H, pqpairs, params, initial_conditions=None, Nparams=None):
-        self._pqpairs = pqpairs
-        self.y = OrderedDict()
-        self.params = OrderedDict()
-        for pqpair in self._pqpairs:
-            p,q = pqpair
-            self.y[p.name] = 0.
-            self.y[q.name] = 0.
-        for param in params:
-            self.params[param.name] = None
-        if initial_conditions is not None:
-            self.set_y(initial_conditions)
-        if Nparams is not None:
-            self.set_params(Nparams)
+    def __init__(self, H, initial_conditions, params):
+        self.y = initial_conditions
+        self.params = params
         self.H = H
-        self._update()
 
     def set_y(self, values):
         for i, key in enumerate(self.y.keys()):
@@ -49,6 +21,8 @@ class Hamiltonian(object):
             self.params[key] = values[i]
 
     def integrate(self, time):
+        if not hasattr(self, 'Nderivs'):
+            self._update()
         if time > self.integrator.t:
             try:
                 self.integrator.integrate(time)
@@ -58,22 +32,20 @@ class Hamiltonian(object):
             self.y[key] = self.integrator.y[i]
 
     def _update(self):
+        self.NH = self.H
+        for param in self.params.keys():
+            self.NH = self.NH.subs(param, self.params[param])
+        
         self.derivs = {}
-        for pqpair in self._pqpairs:
-            p,q = pqpair
+        self.Nderivs = []
+        var = list(self.y.keys())
+        for i in range(0, len(var), 2):
+            p = var[i]
+            q = var[i+1]
             self.derivs[p] = -diff(self.H, q)
             self.derivs[q] = diff(self.H, p)
-        
-        self.NH = self.H
-        for param, val in self.params.items():
-            self.NH = self.NH.subs(param, val)
-            #raise AttributeError("need to pass keyword {0} to hamiltonian.integrate".format(param))
-        symvars = [item for pqpair in self._pqpairs for item in pqpair]
-        self.Nderivs = []
-        for pqpair in self._pqpairs:
-            p,q = pqpair
-            self.Nderivs.append(lambdify(symvars, -diff(self.NH, q), 'numpy'))
-            self.Nderivs.append(lambdify(symvars, diff(self.NH, p), 'numpy'))
+            self.Nderivs.append(lambdify(var, -diff(self.NH, q), 'numpy'))
+            self.Nderivs.append(lambdify(var, diff(self.NH, p), 'numpy'))
         
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
@@ -83,15 +55,42 @@ class Hamiltonian(object):
         self.integrator.set_initial_value(list(self.y.values()), 0)
 
 class EquibAndoyerHamiltonian(Hamiltonian):
-    def __init__(self, k, NPhiprime, Phi0, phi0):
+    def __init__(self, j, k, NPhi, Nphi, NPhiprime, W=0., w=0., K=0., deltalambda=np.pi, a10=1.):
         Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
         pqpairs = [(Phi, phi)]
         params = [Phiprime]
         Nparams = [NPhiprime]
-        initial_conditions = [Phi0, phi0]
+        initial_conditions = [NPhi, Nphi]
         H = S(4)*Phi**2 - 3*Phiprime*Phi + (S(2)*Phi)**(k/S(2))*cos(phi)
         super(EquibAndoyerHamiltonian, self).__init__(H, pqpairs, params, initial_conditions, Nparams)
+   
+    @classmethod
+    def from_elements(cls, Phistar, libfac, G, masses, j, k, a10, W, w, K, deltalambda, lambda1):
+        self.G = sim.G
+        self.masses = [p.m for p in sim.particles]
+        a10 = sim.particles[1].a
+        poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
+        andvars = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, [ps[0].m, ps[1].m, ps[2].m], j, k,a10)
 
+        return cls(k, NPhiprime, Phi0, phi0)
+
+    @classmethod
+    def from_Simulation(cls, sim, j, k, a10):
+        self.G = sim.G
+        self.masses = [p.m for p in sim.particles]
+        a10 = sim.particles[1].a
+        poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
+        andvars = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, [ps[0].m, ps[1].m, ps[2].m], j, k,a10)
+
+        return cls(k, NPhiprime, Phi0, phi0)
+    
+    def to_sim(self):
+        pass
+        # need masses 
+    def get_params(self):
+        # need masses
+        return timescale, Phiscale, PHiprime
+        
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, k, NPhiprime, Phi0, phi0):
         Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
@@ -115,13 +114,6 @@ class CartesianAndoyerHamiltonian(Hamiltonian):
         self.initial_conditions = [np.sqrt(2.*Phi0)*np.cos(phi0), np.sqrt(2.*Phi0)*np.sin(phi0)]
         self.H = S(1)/2*((X**2 + Y**2)/S(2)-Phiprime)**2 + S(1)/sqrt(S(2))*X*((X**2+Y**2)/2)**((k-1)/S(2))
         self._update()
-
-class HamiltonianThetas(Hamiltonian):
-    def __init__(self, sim, j, k):
-        self.pham = HamiltonianPoincare()
-        self.pham.initialize_from_sim(sim)
-        self.pham.add_all_resonance_subterms(self, 1, 2, j, k)
-        print(self.pham.H)
 
 class HamiltonianPoincareXY(Hamiltonian):
     def __init__(self):
