@@ -33,8 +33,8 @@ class Hamiltonian(object):
 
     def _update(self):
         self.NH = self.H
-        for param in self.params.keys():
-            self.NH = self.NH.subs(param, self.params[param])
+        for key, val in self.Hparams.items():
+            self.NH = self.NH.subs(key, val)
         
         self.derivs = {}
         self.Nderivs = []
