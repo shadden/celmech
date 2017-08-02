@@ -118,6 +118,7 @@ class Andoyer(Hamiltonian):
         Lambda2 = p['Lambda20']+dL2 
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,self.W,self.w,p['ff'],p['gg'], inverse=True)
+        self.scale_actions(1./p['Phiscale'])
         return [ Lambda1, self.lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
 
     def to_sim(self):
