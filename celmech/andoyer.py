@@ -42,25 +42,22 @@ def get_second_order_phiprime(Phi_eq):
     return (4*Phi_eq**2 - 2.)/3.
 
 class Andoyer(Hamiltonian):
-    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., Brouwer=-1.e-4, K=0., deltalambda=np.pi, lambda1=0.):
-        sX, sY, sW, sw, sBrouwer, sK, sdeltalambda, slambda1 = symbols('X, Y, W, w, Brouwer, K, \Delta\lambda, lambda1')
-        sPhiprime, sk, sj, sG, smasses, sa10 = symbols('Phiprime, k, j, G, masses, a10')
+    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Ws=0., w=0., Phiprime=1.5, Ks=0., deltalambda=np.pi, lambda1=0.):
+        sX, sY, sWs, sw, sPhiprime, sKs, sdeltalambda, slambda1 = symbols('X, Y, Ws, w, Phiprime, Ks, \Delta\lambda, lambda1')
+        sk, sj, sG, smasses, sa10 = symbols('k, j, G, masses, a10')
         X = np.sqrt(2.*Phi)*np.cos(phi)
         Y = np.sqrt(2.*Phi)*np.sin(phi)
         self.y = OrderedDict([
                         (sX, np.sqrt(2.*Phi)*np.cos(phi)), 
                         (sY, np.sqrt(2.*Phi)*np.sin(phi)), 
-                        (sW, W), 
+                        (sWs, Ws), 
                         (sw, w), 
-                        (sBrouwer, Brouwer), 
-                        (sK, K), 
+                        (sPhiprime, Phiprime), 
+                        (sKs, Ks), 
                         (sdeltalambda, deltalambda), 
                         (slambda1, lambda1)])
         self.params = calc_expansion_params(G, masses, j, k, a10)
-        p = self.params
-        p['Bcoeff'] = Brouwer*p['Acoeff']
-        p['Phiprime'] = -p['Bcoeff'] * p['timescale']/3.
-        self.Hparams = {sk:k, sPhiprime:p['Phiprime']}
+        self.Hparams = {sk:k}
         self.H = (sX**2 + sY**2)**2 - S(3)/S(2)*sPhiprime*(sX**2 + sY**2) + (sX**2 + sY**2)**((sk-S(1))/S(2))*sX
 
     @classmethod
@@ -68,13 +65,13 @@ class Andoyer(Hamiltonian):
         p = calc_expansion_params(G, masses, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
-        Bcoeff = -3.*Phiprime/p['timescale']
-        Brouwer = Bcoeff/p['Acoeff']
-        #Brouwer /= p['Phiscale']
         Phi = Phistar
         phi = np.pi
+        Ks = K/p['Phiscale']
+        Ws = W/p['Phiscale']
 
-        return cls(j, k, Phi, phi, a10, G, masses, W, w, Brouwer, K, deltalambda, lambda1)
+        return cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, deltalambda, lambda1)
+
     @classmethod
     def from_poincare(cls, pvars,G,masses,j,k,a10):
         Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = pvars
@@ -87,10 +84,12 @@ class Andoyer(Hamiltonian):
         Pa = -dL1 / (j-k) 
         Brouwer = Pa - Z/k
         phi = j * lambda2 - (j-k) * lambda1 + k * z
-        Phi = Z / k 
-         
-        andvars = cls(j, k, Phi, phi, a10, G, masses, W, w, Brouwer, K, lambda2-lambda1, lambda1)
-        andvars.scale_actions(1./p['Phiscale']) 
+        Phi = Z / k / p['Phiscale']
+        Ws = W/p['Phiscale']
+        Ks = K/p['Phiscale']
+        Phiprime = -Brouwer*p['Acoeff']*p['timescale']/3. 
+        
+        andvars = cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, lambda2-lambda1, lambda1)
         return andvars
 
     @classmethod
@@ -105,20 +104,21 @@ class Andoyer(Hamiltonian):
         p = self.params
         j = p['j']
         k = p['k']
-        self.scale_actions(p['Phiscale'])
+        W = self.Ws*p['Phiscale']
+        K = self.Ks*p['Phiscale']
+        Z = k*self.Phi*p['Phiscale']
+        Brouwer = -3.*self.Phiprime/p['Acoeff']/p['timescale']
         lambda2 = self.lambda1 + self.deltalambda
-        Z = k*self.Phi
         theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
         z = np.mod( (self.phi - theta) / k ,2*np.pi)
-        Pa = self.Brouwer + Z/float(k)
+        Pa = Brouwer + Z/float(k)
         dL1 = -Pa*(j-k)    
-        dL2 =((j-k) * self.K - j * dL1)/(j-k) 
+        dL2 =((j-k) * K - j * dL1)/(j-k) 
 
         Lambda1 = p['Lambda10']+dL1
         Lambda2 = p['Lambda20']+dL2 
 
-        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,self.W,self.w,p['ff'],p['gg'], inverse=True)
-        self.scale_actions(1./p['Phiscale'])
+        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,W,self.w,p['ff'],p['gg'], inverse=True)
         return [ Lambda1, self.lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
 
     def to_sim(self):
@@ -136,14 +136,7 @@ class Andoyer(Hamiltonian):
             sim.add(m=masses[i], a=a, e=e, pomega=-gamma, l=l)
         sim.move_to_com()
         return sim
-         
-    def scale_actions(self, scale):
-        self.y[symbols('W')] *= scale
-        self.y[symbols('Brouwer')] *= scale
-        self.y[symbols('K')] *= scale
-        self.y[symbols('X')] *= np.sqrt(scale)
-        self.y[symbols('Y')] *= np.sqrt(scale)
-    
+   
     @property
     def X(self):
         return self.y[symbols('X')]
@@ -151,17 +144,25 @@ class Andoyer(Hamiltonian):
     def Y(self):
         return self.y[symbols('Y')]
     @property
+    def Ws(self):
+        return self.y[symbols('Ws')]
+    @property
     def W(self):
-        return self.y[symbols('W')]
+        p = self.params
+        return self.Ws*p['Phiscale']
     @property
     def w(self):
         return self.y[symbols('w')]
     @property
-    def Brouwer(self):
-        return self.y[symbols('Brouwer')]
+    def Phiprime(self):
+        return self.y[symbols('Phiprime')]
+    @property
+    def Ks(self):
+        return self.y[symbols('Ks')]
     @property
     def K(self):
-        return self.y[symbols('K')]
+        p = self.params
+        return self.Ks*p['Phiscale']
     @property
     def deltalambda(self):
         return self.y[symbols('\Delta\lambda')]
@@ -175,6 +176,7 @@ class Andoyer(Hamiltonian):
     def phi(self):
         return np.arctan2(self.Y, self.X)
     @property
-    def Phiprime(self):
+    def Brouwer(self):
         p = self.params
-        return -self.Brouwer*p['Acoeff']* p['timescale']/3.
+        return -3.*self.Phiprime/p['Acoeff']/p['timescale']
+
