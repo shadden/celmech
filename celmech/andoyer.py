@@ -41,24 +41,34 @@ def calc_expansion_params(G, masses, j, k, a10):
 def get_second_order_phiprime(Phi_eq):
     return (4*Phi_eq**2 - 2.)/3.
 
-class Andoyer(Hamiltonian):
+class Andoyer(object):
     def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Ws=0., w=0., Phiprime=1.5, Ks=0., deltalambda=np.pi, lambda1=0.):
         sX, sY, sWs, sw, sPhiprime, sKs, sdeltalambda, slambda1 = symbols('X, Y, Ws, w, Phiprime, Ks, \Delta\lambda, lambda1')
         sk, sj, sG, smasses, sa10 = symbols('k, j, G, masses, a10')
         X = np.sqrt(2.*Phi)*np.cos(phi)
         Y = np.sqrt(2.*Phi)*np.sin(phi)
-        self.y = OrderedDict([
-                        (sX, np.sqrt(2.*Phi)*np.cos(phi)), 
-                        (sY, np.sqrt(2.*Phi)*np.sin(phi)), 
-                        (sWs, Ws), 
-                        (sw, w), 
-                        (sPhiprime, Phiprime), 
-                        (sKs, Ks), 
-                        (sdeltalambda, deltalambda), 
-                        (slambda1, lambda1)])
+        self.X = X
+        self.Y = Y
+        self.Ws = Ws
+        self.w = w
+        self.Phiprime = Phiprime
+        self.Ks = Ks
+        self.deltalambda = deltalambda
+        self.lambda1 = lambda1
+
+        #self.state = OrderedDict([
+        #                ('X', np.sqrt(2.*Phi)*np.cos(phi)), 
+        #                ('Y', np.sqrt(2.*Phi)*np.sin(phi)), 
+        #                ('Ws', Ws), 
+        #                ('w', w), 
+        #                ('Phiprime', Phiprime), 
+        #                ('Ks', Ks), 
+        #                ('deltalambda', deltalambda), 
+        #                ('lambda1', lambda1)])
         self.params = calc_expansion_params(G, masses, j, k, a10)
         self.Hparams = {sk:k}
         self.H = (sX**2 + sY**2)**2 - S(3)/S(2)*sPhiprime*(sX**2 + sY**2) + (sX**2 + sY**2)**((sk-S(1))/S(2))*sX
+        #self.integrator = None
 
     @classmethod
     def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., K=0., deltalambda=np.pi, lambda1=0.):
@@ -136,39 +146,36 @@ class Andoyer(Hamiltonian):
             sim.add(m=masses[i], a=a, e=e, pomega=-gamma, l=l)
         sim.move_to_com()
         return sim
-   
+    '''   
     @property
     def X(self):
-        return self.y[symbols('X')]
+        return self.state['X']
     @property
     def Y(self):
-        return self.y[symbols('Y')]
+        return self.state['Y']
     @property
     def Ws(self):
-        return self.y[symbols('Ws')]
+        return self.state['Ws']
     @property
     def W(self):
         p = self.params
         return self.Ws*p['Phiscale']
     @property
     def w(self):
-        return self.y[symbols('w')]
+        return self.state['w']
     @property
     def Phiprime(self):
-        return self.y[symbols('Phiprime')]
+        return self.state['Phiprime']
     @property
     def Ks(self):
-        return self.y[symbols('Ks')]
-    @property
-    def K(self):
-        p = self.params
-        return self.Ks*p['Phiscale']
+        return self.state['Ks']
     @property
     def deltalambda(self):
-        return self.y[symbols('\Delta\lambda')]
+        return self.state['deltalambda']
     @property
     def lambda1(self):
-        return self.y[symbols('lambda1')]
+        return self.state['lambda1']
+    '''
     @property
     def Phi(self):
         return (self.X**2 + self.Y**2)/2.
@@ -176,7 +183,15 @@ class Andoyer(Hamiltonian):
     def phi(self):
         return np.arctan2(self.Y, self.X)
     @property
+    def W(self):
+        p = self.params
+        return self.Ws*p['Phiscale']
+    @property
+    def K(self):
+        p = self.params
+        return self.Ks*p['Phiscale']
+    @property
     def Brouwer(self):
         p = self.params
         return -3.*self.Phiprime/p['Acoeff']/p['timescale']
-
+#primary and secondary properties
