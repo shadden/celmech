@@ -1,5 +1,4 @@
 import numpy as np
-from collections import OrderedDict
 from sympy import symbols, S
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs
@@ -56,19 +55,9 @@ class Andoyer(object):
         self.deltalambda = deltalambda
         self.lambda1 = lambda1
 
-        #self.state = OrderedDict([
-        #                ('X', np.sqrt(2.*Phi)*np.cos(phi)), 
-        #                ('Y', np.sqrt(2.*Phi)*np.sin(phi)), 
-        #                ('Ws', Ws), 
-        #                ('w', w), 
-        #                ('Phiprime', Phiprime), 
-        #                ('Ks', Ks), 
-        #                ('deltalambda', deltalambda), 
-        #                ('lambda1', lambda1)])
         self.params = calc_expansion_params(G, masses, j, k, a10)
         self.Hparams = {sk:k}
         self.H = (sX**2 + sY**2)**2 - S(3)/S(2)*sPhiprime*(sX**2 + sY**2) + (sX**2 + sY**2)**((sk-S(1))/S(2))*sX
-        #self.integrator = None
 
     @classmethod
     def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., K=0., deltalambda=np.pi, lambda1=0.):
@@ -83,7 +72,7 @@ class Andoyer(object):
         return cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, deltalambda, lambda1)
 
     @classmethod
-    def from_poincare(cls, pvars,G,masses,j,k,a10):
+    def from_Poincare(cls, pvars,G,masses,j,k,a10):
         Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = pvars
         p = calc_expansion_params(G, masses, j, k, a10)
         
@@ -108,9 +97,9 @@ class Andoyer(object):
             a10 = sim.particles[i1].a
         poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
         ps = sim.particles
-        return Andoyer.from_poincare(poincare_vars, sim.G, [ps[0].m, ps[i1].m, ps[i2].m], j, k, a10)
+        return Andoyer.from_Poincare(poincare_vars, sim.G, [ps[0].m, ps[i1].m, ps[i2].m], j, k, a10)
 
-    def to_poincare(self):
+    def to_Poincare(self):
         p = self.params
         j = p['j']
         k = p['k']
@@ -131,8 +120,8 @@ class Andoyer(object):
         Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,W,self.w,p['ff'],p['gg'], inverse=True)
         return [ Lambda1, self.lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
 
-    def to_sim(self):
-        pvars = self.to_poincare()
+    def to_Simulation(self):
+        pvars = self.to_Poincare()
         masses = self.params['masses']
         G = self.params['G']
         
@@ -146,36 +135,6 @@ class Andoyer(object):
             sim.add(m=masses[i], a=a, e=e, pomega=-gamma, l=l)
         sim.move_to_com()
         return sim
-    '''   
-    @property
-    def X(self):
-        return self.state['X']
-    @property
-    def Y(self):
-        return self.state['Y']
-    @property
-    def Ws(self):
-        return self.state['Ws']
-    @property
-    def W(self):
-        p = self.params
-        return self.Ws*p['Phiscale']
-    @property
-    def w(self):
-        return self.state['w']
-    @property
-    def Phiprime(self):
-        return self.state['Phiprime']
-    @property
-    def Ks(self):
-        return self.state['Ks']
-    @property
-    def deltalambda(self):
-        return self.state['deltalambda']
-    @property
-    def lambda1(self):
-        return self.state['lambda1']
-    '''
     @property
     def Phi(self):
         return (self.X**2 + self.Y**2)/2.

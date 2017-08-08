@@ -7,18 +7,28 @@ from celmech.transformations import jacobi_masses_from_sim, poincare_vars_from_s
 from celmech.disturbing_function import laplace_coefficient
 
 class Hamiltonian(object):
-    def __init__(self, H, initial_conditions, params):
-        self.state = initial_conditions
-        self.params = params
-        self.H = H
+    def __init__(self, H, NH, pqpairs, Hparams, initial_state):
+        """
+        H = sympy object for Hamiltonian of the system, only for display purposes
+        NH = Hamiltonian actually integrated, made up only of symbols in pqpairs and keys in Hparams
+        pqpairs = list of momentum, position pairs [(P1, Q1), (P2, Q2)], where each element is a sympy symbol
+        Hparams = dictionary from sympy symbols for the constant parameters in H to their value
+        initial_conditions = arbitrary object for holding the dynamical state
 
-    def set_y(self, values):
-        for i, key in enumerate(self.state.keys()):
-            self.state[key] = values[i]
-    
-    def set_params(self, values):
-        for i, key in enumerate(self.params.keys()):
-            self.params[key] = values[i]
+        The variables are stored in the self.state object, while ODE uses a list of dynamical variables y. 
+        In addition to the above, one needs to write 2 methods to map between the two objects:
+        def state_to_list(self, state): 
+            returns a list of values from state in the same order as pqpairs e.g. [P1,Q1,P2,Q2]
+        def update_state_from_list(self, state, y):
+            updates state object from a list of values y for the variables in the same order as pqpairs
+        """
+        self.state = initial_state
+        self.Hparams = Hparams
+        self.H = H
+        self._NH = NH
+        self.pqpairs = pqpairs
+        self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
+        self._update()
 
     def integrate(self, time):
         if not hasattr(self, 'Nderivs'):
@@ -28,80 +38,46 @@ class Hamiltonian(object):
                 self.integrator.integrate(time)
             except:
                 raise AttributeError("Need to initialize Hamiltonian")
-        for i, attr in enumerate(self.varnames): # need ordered list of sympy object names
-            setattr(self.state, attr, self.integrator.y[i])
+        self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
-        self.NH = self.H
-        for key, val in self.Hparams.items(): # need map from sympy objects to values
+        self.NH = self._NH # reset to Hamiltonian with all parameters unset
+        for key, val in self.Hparams.items(): 
             self.NH = self.NH.subs(key, val)
         
         self.derivs = {}
         self.Nderivs = []
-        varsymbols = [symbols(name) for name in self.varnames]
-        # need ordered list of sympy objects
-        for i in range(0, len(self.varnames), 2):
-            p = varsymbols[i]#symbols(var[i])
-            q = varsymbols[i+1]#symbols(var[i+1])
-            self.derivs[p] = -diff(self.H, q)
-            self.derivs[q] = diff(self.H, p)
-            self.Nderivs.append(lambdify(varsymbols, -diff(self.NH, q), 'numpy'))
-            self.Nderivs.append(lambdify(varsymbols, diff(self.NH, p), 'numpy'))
-        
+        for pqpair in self.pqpairs:
+            p = pqpair[0]
+            q = pqpair[1]
+            self.derivs[p] = -diff(self._NH, q)
+            self.derivs[q] = diff(self._NH, p)
+            self.Nderivs.append(lambdify(self.varsymbols, -diff(self.NH, q), 'numpy'))
+            self.Nderivs.append(lambdify(self.varsymbols, diff(self.NH, p), 'numpy'))
+
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
             #print(t, y, dydt)
             return dydt
         self.integrator = ode(diffeq).set_integrator('lsoda')
-        initial_conditions = [getattr(self.state, attr) for attr in self.varnames]
-        self.integrator.set_initial_value(initial_conditions, 0)
+        self.integrator.set_initial_value(self.state_to_list(self.state), 0.)
 
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, andvars):
-        self.state = andvars
-        self.varnames = ['X','Y','Ws','w','Phiprime','Ks','deltalambda','lambda1']
-        self.varsymbols = [symbols(name) for name in self.varnames]
-        X, Y, Phiprime, k = symbols('X, Y, Phiprime, k')
-        self.Hparams = {k:andvars.params['k']}
-        self.H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
-        
-class EquibAndoyerHamiltonian(Hamiltonian):
-    def __init__(self, j, k, NPhi, Nphi, NPhiprime, W=0., w=0., K=0., deltalambda=np.pi, a10=1.):
-        Phi, phi, Phiprime = symbols('Phi, phi, Phiprime')
-        pqpairs = [(Phi, phi)]
-        params = [Phiprime]
-        Nparams = [NPhiprime]
-        initial_conditions = [NPhi, Nphi]
-        H = S(4)*Phi**2 - 3*Phiprime*Phi + (S(2)*Phi)**(k/S(2))*cos(phi)
-        super(EquibAndoyerHamiltonian, self).__init__(H, pqpairs, params, initial_conditions, Nparams)
-   
-    @classmethod
-    def from_elements(cls, Phistar, libfac, G, masses, j, k, a10, W, w, K, deltalambda, lambda1):
-        self.G = sim.G
-        self.masses = [p.m for p in sim.particles]
-        a10 = sim.particles[1].a
-        poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
-        andvars = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, [ps[0].m, ps[1].m, ps[2].m], j, k,a10)
+        X, Y, Phi, phi, Phiprime, k = symbols('X, Y, Phi, phi, Phiprime, k')
+        pqpairs = [(X, Y)]
+        Hparams = {Phiprime:andvars.Phiprime, k:andvars.params['k']}
+        H = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
+        NH = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
+        super(AndoyerHamiltonian, self).__init__(H, NH, pqpairs, Hparams, andvars)  
 
-        return cls(k, NPhiprime, Phi0, phi0)
+    def state_to_list(self, state):
+        return [state.X, state.Y] 
 
-    @classmethod
-    def from_Simulation(cls, sim, j, k, a10):
-        self.G = sim.G
-        self.masses = [p.m for p in sim.particles]
-        a10 = sim.particles[1].a
-        poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
-        andvars = poincare_vars_to_andoyer_vars(poincare_vars, sim.G, [ps[0].m, ps[1].m, ps[2].m], j, k,a10)
+    def update_state_from_list(self, state, y):
+        state.X = y[0]
+        state.Y = y[1]
 
-        return cls(k, NPhiprime, Phi0, phi0)
-    
-    def to_sim(self):
-        pass
-        # need masses 
-    def get_params(self):
-        # need masses
-        return timescale, Phiscale, PHiprime
-        
 class HamiltonianPoincareXY(Hamiltonian):
     def __init__(self):
         self.resonance_indices = []
