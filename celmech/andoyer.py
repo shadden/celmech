@@ -1,6 +1,7 @@
 import numpy as np
 from sympy import symbols, S, cos
 from celmech.hamiltonian import Hamiltonian
+from celmech.poincare import PoincareParticle, Poincare
 from celmech.disturbing_function import get_fg_coeffs
 from celmech.transformations import ActionAngleToXY, XYToActionAngle, poincare_vars_from_sim
 import rebound
@@ -70,32 +71,34 @@ class Andoyer(object):
         return cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, deltalambda, lambda1)
 
     @classmethod
-    def from_Poincare(cls, pvars,G,masses,j,k,a10):
-        Lambda1, lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 = pvars
-        p = calc_expansion_params(G, masses, j, k, a10)
+    def from_Poincare(cls,pvars,j,k,a10,i1=1,i2=2):
+        p1 = pvars.particles[i1]
+        p2 = pvars.particles[i2]
+        masses = [pvars.M, p1.m, p2.m]
+        p = calc_expansion_params(pvars.G, masses, j, k, a10)
         
-        dL1 = Lambda1-p['Lambda10']
-        dL2 = Lambda2-p['Lambda20']
-        Z,z,W,w = rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,p['ff'],p['gg'])
+        dL1 = p1.Lambda-p['Lambda10']
+        dL2 = p2.Lambda-p['Lambda20']
+        Z,z,W,w = rotate_Poincare_Gammas_To_ZW(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
         K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
         Pa = -dL1 / (j-k) 
         Brouwer = Pa - Z/k
-        phi = j * lambda2 - (j-k) * lambda1 + k * z
+        phi = j * p2.l - (j-k) * p1.l + k * z
         Phi = Z / k / p['Phiscale']
         Ws = W/p['Phiscale']
         Ks = K/p['Phiscale']
         Phiprime = -Brouwer*p['Acoeff']*p['timescale']/3. 
         
-        andvars = cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, lambda2-lambda1, lambda1)
+        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, Ws, w, Phiprime, Ks, p2.l-p1.l, p1.l)
         return andvars
 
     @classmethod
     def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average_synodic_terms=False):
         if a10 is None:
             a10 = sim.particles[i1].a
-        poincare_vars = poincare_vars_from_sim(sim, average_synodic_terms)
+        pvars = Poincare.from_Simulation(sim, average_synodic_terms)
         ps = sim.particles
-        return Andoyer.from_Poincare(poincare_vars, sim.G, [ps[0].m, ps[i1].m, ps[i2].m], j, k, a10)
+        return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
     def to_Poincare(self):
         p = self.params
@@ -116,23 +119,15 @@ class Andoyer(object):
         Lambda2 = p['Lambda20']+dL2 
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,W,self.w,p['ff'],p['gg'], inverse=True)
-        return [ Lambda1, self.lambda1, Gamma1, gamma1, Lambda2, lambda2, Gamma2, gamma2 ]
+        masses = p['masses']
+        p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
+        p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
+        return Poincare(p['G'], masses[0], [p1,p2])
 
     def to_Simulation(self):
         pvars = self.to_Poincare()
-        masses = self.params['masses']
-        G = self.params['G']
-        
-        sim = rebound.Simulation()
-        sim.G = G
-        sim.add(m=masses[0])
-        for i in range(1, len(masses)):
-            Lambda, l, Gamma, gamma = pvars[4*(i-1):4*i]
-            a = Lambda**2/masses[i]**2/G/masses[0]
-            e = np.sqrt(1.-(1.-Gamma/Lambda)**2)
-            sim.add(m=masses[i], a=a, e=e, pomega=-gamma, l=l)
-        sim.move_to_com()
-        return sim
+        return pvars.to_Simulation()
+    
     @property
     def Phi(self):
         return (self.X**2 + self.Y**2)/2.

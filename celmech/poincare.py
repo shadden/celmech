@@ -53,12 +53,11 @@ class Poincare(object):
 
     def to_Simulation(self):
         sim = rebound.Simulation()
-        sim.G = G
+        sim.G = self.G
         sim.add(m=self.M)
         ps = self.particles
         for i in range(1, self.N):
-            Lambda, l, Gamma, gamma = pvars[4*(i-1):4*i]
-            a = ps[i].Lambda**2/ps[i].m**2/G/ps[i].M
+            a = ps[i].Lambda**2/ps[i].m**2/self.G/ps[i].M
             e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
             sim.add(m=ps[i].m, a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
         sim.move_to_com()
