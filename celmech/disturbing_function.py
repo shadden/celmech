@@ -73,7 +73,9 @@ def secular_DF_harmonic_term(e,e1,dw,m,order):
     else:
         maxk=order
     for i in range(maxk):
-     s = s + alpha**i *  b(1/S(2),m,i) / factorial(i) * secular_eps_l_Df_m(i,m,e,e1)
+     s = s + alpha**i *  b(1/S(2),m,i,alpha) / factorial(i) * secular_eps_l_Df_m(i,m,e,e1)
+    if m==0:
+        s=s / S(2)
     return s * cos(m*dw)
 def secular_DF(e,e1,w,w1,order):
     """ 

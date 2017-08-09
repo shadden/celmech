@@ -48,9 +48,9 @@ if __name__=="__main__":
 	sim.add(m=1.e-4, a=4)
 
 	ps = sim.particles
-	print ps[1].m
-	print ps[1].a
-	print ps[1].Gamma
+	print( ps[1].m)
+	print( ps[1].a)
+	print( ps[1].Gamma)
 
 # class 2bodysingleresonance(rebound.Simulation):
 # 
