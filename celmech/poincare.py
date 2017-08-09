@@ -1,7 +1,7 @@
 import numpy as np
-from sympy import symbols, S, binomial, summation, sqrt, cos, sin
+from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2
 from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient
+from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B
 import rebound
 
 class PoincareParticle(object):
@@ -21,6 +21,10 @@ class PoincareParticle(object):
     @property
     def gamma(self):
         return np.arctan2(self.Y, self.X)
+    @property
+    def eccentricity(self):
+        GbyL = self.Gamma / self.Lambda
+        return np.sqrt(1 - (1-GbyL)*(1-GbyL))
 
 class Poincare(object):
     def __init__(self, G, M, poincareparticles=[]):
@@ -119,6 +123,33 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
     
+    def add_secular_terms(self, indexIn, indexOut,order=2):
+
+        
+        mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
+        mIn,MIn,LambdaIn,lambdaIn,GammaIn,gammaIn,XIn,YIn = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexIn)) 
+        G = symbols('G')
+        
+        if order==2:
+            eIn  = sqrt(2*GammaIn / LambdaIn)
+            eOut = sqrt(2*GammaOut / LambdaOut)
+        else:
+            eIn = sqrt(1 - (1-GammaIn/LambdaIn)*(1-GammaIn/LambdaIn))
+            eOut = sqrt(1 - (1-GammaOut/LambdaOut)*(1-GammaOut/LambdaOut))
+        eIn = eIn.subs(GammaIn,(XIn*XIn + YIn*YIn) / S(2))
+        eOut = eOut.subs(GammaOut,(XOut*XOut + YOut*YOut) / S(2))
+        gammaIn =  atan2(YIn,XIn)
+        gammaOut =  atan2(YOut,XOut)
+        
+        alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
+        exprn = secular_DF(eIn,eOut,gammaIn,gammaOut,order)
+        
+        self.Hparams[S("alpha")] = alpha
+        self.Hparams[Function('b')] = laplace_B
+        prefactor = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
+        self.H += prefactor * exprn
+        self._update()
+
     def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
         """
         Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
@@ -152,7 +183,7 @@ class PoincareHamiltonian(Hamiltonian):
         # Resonance index
         assert l<=k, "Invalid resonance term, l must be less than or equal to k."
         alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
-
+	
         # Resonance components
         #
         Cjkl = symbols( "C_{0}\,{1}\,{2}".format(j,k,l) )

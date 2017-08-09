@@ -1,4 +1,4 @@
-from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from scipy.integrate import quad
@@ -106,3 +106,22 @@ def secular_DF_full(e,e1,w,w1,order):
     for i in range(maxM+1):
         s = s + secular_DF_harmonic_term(e,e1,dw,i,order) 
     return s
+
+class laplace_B(Function):
+    nargs=4
+    @classmethod
+    def eval(cls, s,j,n,alpha):
+    # laplace coeffcients don't evaluate well with the C code
+    # for large n, therefore I've substituted the exact expression
+    # in terms of the elliptic K function when j=0
+        if j is S.Zero:
+            x = S('x')
+            exprn = 4 / np.pi * diff(elliptic_k(x*x),x,n)
+            return exprn.subs(x,alpha)
+        elif j is S.One:
+            x = S('x')
+            exprn0 =  4 / np.pi *  (elliptic_k(x*x) - elliptic_e(x*x) ) / x 
+            exprn = diff(exprn0, x ,n)
+            return exprn.subs(x,alpha)
+        else:
+            return laplace_coefficient(s,j,n,alpha)/ alpha**n

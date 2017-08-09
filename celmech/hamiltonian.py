@@ -35,8 +35,17 @@ class Hamiltonian(object):
 
     def _update(self):
         self.NH = self.H # reset to Hamiltonian with all parameters unset
+        # 
+        # Update raw numerical constants first then update functions
+        # Less hacky way to do this?
+        function_keyval_pairs = []
         for key, val in self.Hparams.items(): 
-            self.NH = self.NH.subs(key, val)
+            if isinstance(val,float):
+                self.NH = self.NH.subs(key, val)
+            else:
+                function_keyval_pairs.append((key,val)) 
+        for keyval in function_keyval_pairs:
+            self.NH = self.NH.subs(keyval[0],keyval[1])
         
         self.derivs = {}
         self.Nderivs = []
