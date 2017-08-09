@@ -3,7 +3,7 @@ from sympy import symbols, S, cos
 from celmech.hamiltonian import Hamiltonian
 from celmech.poincare import PoincareParticle, Poincare
 from celmech.disturbing_function import get_fg_coeffs
-from celmech.transformations import ActionAngleToXY, XYToActionAngle, poincare_vars_from_sim
+from celmech.transformations import ActionAngleToXY, XYToActionAngle
 import rebound
 
 def rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False):
