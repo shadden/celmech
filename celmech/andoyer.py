@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import symbols, S
+from sympy import symbols, S, cos
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs
 from celmech.transformations import ActionAngleToXY, XYToActionAngle, poincare_vars_from_sim
@@ -56,8 +56,6 @@ class Andoyer(object):
         self.lambda1 = lambda1
 
         self.params = calc_expansion_params(G, masses, j, k, a10)
-        self.Hparams = {sk:k}
-        self.H = (sX**2 + sY**2)**2 - S(3)/S(2)*sPhiprime*(sX**2 + sY**2) + (sX**2 + sY**2)**((sk-S(1))/S(2))*sX
 
     @classmethod
     def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., K=0., deltalambda=np.pi, lambda1=0.):
@@ -153,4 +151,19 @@ class Andoyer(object):
     def Brouwer(self):
         p = self.params
         return -3.*self.Phiprime/p['Acoeff']/p['timescale']
-#primary and secondary properties
+
+class AndoyerHamiltonian(Hamiltonian):
+    def __init__(self, andvars):
+        X, Y, Phi, phi, Phiprime, k = symbols('X, Y, Phi, phi, Phiprime, k')
+        pqpairs = [(X, Y)]
+        Hparams = {Phiprime:andvars.Phiprime, k:andvars.params['k']}
+        H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
+        super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
+        self.Hpolar = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
+
+    def state_to_list(self, state):
+        return [state.X, state.Y] 
+
+    def update_state_from_list(self, state, y):
+        state.X = y[0]
+        state.Y = y[1]
