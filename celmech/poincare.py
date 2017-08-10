@@ -93,6 +93,11 @@ class PoincareHamiltonian(Hamiltonian):
         self.Hpolar = S(0)
         for i in range(1, pvars.N):
             self.Hpolar = self.add_Hkep_term(self.Hpolar, i)
+        
+
+        # Don't re-compute secular DF terms, save a dictionary
+        # of secular DF expansions indexed by order:
+        self.secular_terms = {0:S(0)}
 
     def state_to_list(self, state):
         ps = state.particles
@@ -134,28 +139,31 @@ class PoincareHamiltonian(Hamiltonian):
     def add_secular_terms(self, indexIn, indexOut,order=2,fixed_Lambdas=True):
 
         
+        G = symbols('G')
         mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
         mIn,MIn,LambdaIn,lambdaIn,GammaIn,gammaIn,XIn,YIn = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexIn)) 
-        G = symbols('G')
-        eIn,eOut = symbols("e{0} e{1}".format(indexIn,indexOut))
-        exprn = secular_DF(eIn,eOut,gammaIn,gammaOut,order)
-        # h,k = e*cos(omega),e*sin(omega)
-        hIn,kIn,hOut,kOut=symbols('h{0},k{0},h{1},k{1}'.format(indexIn,indexOut))
-        salpha = S("alpha{0}{1}".format(indexIn,indexOut))
-        subdict={eIn:sqrt(hIn*hIn + kIn*kIn), eOut:sqrt(hOut*hOut + kOut*kOut),gammaIn:atan2(-1*kIn,hIn),gammaOut:atan2(-1*kOut,hOut), S("alpha"):salpha}
-        exprn = exprn.subs(subdict,simultaneous=True)
 
+        
+        eIn,eOut,gammaIn,gammaOut = symbols("e e' gamma gamma'") 
+        hIn,kIn,hOut,kOut=symbols("h,k,h',k'")
+        # Work smarter not harder! Use an expression it is already available...
+        if order not in self.secular_terms.keys():
+            print("Computing secular expansion to order %d..."%order)
+            subdict={eIn:sqrt(hIn*hIn + kIn*kIn), eOut:sqrt(hOut*hOut + kOut*kOut),gammaIn:atan2(-1*kIn,hIn),gammaOut:atan2(-1*kOut,hOut),}
+            self.secular_terms[order] = secular_DF(eIn,eOut,gammaIn,gammaOut,order).subs(subdict,simultaneous=True)
+
+        exprn = self.secular_terms[order]
+        salpha = S("alpha{0}{1}".format(indexIn,indexOut))
         if order==2:
-            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut)}
+            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut), S("alpha"):salpha}
         else:
             # fix this to include higher order terms
-            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut)}
+            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut), S("alpha"):salpha}
 
         alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
         self.Hparams[salpha] = alpha
         self.Hparams[Function('b')] = laplace_B
-
-        exprn = exprn.subs(subdict,simultaneous=True)
+        exprn = exprn.subs(subdict)
         # substitute a fixed value for Lambdas in DF terms
 
         prefactor = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
