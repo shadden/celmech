@@ -1,4 +1,4 @@
-from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e, expand_trig
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from scipy.integrate import quad
@@ -92,7 +92,7 @@ def secular_DF(e,e1,w,w1,order):
     for i in range(maxM+1):
         term = secular_DF_harmonic_term(eps*e,eps*e1,dw,i,order) 
         term = term.series(eps,0,order+1).removeO()
-        s = s + term  
+        s = s + expand_trig(term) 
     return s.subs(eps,1)
 def secular_DF_full(e,e1,w,w1,order):
     """ 

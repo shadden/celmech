@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2
+from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B
 import rebound
@@ -104,6 +104,14 @@ class PoincareHamiltonian(Hamiltonian):
             y[vpp*(i-1)+2] = ps[i].Lambda
             y[vpp*(i-1)+3] = ps[i].l 
         return y
+    def set_secular_mode(self):
+        # 
+        state = self.state
+        for i in range(1,state.N):
+            Lambda0,Lambda = symbols("Lambda{0}0 Lambda{0}".format(i))
+            self.H = self.H.subs(Lambda,Lambda0)
+            self.Hparams[Lambda0] = state.particles[i].Lambda
+        self._update()
 
     def update_state_from_list(self, state, y):
         ps = state.particles
@@ -123,31 +131,41 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
     
-    def add_secular_terms(self, indexIn, indexOut,order=2):
+    def add_secular_terms(self, indexIn, indexOut,order=2,fixed_Lambdas=True):
 
         
         mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
         mIn,MIn,LambdaIn,lambdaIn,GammaIn,gammaIn,XIn,YIn = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexIn)) 
         G = symbols('G')
-        
-        if order==2:
-            eIn  = sqrt(2*GammaIn / LambdaIn)
-            eOut = sqrt(2*GammaOut / LambdaOut)
-        else:
-            eIn = sqrt(1 - (1-GammaIn/LambdaIn)*(1-GammaIn/LambdaIn))
-            eOut = sqrt(1 - (1-GammaOut/LambdaOut)*(1-GammaOut/LambdaOut))
-        eIn = eIn.subs(GammaIn,(XIn*XIn + YIn*YIn) / S(2))
-        eOut = eOut.subs(GammaOut,(XOut*XOut + YOut*YOut) / S(2))
-        gammaIn =  atan2(YIn,XIn)
-        gammaOut =  atan2(YOut,XOut)
-        
-        alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
+        eIn,eOut = symbols("e{0} e{1}".format(indexIn,indexOut))
         exprn = secular_DF(eIn,eOut,gammaIn,gammaOut,order)
-        
-        self.Hparams[S("alpha")] = alpha
+        # h,k = e*cos(omega),e*sin(omega)
+        hIn,kIn,hOut,kOut=symbols('h{0},k{0},h{1},k{1}'.format(indexIn,indexOut))
+        salpha = S("alpha{0}{1}".format(indexIn,indexOut))
+        subdict={eIn:sqrt(hIn*hIn + kIn*kIn), eOut:sqrt(hOut*hOut + kOut*kOut),gammaIn:atan2(-1*kIn,hIn),gammaOut:atan2(-1*kOut,hOut), S("alpha"):salpha}
+        exprn = exprn.subs(subdict,simultaneous=True)
+
+        if order==2:
+            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut)}
+        else:
+            # fix this to include higher order terms
+            subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut)}
+
+        alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
+        self.Hparams[salpha] = alpha
         self.Hparams[Function('b')] = laplace_B
+
+        exprn = exprn.subs(subdict,simultaneous=True)
+        # substitute a fixed value for Lambdas in DF terms
+
         prefactor = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
-        self.H += prefactor * exprn
+        exprn = prefactor * exprn
+        if fixed_Lambdas:
+            LambdaIn0,LambdaOut0=symbols("Lambda{0}0 Lambda{1}0".format(indexIn,indexOut))
+            self.Hparams[LambdaIn0]=self.state.particles[indexIn].Lambda
+            self.Hparams[LambdaOut0]=self.state.particles[indexOut].Lambda
+            exprn = exprn.subs([(LambdaIn,LambdaIn0),(LambdaOut,LambdaOut0)])
+        self.H += exprn
         self._update()
 
     def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
