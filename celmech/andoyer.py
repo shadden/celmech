@@ -6,18 +6,28 @@ from celmech.disturbing_function import get_fg_coeffs
 from celmech.transformations import ActionAngleToXY, XYToActionAngle
 import rebound
 
-def rotate_Poincare_Gammas_To_ZW(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False):
+'''
+Compare with Hadden & Lithwick 2017:
+In the code, Z = |scriptZ| and z = arg(scriptZ) from paper
+W = |scriptW| and w = arg(scriptW) from paper
+Phi and phi in the paper are a generalized eccentricity squared and a generalized pericenter
+Phi in the code = Phi in the paper / k and scaled to simplify the Hamiltonian, so also a squared eccentricity
+Cartesian components in code X, Y = sqrt(2*phi)cos(phi) and sin(phi) are generalized eccentricities
+Note A is proportional to scriptZ, but B is not proportional to scriptW, and depends on masses etc. Can solve for B from scriptZ and scriptW
+'''
+
+def rotate_Poincare_Gammas_To_AABB(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False):
     if inverse is True:
         g = -g
     X1,Y1 = ActionAngleToXY(Gamma1,gamma1)
     X2,Y2 = ActionAngleToXY(Gamma2,gamma2)
     norm = np.sqrt(f*f + g*g)
     rotation_matrix = np.array([[f,g],[-g,f]]) / norm
-    ZX,WX = np.dot(rotation_matrix , np.array([X1,X2]) )
-    ZY,WY = np.dot(rotation_matrix , np.array([Y1,Y2]) )
-    Z,z = XYToActionAngle(ZX,ZY)
-    W,w = XYToActionAngle(WX,WY)
-    return Z,z,W,w
+    AX,BX = np.dot(rotation_matrix , np.array([X1,X2]) )
+    AY,BY = np.dot(rotation_matrix , np.array([Y1,Y2]) )
+    AA,a = XYToActionAngle(AX,AY)
+    BB,b = XYToActionAngle(BX,BY)
+    return AA,a,BB,b
 
 def calc_expansion_params(G, masses, j, k, a10):
     p = {'j':j, 'k':k, 'G':G, 'masses':masses, 'a10':a10}       
@@ -42,33 +52,31 @@ def get_second_order_phiprime(Phi_eq):
     return (4*Phi_eq**2 - 2.)/3.
 
 class Andoyer(object):
-    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Ws=0., w=0., Phiprime=1.5, Ks=0., deltalambda=np.pi, lambda1=0.):
-        sX, sY, sWs, sw, sPhiprime, sKs, sdeltalambda, slambda1 = symbols('X, Y, Ws, w, Phiprime, Ks, \Delta\lambda, lambda1')
+    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
+        sX, sY, sBB, sb, sPhiprime, sK, sdeltalambda, slambda1 = symbols('X, Y, BB, b, Phiprime, K, \Delta\lambda, lambda1')
         sk, sj, sG, smasses, sa10 = symbols('k, j, G, masses, a10')
         X = np.sqrt(2.*Phi)*np.cos(phi)
         Y = np.sqrt(2.*Phi)*np.sin(phi)
         self.X = X
         self.Y = Y
-        self.Ws = Ws
-        self.w = w
+        self.BB = BB
+        self.b = b
         self.Phiprime = Phiprime
-        self.Ks = Ks
+        self.K = K
         self.deltalambda = deltalambda
         self.lambda1 = lambda1
 
         self.params = calc_expansion_params(G, masses, j, k, a10)
 
     @classmethod
-    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., K=0., deltalambda=np.pi, lambda1=0.):
+    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., K=0., deltalambda=np.pi, lambda1=0.):
         p = calc_expansion_params(G, masses, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
         Phi = Phistar
         phi = np.pi
-        Ks = K/p['Phiscale']
-        Ws = W/p['Phiscale']
 
-        return cls(j, k, Phi, phi, a10, G, masses, Ws, w, Phiprime, Ks, deltalambda, lambda1)
+        return cls(j, k, Phi, phi, a10, G, masses, BB, b, Phiprime, K, deltalambda, lambda1)
 
     @classmethod
     def from_Poincare(cls,pvars,j,k,a10,i1=1,i2=2):
@@ -79,17 +87,18 @@ class Andoyer(object):
         
         dL1 = p1.Lambda-p['Lambda10']
         dL2 = p2.Lambda-p['Lambda20']
-        Z,z,W,w = rotate_Poincare_Gammas_To_ZW(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
+        AA,a,BB,b = rotate_Poincare_Gammas_To_AABB(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
         K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
+        AA /= p['Phiscale']
+        BB /= p['Phiscale']
+        K /= p['Phiscale']
         Pa = -dL1 / (j-k) 
-        Brouwer = Pa - Z/k
-        phi = j * p2.l - (j-k) * p1.l + k * z
-        Phi = Z / k / p['Phiscale']
-        Ws = W/p['Phiscale']
-        Ks = K/p['Phiscale']
+        Brouwer = Pa - AA/k
+        phi = j * p2.l - (j-k) * p1.l + k * a
+        Phi = AA / k
         Phiprime = -Brouwer*p['Acoeff']*p['timescale']/3. 
         
-        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, Ws, w, Phiprime, Ks, p2.l-p1.l, p1.l)
+        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, BB, b, Phiprime, K, p2.l-p1.l, p1.l)
         return andvars
 
     @classmethod
@@ -104,21 +113,21 @@ class Andoyer(object):
         p = self.params
         j = p['j']
         k = p['k']
-        W = self.Ws*p['Phiscale']
-        K = self.Ks*p['Phiscale']
-        Z = k*self.Phi*p['Phiscale']
+        BB = self.BB*p['Phiscale']
+        K = self.K*p['Phiscale']
+        AA = k*self.Phi*p['Phiscale']
         Brouwer = -3.*self.Phiprime/p['Acoeff']/p['timescale']
         lambda2 = self.lambda1 + self.deltalambda
         theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
-        z = np.mod( (self.phi - theta) / k ,2*np.pi)
-        Pa = Brouwer + Z/float(k)
+        a = np.mod( (self.phi - theta) / k ,2*np.pi)
+        Pa = Brouwer + AA/float(k)
         dL1 = -Pa*(j-k)    
         dL2 =((j-k) * K - j * dL1)/(j-k) 
 
         Lambda1 = p['Lambda10']+dL1
         Lambda2 = p['Lambda20']+dL2 
 
-        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_ZW(Z,z,W,self.w,p['ff'],p['gg'], inverse=True)
+        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_AABB(AA,a,BB,self.b,p['ff'],p['gg'], inverse=True)
         masses = p['masses']
         p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
         p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
@@ -134,14 +143,6 @@ class Andoyer(object):
     @property
     def phi(self):
         return np.arctan2(self.Y, self.X)
-    @property
-    def W(self):
-        p = self.params
-        return self.Ws*p['Phiscale']
-    @property
-    def K(self):
-        p = self.params
-        return self.Ks*p['Phiscale']
     @property
     def Brouwer(self):
         p = self.params
