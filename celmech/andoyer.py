@@ -31,18 +31,19 @@ def rotate_Poincare_Gammas_To_AABB(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False
 
 def calc_expansion_params(G, masses, j, k, a10):
     p = {'j':j, 'k':k, 'G':G, 'masses':masses, 'a10':a10}       
-    p['a20'] = a10*(j/(j-k))**(2./3.)
+    p['a20'] = a10*(j/float(j-k))**(2./3.)
     p['Lambda10'] = masses[1]*np.sqrt(G*masses[0]*p['a10'])
     p['Lambda20'] = masses[2]*np.sqrt(G*masses[0]*p['a20'])
     p['n10'] = masses[1]**3*(G*masses[0])**2/p['Lambda10']**3
     p['n20'] = masses[2]**3*(G*masses[0])**2/p['Lambda20']**3
-    Dn1DL1 = -3. * p['n10']/ p['Lambda10']
-    Dn2DL2 = -3. * p['n20'] / p['Lambda20']
+    p['Dn1DL1'] = -3. * p['n10']/ p['Lambda10']
+    p['Dn2DL2'] = -3. * p['n20'] / p['Lambda20']
     f,g = get_fg_coeffs(j,k)
     p['ff']  = np.sqrt(2)*f/np.sqrt(p['Lambda10'])
     p['gg']  = np.sqrt(2)*g/np.sqrt(p['Lambda20'])
-    fac = np.sqrt(2.*k*(p['ff']**2+p['gg']**2))**k
-    p['Acoeff'] = Dn1DL1*(j-k)**2 + Dn2DL2*j**2
+    fac = np.sqrt(2*k*(p['ff']**2+p['gg']**2))**k
+    fac = np.sqrt(k*(p['ff']**2+p['gg']**2))**k
+    p['Acoeff'] = p['Dn1DL1']*(j-k)**2 + p['Dn2DL2']*j**2
     p['Ccoeff'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
     p['Phiscale'] = 2.**((k-6.)/(k-4.))*(p['Ccoeff']/p['Acoeff'])**(2./(4.-k))
     p['timescale'] = 8./(p['Phiscale']*p['Acoeff'])
@@ -87,19 +88,52 @@ class Andoyer(object):
         
         dL1 = p1.Lambda-p['Lambda10']
         dL2 = p2.Lambda-p['Lambda20']
+        nu1 = p['Dn1DL1']
+        nu2 = p['Dn2DL2']
+
         AA,a,BB,b = rotate_Poincare_Gammas_To_AABB(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
-        K  = ( j * dL1 + (j-k) * dL2 ) / (j-k)
+        K  = dL2 + j * dL1 / float(j-k) 
+        Brouwer = -dL1/(j-k) - AA / k
+        bCoeff =  p['Acoeff'] * Brouwer + j * nu2 * K
+
+        # scale momenta
         AA /= p['Phiscale']
-        BB /= p['Phiscale']
         K /= p['Phiscale']
-        Pa = -dL1 / (j-k) 
-        Brouwer = Pa - AA/k
+        BB /= p['Phiscale']
+
         phi = j * p2.l - (j-k) * p1.l + k * a
-        Phi = AA / k
-        Phiprime = -Brouwer*p['Acoeff']*p['timescale']/3. 
+        Phi = AA / k 
+        Phiprime = - p['timescale'] * bCoeff / 3.
         
         andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, BB, b, Phiprime, K, p2.l-p1.l, p1.l)
         return andvars
+
+    def to_Poincare(self):
+        p = self.params
+        j = p['j']
+        k = p['k']
+       
+        # Unscale momenta
+        BB = self.BB*p['Phiscale']
+        K = self.K*p['Phiscale']
+        AA = k*self.Phi*p['Phiscale']
+        bCoeff= -3. * self.Phiprime / p['timescale']
+
+        nu2 = p['Dn2DL2']
+        Brouwer = (bCoeff - j * nu2 * K) / p['Acoeff']
+        lambda2 = self.lambda1 + self.deltalambda
+        theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
+        a = np.mod( (self.phi - theta) / k ,2*np.pi)
+        dL1 = -(j-k) * (Brouwer + AA / k)
+        dL2 =((j-k) * K - j * dL1)/(j-k) 
+        Lambda1 = p['Lambda10']+dL1
+        Lambda2 = p['Lambda20']+dL2 
+
+        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_AABB(AA,a,BB,self.b,p['ff'],p['gg'], inverse=True)
+        masses = p['masses']
+        p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
+        p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
+        return Poincare(p['G'], masses[0], [p1,p2])
 
     @classmethod
     def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average_synodic_terms=False):
@@ -109,29 +143,6 @@ class Andoyer(object):
         ps = sim.particles
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
-    def to_Poincare(self):
-        p = self.params
-        j = p['j']
-        k = p['k']
-        BB = self.BB*p['Phiscale']
-        K = self.K*p['Phiscale']
-        AA = k*self.Phi*p['Phiscale']
-        Brouwer = -3.*self.Phiprime/p['Acoeff']/p['timescale']
-        lambda2 = self.lambda1 + self.deltalambda
-        theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
-        a = np.mod( (self.phi - theta) / k ,2*np.pi)
-        Pa = Brouwer + AA/float(k)
-        dL1 = -Pa*(j-k)    
-        dL2 =((j-k) * K - j * dL1)/(j-k) 
-
-        Lambda1 = p['Lambda10']+dL1
-        Lambda2 = p['Lambda20']+dL2 
-
-        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_AABB(AA,a,BB,self.b,p['ff'],p['gg'], inverse=True)
-        masses = p['masses']
-        p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
-        p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
-        return Poincare(p['G'], masses[0], [p1,p2])
 
     def to_Simulation(self):
         pvars = self.to_Poincare()
@@ -153,7 +164,12 @@ class AndoyerHamiltonian(Hamiltonian):
         X, Y, Phi, phi, Phiprime, k = symbols('X, Y, Phi, phi, Phiprime, k')
         pqpairs = [(X, Y)]
         Hparams = {Phiprime:andvars.Phiprime, k:andvars.params['k']}
+
         H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
+        if andvars.params['timescale'] < 0:
+            H *= -1
+            andvars.params['timescale'] *= -1
+
         super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
         self.Hpolar = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
 
