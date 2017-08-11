@@ -69,6 +69,15 @@ class Andoyer(object):
         self.params = calc_expansion_params(G, masses, j, k, a10)
 
     @classmethod
+    def new_from_elements(cls, j, k, Zstar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., K=0., deltalambda=np.pi, lambda1=0.):
+        p = calc_expansion_params(G, masses, j, k, a10)
+        Xstar = -np.sqrt(2*Phistar)
+        Phiprime = get_second_order_phiprime(Xstar)
+        Phi = Phistar
+        phi = np.pi
+
+        return cls(j, k, Phi, phi, a10, G, masses, BB, b, Phiprime, K, deltalambda, lambda1)
+    @classmethod
     def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., K=0., deltalambda=np.pi, lambda1=0.):
         p = calc_expansion_params(G, masses, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
