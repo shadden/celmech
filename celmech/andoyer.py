@@ -36,14 +36,13 @@ def calc_expansion_params(G, masses, j, k, a10):
     p['Lambda20'] = masses[2]*np.sqrt(G*masses[0]*p['a20'])
     p['n10'] = masses[1]**3*(G*masses[0])**2/p['Lambda10']**3
     p['n20'] = masses[2]**3*(G*masses[0])**2/p['Lambda20']**3
-    p['Dn1DL1'] = -3. * p['n10']/ p['Lambda10']
-    p['Dn2DL2'] = -3. * p['n20'] / p['Lambda20']
+    p['nu1'] = -3. * p['n10']/ p['Lambda10']
+    p['nu2'] = -3. * p['n20'] / p['Lambda20']
     f,g = get_fg_coeffs(j,k)
     p['ff']  = np.sqrt(2)*f/np.sqrt(p['Lambda10'])
     p['gg']  = np.sqrt(2)*g/np.sqrt(p['Lambda20'])
-    fac = np.sqrt(2*k*(p['ff']**2+p['gg']**2))**k
     fac = np.sqrt(k*(p['ff']**2+p['gg']**2))**k
-    p['Acoeff'] = p['Dn1DL1']*(j-k)**2 + p['Dn2DL2']*j**2
+    p['Acoeff'] = p['nu1']*(j-k)**2 + p['nu2']*j**2
     p['Ccoeff'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
     p['Phiscale'] = 2.**((k-6.)/(k-4.))*(p['Ccoeff']/p['Acoeff'])**(2./(4.-k))
     p['timescale'] = 8./(p['Phiscale']*p['Acoeff'])
@@ -70,7 +69,9 @@ class Andoyer(object):
         self.params = calc_expansion_params(G, masses, j, k, a10)
 
     @classmethod
-    def new_from_elements(cls, j, k, Zstar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., K=0., deltalambda=np.pi, lambda1=0.):
+    def new_from_elements(cls, j, k, Zstar, libfac, a1=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., deltalambda=np.pi, lambda1=0.):
+        a10 = a1
+
         p = calc_expansion_params(G, masses, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
@@ -97,13 +98,11 @@ class Andoyer(object):
         
         dL1 = p1.Lambda-p['Lambda10']
         dL2 = p2.Lambda-p['Lambda20']
-        nu1 = p['Dn1DL1']
-        nu2 = p['Dn2DL2']
 
         AA,a,BB,b = rotate_Poincare_Gammas_To_AABB(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
         K  = dL2 + j * dL1 / float(j-k) 
         Brouwer = -dL1/(j-k) - AA / k
-        bCoeff =  p['Acoeff'] * Brouwer + j * nu2 * K
+        bCoeff =  p['Acoeff'] * Brouwer + j * p['nu2'] * K
 
         # scale momenta
         AA /= p['Phiscale']
@@ -128,8 +127,7 @@ class Andoyer(object):
         AA = k*self.Phi*p['Phiscale']
         bCoeff= -3. * self.Phiprime / p['timescale']
 
-        nu2 = p['Dn2DL2']
-        Brouwer = (bCoeff - j * nu2 * K) / p['Acoeff']
+        Brouwer = (bCoeff - j * p['nu2'] * K) / p['Acoeff']
         lambda2 = self.lambda1 + self.deltalambda
         theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
         a = np.mod( (self.phi - theta) / k ,2*np.pi)
