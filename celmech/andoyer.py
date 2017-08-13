@@ -175,7 +175,7 @@ class AndoyerHamiltonian(Hamiltonian):
         H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
         if andvars.params['timescale'] < 0:
             H *= -1
-            andvars.params['timescale'] *= -1
+            #andvars.params['timescale'] *= -1
 
         super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
         self.Hpolar = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
