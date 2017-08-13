@@ -2,11 +2,10 @@ FROM andrewosh/binder-base
 
 # for use with mybinder.org
 
-MAINTAINER Daniel Tamayo <tamayo.daniel@gmail.com>
+MAINTAINER Sam Hadden <shadden1107@gmail.com>
 
-USER main
-#COPY . $HOME/
+USER root
+COPY . $HOME/
 
-#RUN pip install rebound sympy matplotlib numpy scipy
-#RUN /home/main/anaconda/envs/python3/bin/conda install -c conda-forge #ipywidgets matplotlib numpy scipy
-RUN /home/main/anaconda/envs/python3/bin/pip install rebound
+RUN pip install rebound celmech
+RUN $HOME/anaconda2/envs/python3/bin/pip install rebound celmech

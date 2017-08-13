@@ -6,3 +6,5 @@
 *.pdf
 *.bin
 .ipynb_checkpoints
+dist/
+build/
