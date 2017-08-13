@@ -16,18 +16,18 @@ Cartesian components in code X, Y = sqrt(2*phi)cos(phi) and sin(phi) are general
 Note A is proportional to scriptZ, but B is not proportional to scriptW, and depends on masses etc. Can solve for B from scriptZ and scriptW
 '''
 
-def rotate_Poincare_Gammas_To_AABB(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False):
+def rotate_Poincare_Gammas_To_Psi1Psi2(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=False):
     if inverse is True:
         g = -g
     X1,Y1 = ActionAngleToXY(Gamma1,gamma1)
     X2,Y2 = ActionAngleToXY(Gamma2,gamma2)
     norm = np.sqrt(f*f + g*g)
     rotation_matrix = np.array([[f,g],[-g,f]]) / norm
-    AX,BX = np.dot(rotation_matrix , np.array([X1,X2]) )
-    AY,BY = np.dot(rotation_matrix , np.array([Y1,Y2]) )
-    AA,a = XYToActionAngle(AX,AY)
-    BB,b = XYToActionAngle(BX,BY)
-    return AA,a,BB,b
+    Psi1X,Psi2X = np.dot(rotation_matrix , np.array([X1,X2]) )
+    Psi1Y,Psi2Y = np.dot(rotation_matrix , np.array([Y1,Y2]) )
+    Psi1,psi1 = XYToActionAngle(Psi1X,Psi1Y)
+    Psi2,psi2 = XYToActionAngle(Psi2X,Psi2Y)
+    return Psi1,psi1,Psi2,psi2
 
 def calc_expansion_params(G, masses, j, k, a10):
     p = {'j':j, 'k':k, 'G':G, 'masses':masses, 'a10':a10}       
@@ -42,25 +42,25 @@ def calc_expansion_params(G, masses, j, k, a10):
     p['ff']  = np.sqrt(2)*f/np.sqrt(p['Lambda10'])
     p['gg']  = np.sqrt(2)*g/np.sqrt(p['Lambda20'])
     fac = np.sqrt(k*(p['ff']**2+p['gg']**2))**k
-    p['Acoeff'] = p['nu1']*(j-k)**2 + p['nu2']*j**2
-    p['Ccoeff'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
-    p['Phiscale'] = 2.**((k-6.)/(k-4.))*(p['Ccoeff']/p['Acoeff'])**(2./(4.-k))
-    p['timescale'] = 8./(p['Phiscale']*p['Acoeff'])
+    p['a'] = p['nu1']*(j-k)**2 + p['nu2']*j**2
+    p['c'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
+    p['eta'] = 2.**((6.-k)/(4.-k))*(p['c']/p['a'])**(2./(4.-k))
+    p['tau'] = 8./(p['eta']*p['a'])
     return p
 
 def get_second_order_phiprime(Phi_eq):
     return (4*Phi_eq**2 - 2.)/3.
 
 class Andoyer(object):
-    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
-        sX, sY, sBB, sb, sPhiprime, sK, sdeltalambda, slambda1 = symbols('X, Y, BB, b, Phiprime, K, \Delta\lambda, lambda1')
+    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
+        sX, sY, sPsi2, spsi2, sPhiprime, sK, sdeltalambda, slambda1 = symbols('X, Y, Psi2, psi2, Phiprime, K, \Delta\lambda, lambda1')
         sk, sj, sG, smasses, sa10 = symbols('k, j, G, masses, a10')
         X = np.sqrt(2.*Phi)*np.cos(phi)
         Y = np.sqrt(2.*Phi)*np.sin(phi)
         self.X = X
         self.Y = Y
-        self.BB = BB
-        self.b = b
+        self.Psi2 = Psi2
+        self.psi2 = psi2 
         self.Phiprime = Phiprime
         self.K = K
         self.deltalambda = deltalambda
@@ -69,25 +69,14 @@ class Andoyer(object):
         self.params = calc_expansion_params(G, masses, j, k, a10)
 
     @classmethod
-    def new_from_elements(cls, j, k, Zstar, libfac, a1=1., G=1., masses=[1.,1.e-5,1.e-5], W=0., w=0., deltalambda=np.pi, lambda1=0.):
-        a10 = a1
-
+    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
         p = calc_expansion_params(G, masses, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
         Phi = Phistar
         phi = np.pi
 
-        return cls(j, k, Phi, phi, a10, G, masses, BB, b, Phiprime, K, deltalambda, lambda1)
-    @classmethod
-    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], BB=0., b=0., K=0., deltalambda=np.pi, lambda1=0.):
-        p = calc_expansion_params(G, masses, j, k, a10)
-        Xstar = -np.sqrt(2*Phistar)
-        Phiprime = get_second_order_phiprime(Xstar)
-        Phi = Phistar
-        phi = np.pi
-
-        return cls(j, k, Phi, phi, a10, G, masses, BB, b, Phiprime, K, deltalambda, lambda1)
+        return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
 
     @classmethod
     def from_Poincare(cls,pvars,j,k,a10,i1=1,i2=2):
@@ -99,21 +88,21 @@ class Andoyer(object):
         dL1 = p1.Lambda-p['Lambda10']
         dL2 = p2.Lambda-p['Lambda20']
 
-        AA,a,BB,b = rotate_Poincare_Gammas_To_AABB(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
+        Psi1,psi1,Psi2,psi2 = rotate_Poincare_Gammas_To_Psi1Psi2(p1.Gamma,p1.gamma,p2.Gamma,p2.gamma,p['ff'],p['gg'])
         K  = dL2 + j * dL1 / float(j-k) 
-        Brouwer = -dL1/(j-k) - AA / k
-        bCoeff =  p['Acoeff'] * Brouwer + j * p['nu2'] * K
+        Brouwer = -dL1/(j-k) - Psi1 / k
+        b =  p['a'] * Brouwer + j * p['nu2'] * K
 
         # scale momenta
-        AA /= p['Phiscale']
-        K /= p['Phiscale']
-        BB /= p['Phiscale']
+        Psi1 /= p['eta']
+        K /= p['eta']
+        Psi2 /= p['eta']
 
-        phi = j * p2.l - (j-k) * p1.l + k * a
-        Phi = AA / k 
-        Phiprime = - p['timescale'] * bCoeff / 3.
+        phi = j * p2.l - (j-k) * p1.l + k * psi1
+        Phi = Psi1 / k 
+        Phiprime = - p['tau'] * b / 3.
         
-        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, BB, b, Phiprime, K, p2.l-p1.l, p1.l)
+        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, Psi2, psi2, Phiprime, K, p2.l-p1.l, p1.l)
         return andvars
 
     def to_Poincare(self):
@@ -122,21 +111,21 @@ class Andoyer(object):
         k = p['k']
        
         # Unscale momenta
-        BB = self.BB*p['Phiscale']
-        K = self.K*p['Phiscale']
-        AA = k*self.Phi*p['Phiscale']
-        bCoeff= -3. * self.Phiprime / p['timescale']
+        Psi2 = self.Psi2*p['eta']
+        K = self.K*p['eta']
+        Psi1 = k*self.Phi*p['eta']
+        b = -3. * self.Phiprime / p['tau']
 
-        Brouwer = (bCoeff - j * p['nu2'] * K) / p['Acoeff']
+        Brouwer = (b - j * p['nu2'] * K) / p['a']
         lambda2 = self.lambda1 + self.deltalambda
         theta = j*self.deltalambda + k*self.lambda1 # jlambda2 - (j-k)lambda1
-        a = np.mod( (self.phi - theta) / k ,2*np.pi)
-        dL1 = -(j-k) * (Brouwer + AA / k)
+        psi1 = np.mod( (self.phi - theta) / k ,2*np.pi)
+        dL1 = -(j-k) * (Brouwer + Psi1 / k)
         dL2 =((j-k) * K - j * dL1)/(j-k) 
         Lambda1 = p['Lambda10']+dL1
         Lambda2 = p['Lambda20']+dL2 
 
-        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_AABB(AA,a,BB,self.b,p['ff'],p['gg'], inverse=True)
+        Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_Psi1Psi2(Psi1,psi1,Psi2,self.psi2,p['ff'],p['gg'], inverse=True)
         masses = p['masses']
         p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
         p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
@@ -164,7 +153,7 @@ class Andoyer(object):
     @property
     def Brouwer(self):
         p = self.params
-        return -3.*self.Phiprime/p['Acoeff']/p['timescale']
+        return -3.*self.Phiprime/p['a']/p['tau']
 
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, andvars):
@@ -173,9 +162,8 @@ class AndoyerHamiltonian(Hamiltonian):
         Hparams = {Phiprime:andvars.Phiprime, k:andvars.params['k']}
 
         H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
-        if andvars.params['timescale'] < 0:
+        if andvars.params['tau'] < 0:
             H *= -1
-            #andvars.params['timescale'] *= -1
 
         super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
         self.Hpolar = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
