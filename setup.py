@@ -32,7 +32,7 @@ libcelmechmodule = Extension('libcelmech',
                     include_dirs = ['src'],
                     define_macros=[ ('LIBCELMECH', None) ],
                     # Removed '-march=native' for now.
-                    extra_compile_args=['-fstrict-aliasing', '-O3','-std=c99','-Wno-unknown-pragmas', '-DLIBCELMECH', '-D_GNU_SOURCE', '-fPIC'],
+                    extra_compile_args=['-fstrict-aliasing', '-O3','-std=c99','-Wno-unknown-pragmas', ghash_arg, '-DLIBCELMECH', '-D_GNU_SOURCE', '-fPIC'],
                     extra_link_args=extra_link_args,
                     )
 
