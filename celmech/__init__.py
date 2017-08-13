@@ -24,6 +24,25 @@ pymodulepath = os.path.dirname(__file__)
 from ctypes import cdll, c_char_p
 clibcelmech = cdll.LoadLibrary(pymodulepath+"/../libcelmech"+suffix)
 
+# Version
+__version__ = c_char_p.in_dll(clibcelmech, "celmech_version_str").value.decode('ascii')
+
+# Build
+__build__ = c_char_p.in_dll(clibcelmech, "celmech_build_str").value.decode('ascii')
+
+# Githash
+__githash__ = c_char_p.in_dll(clibcelmech, "celmech_githash_str").value.decode('ascii')
+
+# Check for version
+try:
+    moduleversion = pkg_resources.require("celmech")[0].version
+    libcelmechversion = __version__
+    if moduleversion != libcelmechversion:
+        warnings.warn("WARNING: python module and libcelmech have different version numbers: '%s' vs '%s'.\n" %(moduleversion, libcelmechversion), ImportWarning)
+except:
+    # Might fails on python3 versions, but not important
+    pass
+
 from .andoyer import Andoyer, AndoyerHamiltonian
 from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
 
