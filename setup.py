@@ -17,7 +17,7 @@ try:
     ghash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")
     ghash_arg = "-DCELMECHGITHASH="+ghash.strip()
 except:
-    ghash_arg = "-DCELMECHGITHASH=9fee72aaa54f780cec924b2f04cc7a0ccd1a1dcf" #GITHASHAUTOUPDATE
+    ghash_arg = "-DCELMECHGITHASH=863324d4a52c3e0c945c9ed8d76c670c6945294a" #GITHASHAUTOUPDATE
 
 extra_link_args=[]
 if sys.platform == 'darwin':
@@ -37,7 +37,7 @@ libcelmechmodule = Extension('libcelmech',
                     )
 
 setup(name='celmech',
-    version='0.1.0',
+    version='0.2.0',
     description='Open source tools for celestial mechanics',
     url='http://github.com/hannorein/rebound',
     author='Dan Tamayo, Sam Hadden',
