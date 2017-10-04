@@ -38,15 +38,46 @@ def calc_expansion_params(G, masses, j, k, a10):
     p['n20'] = masses[2]**3*(G*masses[0])**2/p['Lambda20']**3
     p['nu1'] = -3. * p['n10']/ p['Lambda10']
     p['nu2'] = -3. * p['n20'] / p['Lambda20']
-    f,g = get_fg_coeffs(j,k)
-    p['ff']  = np.sqrt(2)*f/np.sqrt(p['Lambda10'])
-    p['gg']  = np.sqrt(2)*g/np.sqrt(p['Lambda20'])
+    p['f'],p['g'] = get_fg_coeffs(j,k)
+    p['ff']  = np.sqrt(2)*p['f']/np.sqrt(p['Lambda10'])
+    p['gg']  = np.sqrt(2)*p['g']/np.sqrt(p['Lambda20'])
     fac = np.sqrt(k*(p['ff']**2+p['gg']**2))**k
     p['a'] = p['nu1']*(j-k)**2 + p['nu2']*j**2
     p['c'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
     p['eta'] = 2.**((6.-k)/(4.-k))*(p['c']/p['a'])**(2./(4.-k))
     p['tau'] = 8./(p['eta']*p['a'])
     return p
+
+# will give you the phiprime that yields an equilibrium Xstar, always in the range of phiprime where there exists a separatrix
+def get_phiprime(k, Xstar):
+    if k == 2:
+        phiprime = (4.*Xstar**2 - 2.)/3.
+    if k == 3:
+        pass
+
+    return phiprime
+
+def get_Xstarunstable(k, phiprime):
+    if k == 1:
+        if phiprime < 1.:
+            raise ValueError("k=1 resonance has no unstable fixed point for phiprime < 1")
+        Xstarunstable = np.sqrt(phiprime)*np.cos(1./3.*np.arccos(-phiprime**(-1.5)))
+    if k == 2:
+        if phiprime < -2./3.:
+            raise ValueError("k=2 resonance has no unstable fixed point for phiprime < -2/3")
+        if phiprime < 2./3.:
+            Xstarunstable = 0.
+        else:
+            Xstarunstable = np.sqrt(phiprime)*np.cos(1./3.*np.arccos(-phiprime**(-1.5)))
+    if k == 3:
+        if phiprime < -9./48.:
+            raise ValueError("k=3 resonance has no unstable fixed point for phiprime < -9/48")
+        Xstarunstable = (-3.+np.sqrt(9.+48.*phiprime))/8.
+
+    return Xstarunstable        
+
+def get_Xplusminus(k, phiprime):
+    pass
 
 def get_second_order_phiprime(Phi_eq):
     return (4*Phi_eq**2 - 2.)/3.
@@ -74,6 +105,21 @@ class Andoyer(object):
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
         Phi = Phistar
+        phi = np.pi
+
+        return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
+   
+    @classmethod
+    def from_elements2(cls, j, k, Zstar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
+        p = calc_expansion_params(G, masses, j, k, a10)
+        #Psi1star = 0.5*Zstar**2*(p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)
+        #Phistar = Psi1star/k
+        #Xstar = -np.sqrt(2*Phistar)
+        Xstar = -Zstar/k*(p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)
+        Phiprime = get_second_order_phiprime(Xstar)
+        deltaX = 0.
+        X = Xstar + deltaX
+        Phi = 0.5*X**2
         phi = np.pi
 
         return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
