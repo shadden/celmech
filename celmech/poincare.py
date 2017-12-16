@@ -1,7 +1,8 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B
+from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from itertools import combinations
 import rebound
 
 class PoincareParticle(object):
@@ -14,7 +15,7 @@ class PoincareParticle(object):
         self.l = l
         self.X = X
         self.Y = Y
-
+    
     @property
     def Gamma(self):
         return (self.X**2+self.Y**2)/2.
@@ -29,19 +30,13 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, M, poincareparticles=[]):
         self.G = G
-        self.M = M
-        self.particles = [None]
+        self.particles = [PoincareParticle(M, 0., 0., 0., 0., 0.)]
         try:
             for p in poincareparticles:
-                self.particles.append(p)
+                self.particles.append(PoincareParticle(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M))
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
-    def add(self, m, Lambda, l, Gamma, gamma, M=None):
-        if M is None:
-            M = self.M
-        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M))
-    
     @classmethod
     def from_Simulation(cls, sim, average_synodic_terms=False):
         pvars = Poincare(sim.G, sim.particles[0].m)
@@ -49,23 +44,106 @@ class Poincare(object):
         for i in range(1,sim.N):
             M = ps[0].m # TODO: add jacobi option ?
             m = ps[i].m
-            Lambda = m*np.sqrt(sim.G*M*ps[i].a)
-            Gamma = Lambda*(1.-np.sqrt(1.-ps[i].e**2))
-            pvars.add(ps[i].m, Lambda, ps[i].l, Gamma, -ps[i].pomega, M)
-        # TODO: if average_synodic_terms is True:    
+            orb = ps[i].calculate_orbit(primary=ps[0])
+            Lambda = m*np.sqrt(sim.G*M*orb.a)
+            Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
+            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
+        if average_synodic_terms is True:
+            pvars = pvars.synodic_Lambda_correction()
+                #print(pvars.particles[i1].Lambda-Ls[i1])
         return pvars
 
-    def to_Simulation(self):
+    def to_Simulation(self, average_synodic_terms=False):
+        pvars = self
+        if average_synodic_terms is True:
+            pvars = self.synodic_Lambda_correction()
+
         sim = rebound.Simulation()
-        sim.G = self.G
-        sim.add(m=self.M)
-        ps = self.particles
-        for i in range(1, self.N):
-            a = ps[i].Lambda**2/ps[i].m**2/self.G/ps[i].M
-            e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
-            sim.add(m=ps[i].m, a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
+        sim.G = pvars.G
+        sim.add(m=pvars.particles[0].m)
+        ps = pvars.particles
+        for p in ps[1:pvars.N]:#i in range(1, pvars.N):
+            a = p.Lambda**2/p.m**2/pvars.G/p.M
+            e = np.sqrt(1.-(1.-p.Gamma/p.Lambda)**2)
+            sim.add(m=p.m, a=a, e=e, pomega=-p.gamma, l=p.l, primary=sim.particles[0])
         sim.move_to_com()
         return sim
+
+    def copy(self):
+        return Poincare(self.G, self.particles[0].m, self.particles[1:pvars.N])
+
+    def synodic_Lambda_correction2(pvars, inverse=False):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the synodic terms we do not include in the Hamiltonian.
+        """
+        pairs = combinations(range(1,sim.N), 2)
+        for i1, i2 in pairs:
+            pvars.particles[i1].Lambda, pvars.particles[i2].Lambda = pvars.synodic_Lambda_correction(Ls, i1, i2)
+            #print(pvars.particles[i1].Lambda-Ls[i1])
+
+        return pvars
+
+    def synodic_Lambda_correction(self, Ls, i1, i2, inverse=False):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the synodic terms we do not include in the Hamiltonian.
+        """
+        s=0
+        ps = self.particles
+        L1 = ps[i1].Lambda
+        L2 = ps[i2].Lambda
+        m1 = ps[i1].m
+        m2 = ps[i2].m
+        G = self.G
+        M = self.M
+
+        n1 = G**2*M**2*m1**3/L1**3
+        n2 = G**2*M**2*m2**3/L2**3
+        alpha = (m2/m1*L1/L2)**2
+        deltan = n1-n2
+        prefac = G**2*M**2*m2**3/L2**2*m1/M/deltan
+        deltalambda = ps[i1].l-ps[i2].l
+
+        summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
+        s = prefac*(summation - 0.5*laplace_coefficient(0.5, 0, 0, alpha) - alpha*np.cos(deltalambda))
+        if inverse is True:
+            s *= -1
+        #print('correction', s/L1)
+        Ls[i1] -= s
+        Ls[i2] += s
+    '''
+    def synodic_Lambda_correction(self, Ls, i1, i2, inverse=False):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the synodic terms we do not include in the Hamiltonian.
+        """
+        s=0
+        ps = self.particles
+        m1 = ps[i1].m
+        m2 = ps[i2].m
+        G = self.G
+        M = self.M
+
+        n1 = G**2*M**2*m1**3/Ls[i1]**3
+        n2 = G**2*M**2*m2**3/Ls[i2]**3
+        alpha = (m2/m1*Ls[i1]/Ls[i2])**2
+        deltan = n1-n2
+        prefac = G**2*M**2*m2**3/Ls[i2]**2*m1/M/deltan
+        deltalambda = ps[i1].l-ps[i2].l
+
+        summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
+        s = prefac*(summation - 0.5*laplace_coefficient(0.5, 0, 0, alpha) - alpha*np.cos(deltalambda))
+        if inverse is True:
+            s *= -1
+        print('correction', s/Ls[i1])
+        return [Ls[i1]-s, Ls[i2]+s]  
+    '''
+    def add(self, m, Lambda, l, Gamma, gamma, M=None):
+        if M is None:
+            M = self.particles[0].m
+        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M))
+    
 
     def get_a(self, index):
         p = self.particles[index]

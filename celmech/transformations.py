@@ -1,4 +1,5 @@
 from celmech import disturbing_function
+from .poincare import Poincare
 import numpy as np
 from collections import OrderedDict
 from sympy import S
@@ -27,7 +28,7 @@ def jacobi_masses(masses):
         Mjac[i] = masses[0]*(masses[i]+interior_mass)/interior_mass # mjac[i]*Mjac[i] always = m[i]*m[0]
     mjac[0] = interior_mass
     return list(mjac), list(Mjac)
-
+'''
 def synodic_Lambda_correction(sim, i1, i2, Lambda1, Lambda2):
     """
     Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
@@ -45,7 +46,7 @@ def synodic_Lambda_correction(sim, i1, i2, Lambda1, Lambda2):
     s -= alpha*np.cos(deltalambda)
     s *= prefac
     return [Lambda1-s, Lambda2+s]
-
+'''
 def ActionAngleToXY(Action,angle):
         return np.sqrt(2*Action)*np.cos(angle),np.sqrt(2*Action)*np.sin(angle)
 

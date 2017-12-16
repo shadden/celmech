@@ -11,8 +11,7 @@ Compare with Hadden & Lithwick 2017:
 In the code, Z = |scriptZ| and z = arg(scriptZ) from paper
 W = |scriptW| and w = arg(scriptW) from paper
 Phi and phi in the paper are a generalized eccentricity squared and a generalized pericenter
-Phi in the code = Phi in the paper / k and scaled to simplify the Hamiltonian, so also a squared eccentricity
-Cartesian components in code X, Y = sqrt(2*phi)cos(phi) and sin(phi) are generalized eccentricities
+Cartesian components in code X, Y = sqrt(2*Phi)cos(phi) and sin(phi) are generalized eccentricities
 Note A is proportional to scriptZ, but B is not proportional to scriptW, and depends on masses etc. Can solve for B from scriptZ and scriptW
 '''
 
@@ -79,8 +78,8 @@ def get_Xstarunstable(k, phiprime):
 def get_Xplusminus(k, phiprime):
     pass
 
-def get_second_order_phiprime(Phi_eq):
-    return (4*Phi_eq**2 - 2.)/3.
+def get_second_order_phiprime(Xstar):
+    return (4*Xstar**2 + 2.*np.abs(Xstar)/Xstar)/3.
 
 class Andoyer(object):
     def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
@@ -115,12 +114,19 @@ class Andoyer(object):
         #Psi1star = 0.5*Zstar**2*(p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)
         #Phistar = Psi1star/k
         #Xstar = -np.sqrt(2*Phistar)
-        Xstar = -Zstar/k*(p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)
+        Xstar = -Zstar/np.sqrt(k)*(p['f']**2 + p['g']**2)/(p['ff']**2 + p['gg']**2)/np.sqrt(p['eta'])
+        print(p['eta'])
+        print(Xstar)
         Phiprime = get_second_order_phiprime(Xstar)
-        deltaX = 0.
+        print(Phiprime)
+        if libfac > 0:
+            deltaX = -np.abs(libfac)*(np.sqrt(2.)-1.)*np.abs(Xstar)
+        else:
+            deltaX = np.abs(libfac)*np.abs(Xstar)
         X = Xstar + deltaX
+        print(X, deltaX)
         Phi = 0.5*X**2
-        phi = np.pi
+        phi = np.pi if X < 0. else 0.
 
         return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
 
@@ -128,7 +134,7 @@ class Andoyer(object):
     def from_Poincare(cls,pvars,j,k,a10,i1=1,i2=2):
         p1 = pvars.particles[i1]
         p2 = pvars.particles[i2]
-        masses = [pvars.M, p1.m, p2.m]
+        masses = [pvars.particles[0].m, p1.m, p2.m]
         p = calc_expansion_params(pvars.G, masses, j, k, a10)
         
         dL1 = p1.Lambda-p['Lambda10']
