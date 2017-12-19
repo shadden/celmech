@@ -5,14 +5,6 @@ import math
 import numpy as np
 from celmech import Poincare
 
-def mycomp(obj1, obj2):
-    if type(obj1) != type(obj2):
-        return False
-    for attr in [attr for attr in dir(obj1) if not attr.startswith('_')]:
-        if getattr(obj1, attr) != getattr(obj2, attr):
-            return False
-    return True
-
 class TestPoincare(unittest.TestCase):
     def setUp(self):
         self.sim = rebound.Simulation()
@@ -25,13 +17,28 @@ class TestPoincare(unittest.TestCase):
     def tearDown(self):
         self.sim = None
 
-    def compare_simulations(self, sim1, sim2):
+    def compare_objects(self, obj1, obj2, delta=1.e-15):
+        self.assertEqual(type(obj1), type(obj2))
+        for attr in [attr for attr in dir(obj1) if not attr.startswith('_')]:
+            print(attr)
+            self.assertAlmostEqual(getattr(obj1, attr), getattr(obj2, attr), delta=delta)
+    
+    def compare_particles(self, ps1, ps2, delta=1.e-15):
+        self.assertEqual(type(ps1), type(ps2))
+        for p1, p2 in zip(ps1, ps2):
+            for attr in [attr for attr in dir(p1) if not attr.startswith('_')]:
+                print(attr)
+                print(getattr(p1, attr))
+                print(getattr(p2, attr))
+                self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
+
+    def compare_simulations(self, sim1, sim2, delta=1.e-15):
         equal = True
         for i in range(1,sim1.N):
             p1 = sim1.particles[i]
             p2 = sim2.particles[i]
             for attr in ['m', 'x', 'y', 'z', 'vx', 'vy', 'vz']:
-                self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=1.e-14)
+                self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
     def test_rebound(self):
         orbs = self.sim.calculate_orbits(primary=self.sim.particles[0])
@@ -40,14 +47,19 @@ class TestPoincare(unittest.TestCase):
         for i, orb in enumerate(orbs):
             sim.add(m=self.sim.particles[i+1].m, a=orb.a, e=orb.e, pomega=orb.pomega, l=orb.l, primary=sim.particles[0])
         sim.move_to_com()
-        self.compare_simulations(self.sim, sim)
+        self.compare_simulations(self.sim, sim, delta=1.e-14)
 
+    def test_copy(self):
+        pvars = Poincare.from_Simulation(self.sim)
+        pvars2 = pvars.copy()
+        self.compare_particles(pvars.particles, pvars2.particles)
+        
     def test_rebound_transformations(self):
         pvars = Poincare.from_Simulation(self.sim)
         sim = pvars.to_Simulation()
-        self.compare_simulations(self.sim, sim)
+        self.compare_simulations(self.sim, sim, delta=1.e-14)
 
-'''
+    '''
     def test_types(self):
         for t in [int, float, np.int32, np.float64]:
             var = t(3) # make instance of type
@@ -239,7 +251,7 @@ class TestRebxNotAttached(unittest.TestCase):
         self.sim.add(m=1.)
         with self.assertRaises(AttributeError):
             self.sim.particles[0].params["a"] = 7
-'''
+    '''
 
 if __name__ == '__main__':
     unittest.main()
