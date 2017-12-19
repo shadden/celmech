@@ -2,6 +2,7 @@ import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from itertools import combinations
 import rebound
 
@@ -71,12 +72,14 @@ class Poincare(object):
     '''
     @classmethod
     def from_Simulation(cls, sim, average_synodic_terms=False):
+        masses = [p.m for p in sim.particles]
+        mjac, Mjac = masses_to_jacobi(masses)
         pvars = Poincare(sim.G, sim.particles[0].m)
         ps = sim.particles
         for i in range(1,sim.N):
-            M = ps[0].m # TODO: add jacobi option ?
-            m = ps[i].m
-            orb = ps[i].calculate_orbit(primary=ps[0])
+            M = Mjac[i]#ps[0].m # TODO: add jacobi option ?
+            m = mjac[i]#ps[i].m
+            orb = ps[i].calculate_orbit()#primary=ps[0])
             Lambda = m*np.sqrt(sim.G*M*orb.a)
             Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
             pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
@@ -90,14 +93,17 @@ class Poincare(object):
         else:
             pvars = self
 
+        mjac = [p.m for p in pvars.particles]
+        Mjac = [p.M for p in pvars.particles]
+        masses = masses_from_jacobi(mjac, Mjac)
         sim = rebound.Simulation()
         sim.G = pvars.G
-        sim.add(m=pvars.particles[0].m)
+        sim.add(m=masses[0])
         ps = pvars.particles
-        for p in ps[1:pvars.N]:#i in range(1, pvars.N):
-            a = p.Lambda**2/p.m**2/pvars.G/p.M
-            e = np.sqrt(1.-(1.-p.Gamma/p.Lambda)**2)
-            sim.add(m=p.m, a=a, e=e, pomega=-p.gamma, l=p.l, primary=sim.particles[0])
+        for i in range(1, pvars.N):
+            a = ps[i].Lambda**2/ps[i].m**2/pvars.G/ps[i].M
+            e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
+            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)#, primary=sim.particles[0])
         sim.move_to_com()
         return sim
 

@@ -1,5 +1,4 @@
 from celmech import disturbing_function
-from .poincare import Poincare
 import numpy as np
 from collections import OrderedDict
 from sympy import S
@@ -8,26 +7,39 @@ from celmech.disturbing_function import get_fg_coeffs
 from itertools import combinations
 import rebound
 
+'''
 def jacobi_masses_from_sim(sim):
     ps = sim.particles
-    mjac, Mjac, mu = np.zeros(sim.N), np.zeros(sim.N), np.zeros(sim.N)
+    mjac, Mjac = np.zeros(sim.N), np.zeros(sim.N)
     interior_mass = ps[0].m
     for i in range(1,sim.N):
         mjac[i] = ps[i].m*interior_mass/(ps[i].m+interior_mass) # reduced mass with interior mass
-        Mjac[i] = ps[0].m*(ps[i].m+interior_mass)/interior_mass # mjac[i]*Mjac[i] always = ps[i].m*ps[0].m
-        mu[i] = sim.G**2*Mjac[i]**2*mjac[i]**3 # Deck (2013) notation
+        Mjac[i] = ps[0].m*ps[i].m/mjac[i] # mjac[i]*Mjac[i] always = ps[i].m*ps[0].m
+        #mu[i] = sim.G**2*Mjac[i]**2*mjac[i]**3 # Deck (2013) notation
+        interior_mass += ps[i].m
     mjac[0] = interior_mass
-    return list(mjac), list(Mjac), list(mu)
+    return list(mjac), list(Mjac)
+'''
 
-def jacobi_masses(masses):
+def masses_to_jacobi(masses):
     N = len(masses)
-    mjac, Mjac, mu = np.zeros(N), np.zeros(N), np.zeros(N)
+    mjac, Mjac = np.zeros(N), np.zeros(N)
     interior_mass = masses[0]
     for i in range(1,N):
         mjac[i] = masses[i]*interior_mass/(masses[i]+interior_mass) # reduced mass with interior mass
         Mjac[i] = masses[0]*(masses[i]+interior_mass)/interior_mass # mjac[i]*Mjac[i] always = m[i]*m[0]
+        interior_mass += masses[i]
     mjac[0] = interior_mass
     return list(mjac), list(Mjac)
+
+def masses_from_jacobi(mjac, Mjac):
+    plus = Mjac[1] # m0+m1
+    product = mjac[1]*Mjac[1] # m0m1
+    minus = np.sqrt(plus**2 - 4*product) # m0-m1
+    m0 = (plus + minus)/2.
+    masses = [m0] + [Mjac[i]*mjac[i]/m0 for i in range(1,len(mjac))] # mjac[i]*Mjac[i] = m0mi
+    return masses
+
 '''
 def synodic_Lambda_correction(sim, i1, i2, Lambda1, Lambda2):
     """
@@ -47,6 +59,7 @@ def synodic_Lambda_correction(sim, i1, i2, Lambda1, Lambda2):
     s *= prefac
     return [Lambda1-s, Lambda2+s]
 '''
+
 def ActionAngleToXY(Action,angle):
         return np.sqrt(2*Action)*np.cos(angle),np.sqrt(2*Action)*np.sin(angle)
 
