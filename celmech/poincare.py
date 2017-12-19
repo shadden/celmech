@@ -36,7 +36,39 @@ class Poincare(object):
                 self.particles.append(PoincareParticle(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M))
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
+    '''
+    @classmethod
+    def from_Simulation(cls, sim, average_synodic_terms=False):
+        pvars = Poincare(sim.G, sim.particles[0].m)
+        ps = sim.particles
+        for i in range(1,sim.N):
+            M = ps[0].m # TODO: add jacobi option ?
+            m = ps[i].m
+            orb = ps[i].calculate_orbit(primary=ps[0])
+            Lambda = m*np.sqrt(sim.G*M*orb.a)
+            Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
+            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
+        if average_synodic_terms is True:
+            pvars = pvars.synodic_Lambda_correction(inverse=False)
+        return pvars
 
+    def to_Simulation(self, average_synodic_terms=False):
+        if average_synodic_terms is True:
+            pvars = self.synodic_Lambda_correction(inverse=True)
+        else:
+            pvars = self
+
+        sim = rebound.Simulation()
+        sim.G = pvars.G
+        sim.add(m=pvars.particles[0].m)
+        ps = pvars.particles
+        for p in ps[1:pvars.N]:#i in range(1, pvars.N):
+            a = p.Lambda**2/p.m**2/pvars.G/p.M
+            e = np.sqrt(1.-(1.-p.Gamma/p.Lambda)**2)
+            sim.add(m=p.m, a=a, e=e, pomega=-p.gamma, l=p.l, primary=sim.particles[0])
+        sim.move_to_com()
+        return sim
+    '''
     @classmethod
     def from_Simulation(cls, sim, average_synodic_terms=False):
         pvars = Poincare(sim.G, sim.particles[0].m)

@@ -23,13 +23,10 @@ class TestPoincare(unittest.TestCase):
             print(attr)
             self.assertAlmostEqual(getattr(obj1, attr), getattr(obj2, attr), delta=delta)
     
-    def compare_particles(self, ps1, ps2, delta=1.e-15):
+    def compare_poincare_particles(self, ps1, ps2, delta=1.e-15):
         self.assertEqual(type(ps1), type(ps2))
         for p1, p2 in zip(ps1, ps2):
-            for attr in [attr for attr in dir(p1) if not attr.startswith('_')]:
-                print(attr)
-                print(getattr(p1, attr))
-                print(getattr(p2, attr))
+            for attr in ['X', 'Y', 'm', 'M', 'Lambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
     def compare_simulations(self, sim1, sim2, delta=1.e-15):
@@ -52,7 +49,7 @@ class TestPoincare(unittest.TestCase):
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
         pvars2 = pvars.copy()
-        self.compare_particles(pvars.particles, pvars2.particles)
+        self.compare_poincare_particles(pvars.particles, pvars2.particles)
         
     def test_rebound_transformations(self):
         pvars = Poincare.from_Simulation(self.sim)
