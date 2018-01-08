@@ -1,7 +1,9 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B
+from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from celmech.transformations import masses_to_jacobi, masses_from_jacobi
+from itertools import combinations
 import rebound
 
 class PoincareParticle(object):
@@ -14,7 +16,7 @@ class PoincareParticle(object):
         self.l = l
         self.X = X
         self.Y = Y
-
+    
     @property
     def Gamma(self):
         return (self.X**2+self.Y**2)/2.
@@ -29,43 +31,94 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, M, poincareparticles=[]):
         self.G = G
-        self.M = M
-        self.particles = [None]
+        self.particles = [PoincareParticle(M, 0., 0., 0., 0., 0.)]
         try:
             for p in poincareparticles:
-                self.particles.append(p)
+                self.particles.append(PoincareParticle(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M))
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
-    def add(self, m, Lambda, l, Gamma, gamma, M=None):
-        if M is None:
-            M = self.M
-        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M))
-    
     @classmethod
     def from_Simulation(cls, sim, average_synodic_terms=False):
+        masses = [p.m for p in sim.particles]
+        mjac, Mjac = masses_to_jacobi(masses)
         pvars = Poincare(sim.G, sim.particles[0].m)
         ps = sim.particles
         for i in range(1,sim.N):
-            M = ps[0].m # TODO: add jacobi option ?
-            m = ps[i].m
-            Lambda = m*np.sqrt(sim.G*M*ps[i].a)
-            Gamma = Lambda*(1.-np.sqrt(1.-ps[i].e**2))
-            pvars.add(ps[i].m, Lambda, ps[i].l, Gamma, -ps[i].pomega, M)
-        # TODO: if average_synodic_terms is True:    
+            M = Mjac[i]
+            m = mjac[i]
+            orb = ps[i].calculate_orbit()
+            Lambda = m*np.sqrt(sim.G*M*orb.a)
+            Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
+            pvars.add(m, Lambda, orb.theta, Gamma, -orb.pomega, M)
+        if average_synodic_terms is True:
+            pvars = pvars.synodic_Lambda_correction(inverse=False)
         return pvars
 
-    def to_Simulation(self):
+    def to_Simulation(self, average_synodic_terms=False):
+        if average_synodic_terms is True:
+            pvars = self.synodic_Lambda_correction(inverse=True)
+        else:
+            pvars = self
+
+        mjac = [p.m for p in pvars.particles]
+        Mjac = [p.M for p in pvars.particles]
+        masses = masses_from_jacobi(mjac, Mjac)
         sim = rebound.Simulation()
-        sim.G = self.G
-        sim.add(m=self.M)
-        ps = self.particles
-        for i in range(1, self.N):
-            a = ps[i].Lambda**2/ps[i].m**2/self.G/ps[i].M
+        sim.G = pvars.G
+        sim.add(m=masses[0])
+        ps = pvars.particles
+        for i in range(1, pvars.N):
+            a = ps[i].Lambda**2/ps[i].m**2/pvars.G/ps[i].M
             e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
-            sim.add(m=ps[i].m, a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
+            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
         sim.move_to_com()
         return sim
+
+    def copy(self):
+        return Poincare(self.G, self.particles[0].m, self.particles[1:self.N])
+
+    def synodic_Lambda_correction(pvars, inverse=False):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the synodic terms we do not include in the Hamiltonian.
+        """
+        corrpvars = pvars.copy()
+        pairs = combinations(range(1,pvars.N), 2)
+        for i1, i2 in pairs:
+            s=0
+            ps = pvars.particles
+            L1 = ps[i1].Lambda
+            L2 = ps[i2].Lambda
+            m1 = ps[i1].m
+            m2 = ps[i2].m
+            M = ps[0].m 
+            deltalambda = ps[i1].l-ps[i2].l
+            G = pvars.G
+
+            n1 = G**2*M**2*m1**3/L1**3
+            n2 = G**2*M**2*m2**3/L2**3
+            deltan = (n1-n2)/n2
+            prefac = m1/M*L2/deltan
+            alpha = (m2/m1*L1/L2)**2
+
+            summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
+            s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_coefficient(0.5, 0, 0, alpha)/2.)
+            if inverse is True:
+                s *= -1
+            print('prefac, alpha, cos(deltalambda), summation, lpc/2, s')
+            print(prefac, alpha, np.cos(deltalambda), summation, laplace_coefficient(0.5, 0, 0, alpha)/2., s)
+            print(ps[i1].l, ps[i2].l, deltalambda)
+            corrpvars.particles[i1].Lambda += s 
+            corrpvars.particles[i2].Lambda -= s
+
+        return corrpvars
+    
+    def add(self, m, Lambda, l, Gamma, gamma, M=None):
+        if M is None:
+            M = self.particles[0].m
+        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M))
+    
 
     def get_a(self, index):
         p = self.particles[index]
