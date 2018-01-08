@@ -114,58 +114,6 @@ class Poincare(object):
 
         return corrpvars
     
-    '''
-
-    def synodic_Lambda_correction(self, Ls, i1, i2, inverse=False):
-        s=0
-        ps = self.particles
-        L1 = ps[i1].Lambda
-        L2 = ps[i2].Lambda
-        m1 = ps[i1].m
-        m2 = ps[i2].m
-        G = self.G
-        M = self.M
-
-        n1 = G**2*M**2*m1**3/L1**3
-        n2 = G**2*M**2*m2**3/L2**3
-        alpha = (m2/m1*L1/L2)**2
-        deltan = n1-n2
-        prefac = G**2*M**2*m2**3/L2**2*m1/M/deltan
-        deltalambda = ps[i1].l-ps[i2].l
-
-        summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
-        s = prefac*(summation - 0.5*laplace_coefficient(0.5, 0, 0, alpha) - alpha*np.cos(deltalambda))
-        if inverse is True:
-            s *= -1
-        #print('correction', s/L1)
-        Ls[i1] -= s
-        Ls[i2] += s
-    def synodic_Lambda_correction(self, Ls, i1, i2, inverse=False):
-        """
-        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
-        averaged over all the synodic terms we do not include in the Hamiltonian.
-        """
-        s=0
-        ps = self.particles
-        m1 = ps[i1].m
-        m2 = ps[i2].m
-        G = self.G
-        M = self.M
-
-        n1 = G**2*M**2*m1**3/Ls[i1]**3
-        n2 = G**2*M**2*m2**3/Ls[i2]**3
-        alpha = (m2/m1*Ls[i1]/Ls[i2])**2
-        deltan = n1-n2
-        prefac = G**2*M**2*m2**3/Ls[i2]**2*m1/M/deltan
-        deltalambda = ps[i1].l-ps[i2].l
-
-        summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
-        s = prefac*(summation - 0.5*laplace_coefficient(0.5, 0, 0, alpha) - alpha*np.cos(deltalambda))
-        if inverse is True:
-            s *= -1
-        print('correction', s/Ls[i1])
-        return [Ls[i1]-s, Ls[i2]+s]  
-    '''
     def add(self, m, Lambda, l, Gamma, gamma, M=None):
         if M is None:
             M = self.particles[0].m
