@@ -37,39 +37,7 @@ class Poincare(object):
                 self.particles.append(PoincareParticle(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M))
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
-    '''
-    @classmethod
-    def from_Simulation(cls, sim, average_synodic_terms=False):
-        pvars = Poincare(sim.G, sim.particles[0].m)
-        ps = sim.particles
-        for i in range(1,sim.N):
-            M = ps[0].m # TODO: add jacobi option ?
-            m = ps[i].m
-            orb = ps[i].calculate_orbit(primary=ps[0])
-            Lambda = m*np.sqrt(sim.G*M*orb.a)
-            Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
-            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
-        if average_synodic_terms is True:
-            pvars = pvars.synodic_Lambda_correction(inverse=False)
-        return pvars
 
-    def to_Simulation(self, average_synodic_terms=False):
-        if average_synodic_terms is True:
-            pvars = self.synodic_Lambda_correction(inverse=True)
-        else:
-            pvars = self
-
-        sim = rebound.Simulation()
-        sim.G = pvars.G
-        sim.add(m=pvars.particles[0].m)
-        ps = pvars.particles
-        for p in ps[1:pvars.N]:#i in range(1, pvars.N):
-            a = p.Lambda**2/p.m**2/pvars.G/p.M
-            e = np.sqrt(1.-(1.-p.Gamma/p.Lambda)**2)
-            sim.add(m=p.m, a=a, e=e, pomega=-p.gamma, l=p.l, primary=sim.particles[0])
-        sim.move_to_com()
-        return sim
-    '''
     @classmethod
     def from_Simulation(cls, sim, average_synodic_terms=False):
         masses = [p.m for p in sim.particles]
@@ -77,12 +45,12 @@ class Poincare(object):
         pvars = Poincare(sim.G, sim.particles[0].m)
         ps = sim.particles
         for i in range(1,sim.N):
-            M = Mjac[i]#ps[0].m # TODO: add jacobi option ?
-            m = mjac[i]#ps[i].m
-            orb = ps[i].calculate_orbit()#primary=ps[0])
+            M = Mjac[i]
+            m = mjac[i]
+            orb = ps[i].calculate_orbit()
             Lambda = m*np.sqrt(sim.G*M*orb.a)
             Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
-            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
+            pvars.add(m, Lambda, orb.theta, Gamma, -orb.pomega, M)
         if average_synodic_terms is True:
             pvars = pvars.synodic_Lambda_correction(inverse=False)
         return pvars
@@ -103,7 +71,7 @@ class Poincare(object):
         for i in range(1, pvars.N):
             a = ps[i].Lambda**2/ps[i].m**2/pvars.G/ps[i].M
             e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
-            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)#, primary=sim.particles[0])
+            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
         sim.move_to_com()
         return sim
 
@@ -130,17 +98,19 @@ class Poincare(object):
 
             n1 = G**2*M**2*m1**3/L1**3
             n2 = G**2*M**2*m2**3/L2**3
-            deltan = n1-n2
+            deltan = (n1-n2)/n2
+            prefac = m1/M*L2/deltan
             alpha = (m2/m1*L1/L2)**2
-            prefac = G**2*M**2*m2**3/L2**2*m1/M/deltan
 
             summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
-            s = prefac*(summation - 0.5*laplace_coefficient(0.5, 0, 0, alpha) - alpha*np.cos(deltalambda))
+            s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_coefficient(0.5, 0, 0, alpha)/2.)
             if inverse is True:
                 s *= -1
-            print(0.5*m1/M*n2/n1*L2*laplace_coefficient(0.5, 0, 0, alpha)/s)
-            corrpvars.particles[i1].Lambda -= s #+ 0.5*m1/M*n2/n1*L2*laplace_coefficient(0.5, 0, 0, alpha)
-            corrpvars.particles[i2].Lambda += s
+            print('prefac, alpha, cos(deltalambda), summation, lpc/2, s')
+            print(prefac, alpha, np.cos(deltalambda), summation, laplace_coefficient(0.5, 0, 0, alpha)/2., s)
+            print(ps[i1].l, ps[i2].l, deltalambda)
+            corrpvars.particles[i1].Lambda += s 
+            corrpvars.particles[i2].Lambda -= s
 
         return corrpvars
     
