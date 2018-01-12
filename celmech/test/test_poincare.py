@@ -3,7 +3,8 @@ import reboundx
 import unittest
 import math
 import numpy as np
-from celmech import Poincare
+from celmech import Poincare, PoincareHamiltonian
+from random import random, seed
 
 class TestPoincare(unittest.TestCase):
     def setUp(self):
@@ -20,7 +21,6 @@ class TestPoincare(unittest.TestCase):
     def compare_objects(self, obj1, obj2, delta=1.e-15):
         self.assertEqual(type(obj1), type(obj2))
         for attr in [attr for attr in dir(obj1) if not attr.startswith('_')]:
-            print(attr)
             self.assertAlmostEqual(getattr(obj1, attr), getattr(obj2, attr), delta=delta)
     
     def compare_poincare_particles(self, ps1, ps2, delta=1.e-15):
@@ -37,6 +37,16 @@ class TestPoincare(unittest.TestCase):
             for attr in ['m', 'x', 'y', 'z', 'vx', 'vy', 'vz']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
+    def test_orbelements(self):
+        pvars = Poincare.from_Simulation(self.sim, average=False)
+        ps = pvars.particles
+        o = self.sim.calculate_orbits(jacobi_masses=True)
+        for i in range(1,4):
+            self.assertAlmostEqual(o[i-1].a, ps[i].a, delta=1.e-15)
+            self.assertAlmostEqual(o[i-1].e, ps[i].e, delta=1.e-15)
+            self.assertAlmostEqual(o[i-1].l, ps[i].l, delta=1.e-15)
+            self.assertAlmostEqual(o[i-1].pomega, ps[i].pomega, delta=1.e-15)
+
     def test_rebound(self):
         orbs = self.sim.calculate_orbits(primary=self.sim.particles[0])
         sim = rebound.Simulation()
@@ -49,206 +59,104 @@ class TestPoincare(unittest.TestCase):
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
         pvars2 = pvars.copy()
-        self.compare_poincare_particles(pvars.particles, pvars2.particles)
+        self.compare_poincare_particles(pvars.particles[1:], pvars2.particles[1:]) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
-        pvars = Poincare.from_Simulation(self.sim)
-        sim = pvars.to_Simulation()
+        pvars = Poincare.from_Simulation(self.sim, average = False)
+        sim = pvars.to_Simulation(average = False)
         self.compare_simulations(self.sim, sim, delta=1.e-14)
 
-    '''
-    def test_types(self):
-        for t in [int, float, np.int32, np.float64]:
-            var = t(3) # make instance of type
-            self.gr.params[t.__name__] = var
-            self.assertAlmostEqual(self.gr.params[t.__name__], var)
-            self.assertEqual(type(self.gr.params[t.__name__]), type(var))
-        for t in [c_uint, c_uint32]:
-            var = t(3) # make instance of type
-            self.gr.params[t.__name__] = var
-            self.assertAlmostEqual(self.gr.params[t.__name__].value, var.value)
-            self.assertEqual(type(self.gr.params[t.__name__]), type(var))
-        self.gr.params["orbit"] = rebound.Orbit()
-        self.assertEqual(type(self.gr.params["orbit"]), rebound.Orbit)
+    def test_averaging(self): # see PoincareTest.ipynb in celmech/celmech/test for a description
+        errs = np.array([averaging_error(Nseed) for Nseed in range(100)]) # takes about 5 sec
+        self.assertLess(np.median(errs), 3.)        
 
-    def test_iter(self):
-        with self.assertRaises(AttributeError):
-            for p in self.gr.params:
-                pass
+def packed_sim(Nseed):
+    seed(Nseed)
+    sim = rebound.Simulation()
+    sim.add(m=1)
+     
+    sim.G = 4*np.pi*np.pi
+    a1 = 1
+    m1 = 10**(6*random()-10) # uniform in log space between 10**[-10, -4]
+    m2 = 10**(6*random()-10)
+    m3 = 10**(6*random()-10) 
+    RH = a1*((m1+m2)/3.)**(1./3.)
+    beta = 4 + 6*random() # uniform on [4, 10] mutual hill radii separation.
+    sim.add(m=m1,a=a1)
+    sim.add(m=m2,a=a1+beta*RH, l=0)
+    sim.add(m=m3,a=a1+2*beta*RH, l=0)
 
-    def test_length(self):
-        self.assertEqual(len(self.gr.params), 3)
+    sim.move_to_com()
 
-    def test_del(self):
-        del self.gr.params["b"]
-        with self.assertRaises(AttributeError):
-            self.gr.params["b"]
-        self.assertEqual(len(self.gr.params), 2)
+    sim.dt = sim.particles[1].P / 30.
+    sim.integrator='whfast'
+    if sim.particles[1].a/sim.particles[2].a > 0.98:
+        return packed_sim(Nseed+1000)
+    return sim
 
-        del self.gr.params["a"]
-        with self.assertRaises(AttributeError):
-            self.gr.params["a"]
-        self.assertEqual(len(self.gr.params), 1)
+def mad(arr):
+    """ Median Absolute Deviation: a "Robust" version of standard deviation.
+        Indices variabililty of the sample.
+        https://en.wikipedia.org/wiki/Median_absolute_deviation 
+    """
+    med = np.median(arr)
+    return np.median(np.abs(arr - med))
 
-        del self.gr.params["N"]
-        with self.assertRaises(AttributeError):
-            self.gr.params["N"]
-        self.assertEqual(len(self.gr.params), 0)
+def averaging_error(Nseed):
+    sim = packed_sim(Nseed)
+    ps = sim.particles
 
-class TestParticleParams(unittest.TestCase):
-    def setUp(self):
-        self.sim = rebound.Simulation()
-        self.rebx = reboundx.Extras(self.sim)
-        data.add_earths(self.sim, ei=1.e-3) 
-        self.sim.particles[0].params["a"] = 1.2
-        self.sim.particles[0].params["b"] = 1.7
-        self.sim.particles[0].params["N"] = 14
+    o = sim.calculate_orbits(jacobi_masses=True)
+    a10 = o[0].a
+    a20 = o[1].a
+    a30 = o[2].a
+    tsyn = 2*np.pi/(o[0].n-o[1].n)
+    #print(tsyn)
+    tmax = 30*tsyn
+    Nout = 100
+    times = np.linspace(0, tmax, Nout)
 
-    def tearDown(self):
-        self.sim = None
+    pvars = Poincare.from_Simulation(sim)
+    Hsim = PoincareHamiltonian(pvars)
+
+    #print(ps[1].m, ps[2].m)
     
-    def test_access(self):
-        self.assertAlmostEqual(self.sim.particles[0].params["a"], 1.2, delta=1.e-15)
-        self.assertAlmostEqual(self.sim.particles[0].params["b"], 1.7, delta=1.e-15)
-        self.assertEqual(self.sim.particles[0].params["N"], 14)
+    Nsma = np.zeros((3,Nout))
+    Hsma = np.zeros((3,Nout))
 
-    def test_iter(self):
-        with self.assertRaises(AttributeError):
-            for p in self.sim.particles[0].params:
-                pass
-
-    def test_update(self):
-        self.sim.particles[0].params["a"] = 42.
-        self.assertAlmostEqual(self.sim.particles[0].params["a"], 42., delta=1.e-15)
-
-    def test_update_with_wrong_type(self):
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["N"] = 37.2
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["a"] = 37
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["a"] = [1., 2., 3.]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["a"] = np.array([1., 2., 3.])
-
-
-    def test_length(self):
-        self.assertEqual(len(self.sim.particles[0].params), 3)
-
-    def test_del(self):
-        del self.sim.particles[0].params["b"]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["b"]
-        self.assertEqual(len(self.sim.particles[0].params), 2)
-
-        del self.sim.particles[0].params["a"]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["a"]
-        self.assertEqual(len(self.sim.particles[0].params), 1)
-
-        del self.sim.particles[0].params["N"]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["N"]
-        self.assertEqual(len(self.sim.particles[0].params), 0)
-
-class TestArrays(unittest.TestCase):
-    def setUp(self):
-        self.sim = rebound.Simulation()
-        self.rebx = reboundx.Extras(self.sim)
-        data.add_earths(self.sim, ei=1.e-3) 
-        self.array=np.array([1.,2.,3.,4.])
-        self.intarray=np.array([1,2,3,4])
-        self.cuintarray=np.array([c_uint(1),c_uint(2),c_uint(3),c_uint(4)], dtype=object)
-        self.cuint32array=np.array([c_uint32(1),c_uint32(2),c_uint32(3),c_uint32(4)], dtype=object)
-        self.ndarray = np.array([[[1.,2.,3.],[4.,5.,6.]], [[1.,2.,3.],[4.,5.,6.]],[[1.,2.,3.],[4.,5.,6.]], [[1.,2.,3.],[4.,5.,6.]]])
-        self.orbitarray =np.array(self.sim.calculate_orbits(), dtype=object) 
-        o1 = self.sim.particles[1].orbit
-        o2 = self.sim.particles[2].orbit
-        self.objndarray = np.array([[[o1,o2],[o2,o1],[o1,o1]], [[o1,o2],[o2,o1],[o1,o1]],[[o1,o2],[o2,o1],[o1,o1]],[[o1,o2],[o2,o1],[o1,o1]]], dtype=object)
+    for i,t in enumerate(times):
+        # Store N-body data
+        o = sim.calculate_orbits(jacobi_masses=True)
+        Nsma[0,i]=o[0].a
+        Nsma[1,i]=o[1].a
+        Nsma[2,i]=o[2].a
         
-        self.sim.particles[0].params["array"] = self.array
-        self.sim.particles[0].params["intarray"] = self.intarray
-        self.sim.particles[0].params["cuintarray"] = self.cuintarray
-        self.sim.particles[0].params["cuint32array"] = self.cuint32array 
-        self.sim.particles[1].params["ndarray"] = self.ndarray
-        self.sim.particles[0].params["orbitarray"] = self.orbitarray
-        self.sim.particles[1].params["objndarray"] = self.objndarray
-        self.sim.particles[1].params["scalar"] = 3
+        ps = Hsim.particles
+        Hsma[0,i]=ps[1].a
+        Hsma[1,i]=ps[2].a
+        Hsma[2,i]=ps[3].a
 
-    def tearDown(self):
-        self.sim = None
-   
-    def test_objectarray(self): # param is array of custom classes with dtype=object
-        for i, orbit in enumerate(self.sim.particles[0].params["orbitarray"]):
-            self.assertEqual(mycomp(orbit, self.sim.particles[i+1].orbit), True)
+        sim.integrate(t)
+        Hsim.integrate(t)
         
-    def test_arrays(self): # 3d array of floats
-        self.assertEqual(np.array_equal(self.array, self.sim.particles[0].params["array"]), True)
-        self.assertEqual(np.array_equal(self.intarray, self.sim.particles[0].params["intarray"]), True)
-        self.assertEqual(np.array_equal(self.ndarray, self.sim.particles[1].params["ndarray"]), True)
-        self.assertAlmostEqual(self.sim.particles[0].params["cuintarray"][0].value, self.cuintarray[0].value)
-        self.assertAlmostEqual(self.sim.particles[0].params["cuint32array"][0].value, self.cuint32array[0].value)
-
-    def test_objndarray(self): # 3d array of rebound.Orbits
-        flat = self.objndarray.flatten()
-        for i, orbit in enumerate(self.sim.particles[1].params["objndarray"].flatten()):
-            self.assertEqual(mycomp(orbit, flat[i]), True)
+    Nmad1 = mad((Nsma[0]-a10)/a10)
+    Nmad2 = mad((Nsma[1]-a20)/a20)
+    Nmad3 = mad((Nsma[2]-a30)/a30)
     
-    def test_shared_memory_objects(self):
-        q = self.sim.particles[0].params["orbitarray"]
-        q[0].a = 298
-        self.assertAlmostEqual(self.sim.particles[0].params["orbitarray"][0].a, 298, delta=1.e-15)
-
-    def test_diff_shape(self):
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["array"] = np.array([1.,2.])
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["list"] = [1.,2.]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["orbitarray"] = np.array([self.sim.particles[1].orbit])
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["orbitlist"] = [self.sim.particles[1].orbit]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[1].params["scalar"] = [1.,2.]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[1].params["scalar"] = np.array([1.,2.])
-        with self.assertRaises(AttributeError):
-            self.sim.particles[1].params["scalar"] = [1,2]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[1].params["scalar"] = np.array([1,2])
-
-    def test_update_array(self):
-        newlist = [4.,3.,2.,1.]
-        newarray = np.array(newlist)
-        self.sim.particles[0].params["array"] = newarray
-        self.assertEqual(np.array_equal(self.sim.particles[0].params["array"], newarray), True)
+    #print(Nmad1, Nmad2)
+    Nmed1 = np.median((Nsma[0]-a10)/a10)
+    Pmed1 = np.median((Hsma[0]-a10)/a10)
+    err1 = abs(Pmed1-Nmed1)/Nmad1
     
-    def test_iter(self):
-        with self.assertRaises(AttributeError):
-            for p in self.sim.particles[0].params:
-                pass
-
-    def test_length(self):
-        self.assertEqual(len(self.sim.particles[0].params), 5)
-
-    def test_del(self):
-        del self.sim.particles[0].params["array"]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["array"]
-        self.assertEqual(len(self.sim.particles[0].params), 4)
-
-        del self.sim.particles[0].params["orbitarray"]
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["orbitarray"]
-        self.assertEqual(len(self.sim.particles[0].params), 3)
-
-class TestRebxNotAttached(unittest.TestCase):
-    def test_rebx_not_attached(self):
-        self.sim = rebound.Simulation()
-        self.sim.add(m=1.)
-        with self.assertRaises(AttributeError):
-            self.sim.particles[0].params["a"] = 7
-    '''
+    Nmed2 = np.median((Nsma[1]-a20)/a20)
+    Pmed2 = np.median((Hsma[1]-a20)/a20)
+    err2 = abs(Pmed2-Nmed2)/Nmad2
+    
+    Nmed3 = np.median((Nsma[2]-a30)/a30)
+    Pmed3 = np.median((Hsma[2]-a30)/a30)
+    err3 = abs(Pmed3-Nmed3)/Nmad3
+    
+    return max(err1, err2, err3)
 
 if __name__ == '__main__':
     unittest.main()

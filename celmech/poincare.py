@@ -7,11 +7,12 @@ from itertools import combinations
 import rebound
 
 class PoincareParticle(object):
-    def __init__(self, m, Lambda, l, Gamma, gamma, M):
+    def __init__(self, m, Lambda, l, Gamma, gamma, M, G):
         X = np.sqrt(2.*Gamma)*np.cos(gamma)
         Y = np.sqrt(2.*Gamma)*np.sin(gamma)
         self.m = m
         self.M = M
+        self.G = G
         self.Lambda = Lambda
         self.l = l
         self.X = X
@@ -24,40 +25,50 @@ class PoincareParticle(object):
     def gamma(self):
         return np.arctan2(self.Y, self.X)
     @property
-    def eccentricity(self):
-        GbyL = self.Gamma / self.Lambda
+    def a(self):
+        return self.Lambda**2/self.m**2/self.G/self.M
+    @property
+    def e(self):
+        GbyL = self.Gamma/self.Lambda
         return np.sqrt(1 - (1-GbyL)*(1-GbyL))
+    @property
+    def pomega(self):
+        return -self.gamma
+    @property
+    def n(self):
+        return np.sqrt(self.G*self.M/self.a**3)
 
 class Poincare(object):
-    def __init__(self, G, M, poincareparticles=[]):
+    def __init__(self, G, poincareparticles=[]):
         self.G = G
-        self.particles = [PoincareParticle(M, 0., 0., 0., 0., 0.)]
+        self.particles = [PoincareParticle(np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)]
         try:
             for p in poincareparticles:
-                self.particles.append(PoincareParticle(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M))
+                self.add(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M)
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
     @classmethod
-    def from_Simulation(cls, sim, average_synodic_terms=False):
+    def from_Simulation(cls, sim, average=True):
         masses = [p.m for p in sim.particles]
         mjac, Mjac = masses_to_jacobi(masses)
-        pvars = Poincare(sim.G, sim.particles[0].m)
+        pvars = Poincare(sim.G)
         ps = sim.particles
+        o = sim.calculate_orbits(jacobi_masses=True)
         for i in range(1,sim.N):
             M = Mjac[i]
             m = mjac[i]
-            orb = ps[i].calculate_orbit()
+            orb = o[i-1]
             Lambda = m*np.sqrt(sim.G*M*orb.a)
             Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
-            pvars.add(m, Lambda, orb.theta, Gamma, -orb.pomega, M)
-        if average_synodic_terms is True:
-            pvars = pvars.synodic_Lambda_correction(inverse=False)
+            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
+        if average is True:
+            pvars = pvars.average_synodic_terms()
         return pvars
 
-    def to_Simulation(self, average_synodic_terms=False):
-        if average_synodic_terms is True:
-            pvars = self.synodic_Lambda_correction(inverse=True)
+    def to_Simulation(self, average=True):
+        if average is True:
+            pvars = self.average_synodic_terms(inverse=True)
         else:
             pvars = self
 
@@ -71,14 +82,17 @@ class Poincare(object):
         for i in range(1, pvars.N):
             a = ps[i].Lambda**2/ps[i].m**2/pvars.G/ps[i].M
             e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
-            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l)
+            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
         sim.move_to_com()
         return sim
+    
+    def add(self, m, Lambda, l, Gamma, gamma, M):
+        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M, self.G))
 
     def copy(self):
-        return Poincare(self.G, self.particles[0].m, self.particles[1:self.N])
+        return Poincare(self.G, self.particles[1:self.N])
 
-    def synodic_Lambda_correction(pvars, inverse=False):
+    def average_synodic_terms(pvars, inverse=False):
         """
         Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
         averaged over all the synodic terms we do not include in the Hamiltonian.
@@ -92,37 +106,25 @@ class Poincare(object):
             L2 = ps[i2].Lambda
             m1 = ps[i1].m
             m2 = ps[i2].m
-            M = ps[0].m 
+            M1 = ps[1].M 
+            M2 = ps[2].M 
             deltalambda = ps[i1].l-ps[i2].l
             G = pvars.G
 
-            n1 = G**2*M**2*m1**3/L1**3
-            n2 = G**2*M**2*m2**3/L2**3
+            n1 = G**2*M2**2*m1**3/L1**3
+            n2 = G**2*M2**2*m2**3/L2**3
             deltan = (n1-n2)/n2
-            prefac = m1/M*L2/deltan
+            prefac = m1/M1*L2/deltan
             alpha = (m2/m1*L1/L2)**2
 
             summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
             s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_coefficient(0.5, 0, 0, alpha)/2.)
             if inverse is True:
                 s *= -1
-            print('prefac, alpha, cos(deltalambda), summation, lpc/2, s')
-            print(prefac, alpha, np.cos(deltalambda), summation, laplace_coefficient(0.5, 0, 0, alpha)/2., s)
-            print(ps[i1].l, ps[i2].l, deltalambda)
             corrpvars.particles[i1].Lambda += s 
             corrpvars.particles[i2].Lambda -= s
 
         return corrpvars
-    
-    def add(self, m, Lambda, l, Gamma, gamma, M=None):
-        if M is None:
-            M = self.particles[0].m
-        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M))
-    
-
-    def get_a(self, index):
-        p = self.particles[index]
-        return p.Lambda**2/p.m**2/self.G/p.M
 
     @property
     def N(self):
@@ -146,12 +148,19 @@ class PoincareHamiltonian(Hamiltonian):
         self.Hpolar = S(0)
         for i in range(1, pvars.N):
             self.Hpolar = self.add_Hkep_term(self.Hpolar, i)
-        
 
         # Don't re-compute secular DF terms, save a dictionary
         # of secular DF expansions indexed by order:
         self.secular_terms = {0:S(0)}
+    
+    @property
+    def particles(self):
+        return self.state.particles
 
+    @property
+    def N(self):
+        return len(self.particles)
+    
     def state_to_list(self, state):
         ps = state.particles
         vpp = 4 # vars per particle
