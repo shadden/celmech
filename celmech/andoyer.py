@@ -28,13 +28,13 @@ def rotate_Poincare_Gammas_To_Psi1Psi2(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=F
     Psi2,psi2 = XYToActionAngle(Psi2X,Psi2Y)
     return Psi1,psi1,Psi2,psi2
 
-def calc_expansion_params(G, masses, j, k, a10):
-    p = {'j':j, 'k':k, 'G':G, 'masses':masses, 'a10':a10}       
+def calc_expansion_params(G, m1, m2, M1, M2, j, k, a10):
+    p = {'j':j, 'k':k, 'G':G, 'm':m, 'M':M, 'a10':a10}       
     p['a20'] = a10*(j/float(j-k))**(2./3.)
-    p['Lambda10'] = masses[1]*np.sqrt(G*masses[0]*p['a10'])
-    p['Lambda20'] = masses[2]*np.sqrt(G*masses[0]*p['a20'])
-    p['n10'] = masses[1]**3*(G*masses[0])**2/p['Lambda10']**3
-    p['n20'] = masses[2]**3*(G*masses[0])**2/p['Lambda20']**3
+    p['Lambda10'] = m1*np.sqrt(G*M1*p['a10'])
+    p['Lambda20'] = m2*np.sqrt(G*M2*p['a20'])
+    p['n10'] = m1**3*(G*M1)**2/p['Lambda10']**3
+    p['n20'] = m2**3*(G*M2)**2/p['Lambda20']**3
     p['nu1'] = -3. * p['n10']/ p['Lambda10']
     p['nu2'] = -3. * p['n20'] / p['Lambda20']
     p['f'],p['g'] = get_fg_coeffs(j,k)
@@ -184,7 +184,7 @@ class Andoyer(object):
         return Poincare(p['G'], masses[0], [p1,p2])
 
     @classmethod
-    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average_synodic_terms=False):
+    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average_synodic_terms=True):
         if a10 is None:
             a10 = sim.particles[i1].a
         pvars = Poincare.from_Simulation(sim, average_synodic_terms)
@@ -192,9 +192,9 @@ class Andoyer(object):
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
 
-    def to_Simulation(self):
+    def to_Simulation(self, average_synodic_terms=True):
         pvars = self.to_Poincare()
-        return pvars.to_Simulation()
+        return pvars.to_Simulation(average_synodic_terms)
     
     @property
     def Phi(self):
