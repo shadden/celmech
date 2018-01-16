@@ -29,7 +29,7 @@ def rotate_Poincare_Gammas_To_Psi1Psi2(Gamma1,gamma1,Gamma2,gamma2,f,g,inverse=F
     return Psi1,psi1,Psi2,psi2
 
 def calc_expansion_params(G, m1, m2, M1, M2, j, k, a10):
-    p = {'j':j, 'k':k, 'G':G, 'm':m, 'M':M, 'a10':a10}       
+    p = {'j':j, 'k':k, 'G':G, 'm1':m1, 'M1':M1, 'm2':m2, 'M2':M2, 'a10':a10}       
     p['a20'] = a10*(j/float(j-k))**(2./3.)
     p['Lambda10'] = m1*np.sqrt(G*M1*p['a10'])
     p['Lambda20'] = m2*np.sqrt(G*M2*p['a20'])
@@ -42,7 +42,7 @@ def calc_expansion_params(G, m1, m2, M1, M2, j, k, a10):
     p['gg']  = np.sqrt(2)*p['g']/np.sqrt(p['Lambda20'])
     fac = np.sqrt(k*(p['ff']**2+p['gg']**2))**k
     p['a'] = p['nu1']*(j-k)**2 + p['nu2']*j**2
-    p['c'] = -G**2*masses[0]*masses[2]**3* masses[1]/p['Lambda20']**2*fac
+    p['c'] = -G**2*M2*m2**3*m1/p['Lambda20']**2*fac
     p['eta'] = 2.**((6.-k)/(4.-k))*(p['c']/p['a'])**(2./(4.-k))
     p['tau'] = 8./(p['eta']*p['a'])
     return p
@@ -82,7 +82,7 @@ def get_second_order_phiprime(Xstar):
     return (4*Xstar**2 + 2.*np.abs(Xstar)/Xstar)/3.
 
 class Andoyer(object):
-    def __init__(self, j, k, Phi, phi, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
+    def __init__(self, j, k, Phi, phi, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., Phiprime=1.5, K=0., deltalambda=np.pi, lambda1=0.):
         sX, sY, sPsi2, spsi2, sPhiprime, sK, sdeltalambda, slambda1 = symbols('X, Y, Psi2, psi2, Phiprime, K, \Delta\lambda, lambda1')
         sk, sj, sG, smasses, sa10 = symbols('k, j, G, masses, a10')
         X = np.sqrt(2.*Phi)*np.cos(phi)
@@ -96,46 +96,40 @@ class Andoyer(object):
         self.deltalambda = deltalambda
         self.lambda1 = lambda1
 
-        self.params = calc_expansion_params(G, masses, j, k, a10)
+        self.params = calc_expansion_params(G, m1, m2, M1, M2, j, k, a10)
 
     @classmethod
-    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
-        p = calc_expansion_params(G, masses, j, k, a10)
+    def from_elements(cls, j, k, Phistar, libfac, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
+        p = calc_expansion_params(G, m1, m2, M1, M2, j, k, a10)
         Xstar = -np.sqrt(2*Phistar)
         Phiprime = get_second_order_phiprime(Xstar)
         Phi = Phistar
         phi = np.pi
 
-        return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
+        return cls(j, k, Phi, phi, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
    
     @classmethod
-    def from_elements2(cls, j, k, Zstar, libfac, a10=1., G=1., masses=[1.,1.e-5,1.e-5], Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
-        p = calc_expansion_params(G, masses, j, k, a10)
+    def from_elements2(cls, j, k, Zstar, libfac, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
+        p = calc_expansion_params(G, m1, m2, M1, M2, j, k, a10)
         #Psi1star = 0.5*Zstar**2*(p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)
         #Phistar = Psi1star/k
         #Xstar = -np.sqrt(2*Phistar)
         Xstar = -Zstar/np.sqrt(k)*(p['f']**2 + p['g']**2)/(p['ff']**2 + p['gg']**2)/np.sqrt(p['eta'])
-        print(p['eta'])
-        print(Xstar)
         Phiprime = get_second_order_phiprime(Xstar)
-        print(Phiprime)
         if libfac > 0:
             deltaX = -np.abs(libfac)*(np.sqrt(2.)-1.)*np.abs(Xstar)
         else:
             deltaX = np.abs(libfac)*np.abs(Xstar)
         X = Xstar + deltaX
-        print(X, deltaX)
         Phi = 0.5*X**2
         phi = np.pi if X < 0. else 0.
-
-        return cls(j, k, Phi, phi, a10, G, masses, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
+        return cls(j, k, Phi, phi, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
 
     @classmethod
     def from_Poincare(cls,pvars,j,k,a10,i1=1,i2=2):
         p1 = pvars.particles[i1]
         p2 = pvars.particles[i2]
-        masses = [pvars.particles[0].m, p1.m, p2.m]
-        p = calc_expansion_params(pvars.G, masses, j, k, a10)
+        p = calc_expansion_params(pvars.G, p1.m, p2.m, p1.M, p2.M, j, k, a10)
         
         dL1 = p1.Lambda-p['Lambda10']
         dL2 = p2.Lambda-p['Lambda20']
@@ -154,7 +148,7 @@ class Andoyer(object):
         Phi = Psi1 / k 
         Phiprime = - p['tau'] * b / 3.
         
-        andvars = cls(j, k, Phi, phi, a10, pvars.G, masses, Psi2, psi2, Phiprime, K, p2.l-p1.l, p1.l)
+        andvars = cls(j, k, Phi, phi, a10, pvars.G, p1.m, p1.M, p2.m, p2.M, Psi2, psi2, Phiprime, K, p2.l-p1.l, p1.l)
         return andvars
 
     def to_Poincare(self):
@@ -178,23 +172,22 @@ class Andoyer(object):
         Lambda2 = p['Lambda20']+dL2 
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_Poincare_Gammas_To_Psi1Psi2(Psi1,psi1,Psi2,self.psi2,p['ff'],p['gg'], inverse=True)
-        masses = p['masses']
-        p1 = PoincareParticle(masses[1], Lambda1, self.lambda1, Gamma1, gamma1, masses[0])
-        p2 = PoincareParticle(masses[2], Lambda2, lambda2, Gamma2, gamma2, masses[0])
-        return Poincare(p['G'], masses[0], [p1,p2])
+        pvars = Poincare(p['G'])
+        pvars.add(p['m1'], Lambda1, self.lambda1, Gamma1, gamma1, p['M1'])
+        pvars.add(p['m2'], Lambda2, lambda2, Gamma2, gamma2, p['M2'])
+        return pvars
 
     @classmethod
-    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average_synodic_terms=True):
+    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average=True):
         if a10 is None:
             a10 = sim.particles[i1].a
-        pvars = Poincare.from_Simulation(sim, average_synodic_terms)
+        pvars = Poincare.from_Simulation(sim, average)
         ps = sim.particles
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
-
-    def to_Simulation(self, average_synodic_terms=True):
+    def to_Simulation(self, average=True):
         pvars = self.to_Poincare()
-        return pvars.to_Simulation(average_synodic_terms)
+        return pvars.to_Simulation(average)
     
     @property
     def Phi(self):
