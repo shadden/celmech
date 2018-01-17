@@ -111,7 +111,6 @@ def averaging_error(Nseed):
     a20 = o[1].a
     a30 = o[2].a
     tsyn = 2*np.pi/(o[0].n-o[1].n)
-    #print(tsyn)
     tmax = 30*tsyn
     Nout = 100
     times = np.linspace(0, tmax, Nout)
@@ -119,7 +118,6 @@ def averaging_error(Nseed):
     pvars = Poincare.from_Simulation(sim)
     Hsim = PoincareHamiltonian(pvars)
 
-    #print(ps[1].m, ps[2].m)
     
     Nsma = np.zeros((3,Nout))
     Hsma = np.zeros((3,Nout))
@@ -143,7 +141,6 @@ def averaging_error(Nseed):
     Nmad2 = mad((Nsma[1]-a20)/a20)
     Nmad3 = mad((Nsma[2]-a30)/a30)
     
-    #print(Nmad1, Nmad2)
     Nmed1 = np.median((Nsma[0]-a10)/a10)
     Pmed1 = np.median((Hsma[0]-a10)/a10)
     err1 = abs(Pmed1-Nmed1)/Nmad1
