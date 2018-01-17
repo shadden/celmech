@@ -2,7 +2,6 @@ language: python
 sudo: false
 
 env:
-  - TESTPART=PYTHON
   - TESTPART=IPYTHON1
   - TESTPART=IPYTHON2
 
@@ -18,8 +17,8 @@ before_install:
 
 install:
   - conda update --yes conda
-  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "2.7" ]]; then conda create -n testenv --yes libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 setuptools python=$TRAVIS_PYTHON_VERSION; fi
-  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "3.5" ]]; then conda create -n testenv --yes numpy scipy matplotlib setuptools coverage python=$TRAVIS_PYTHON_VERSION; fi
+  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "2.7" ]]; then conda create -n testenv --yes libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 sympy=1.1.1 setuptools python=$TRAVIS_PYTHON_VERSION; fi
+  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "3.5" ]]; then conda create -n testenv --yes numpy scipy matplotlib setuptools sympy=1.1.1 python=$TRAVIS_PYTHON_VERSION; fi
   - source activate testenv
   - python setup.py install
 
