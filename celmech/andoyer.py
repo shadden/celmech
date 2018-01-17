@@ -107,7 +107,11 @@ class Andoyer(object):
     @property
     def phi(self):
         Phi, phi = XYToActionAngle(self.X, self.Y)
-        return phi
+        return np.mod(phi, 2.*np.pi)
+    
+    @property
+    def lambda2(self):
+        return self.deltalambda + self.lambda1
    
     @property
     def Z(self):
@@ -118,6 +122,7 @@ class Andoyer(object):
         p = self.params
         theta = p['j']*self.deltalambda + p['k']*self.lambda1 # jlambda2 - (j-k)lambda1
         psi1 = np.mod( (self.phi - theta) / p['k'] ,2*np.pi)
+        return psi1
     
     @property
     def SX(self):

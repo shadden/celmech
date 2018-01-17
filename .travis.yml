@@ -23,4 +23,4 @@ install:
   - python setup.py install
 
 script:
-  - python setup.py test
+  - cd $TRAVIS_BUILD_DIR/ && python setup.py test
