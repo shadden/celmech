@@ -1,5 +1,4 @@
 import rebound
-import reboundx
 import unittest
 import math
 import numpy as np
