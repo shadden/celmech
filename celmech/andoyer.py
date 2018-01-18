@@ -45,41 +45,47 @@ def calc_expansion_params(G, m1, m2, M1, M2, j, k, a10):
     p['c'] = -G**2*M2*m2**3*m1/p['Lambda20']**2*fac
     p['eta'] = 2.**((6.-k)/(4.-k))*(p['c']/p['a'])**(2./(4.-k))
     p['tau'] = 8./(p['eta']*p['a'])
-    p['Phiscale'] = (p['ff']**2 + p['gg']**2)/(p['f']**2 + p['g']**2)*p['k']*p['eta'] # Phi/Phiscale = 0.5*Z**2
+    p['Phiscale'] = (p['f']**2 + p['g']**2)/(p['ff']**2 + p['gg']**2)/p['k']/p['eta'] # Phi/Phiscale = 0.5*Z**2
     return p
 
 # will give you the phiprime that yields an equilibrium Xstar, always in the range of phiprime where there exists a separatrix
-def get_phiprime(k, Xstar):
+def get_Phiprime(k, Xstar):
+    if k == 1:
+        pass
     if k == 2:
-        phiprime = (4.*Xstar**2 - 2.)/3.
+        Phiprime = (4.*Xstar**2 - 2.)/3.
     if k == 3:
         pass
 
-    return phiprime
+    return Phiprime
 
-def get_Xstarunstable(k, phiprime):
+def get_Xstarunstable(k, Phiprime):
     if k == 1:
-        if phiprime < 1.:
-            raise ValueError("k=1 resonance has no unstable fixed point for phiprime < 1")
-        Xstarunstable = np.sqrt(phiprime)*np.cos(1./3.*np.arccos(-phiprime**(-1.5)))
+        if Phiprime < 1.:
+            raise ValueError("k=1 resonance has no unstable fixed point for Phiprime < 1")
+        Xstarunstable = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5)))
     if k == 2:
-        if phiprime < -2./3.:
-            raise ValueError("k=2 resonance has no unstable fixed point for phiprime < -2/3")
-        if phiprime < 2./3.:
+        if Phiprime < -2./3.:
+            raise ValueError("k=2 resonance has no unstable fixed point for Phiprime < -2/3")
+        if Phiprime < 2./3.:
             Xstarunstable = 0.
         else:
-            Xstarunstable = np.sqrt(phiprime)*np.cos(1./3.*np.arccos(-phiprime**(-1.5)))
+            Xstarunstable = 0.5*np.sqrt(3.*Phiprime-2.)
     if k == 3:
-        if phiprime < -9./48.:
-            raise ValueError("k=3 resonance has no unstable fixed point for phiprime < -9/48")
-        Xstarunstable = (-3.+np.sqrt(9.+48.*phiprime))/8.
+        if Phiprime < -9./48.:
+            raise ValueError("k=3 resonance has no unstable fixed point for Phiprime < -9/48")
+        Xstarunstable = (-3.+np.sqrt(9.+48.*Phiprime))/8.
 
     return Xstarunstable        
 
-def get_Xplusminus(k, phiprime):
+def get_Xsep(k, Phiprime):
+    if k==2:
+        return -np.sqrt(1.+3.*Phiprime/2.)
+
+def get_Xplusminus(k, Phiprime):
     pass
 
-def get_second_order_phiprime(Xstar):
+def get_second_order_Phiprime(Xstar):
     return (4*Xstar**2 + 2.*np.abs(Xstar)/Xstar)/3.
 
 class Andoyer(object):
@@ -143,13 +149,12 @@ class Andoyer(object):
         #Psi1star = 0.5*Zstar**2*(p['f']**2 + p['g']**2)/(p['ff']**2 + p['gg']**2)
         #Phistar = Psi1star/k/p['eta']
         #Xstar = -np.sqrt(2*Phistar)
-        Xstar = -Zstar/np.sqrt(p['Phiscale']) 
-        Phiprime = get_second_order_phiprime(Xstar)
-        if libfac > 0:
-            deltaX = -np.abs(libfac)*(np.sqrt(2.)-1.)*np.abs(Xstar)
-        else:
-            deltaX = np.abs(libfac)*np.abs(Xstar)
-        X = Xstar + deltaX
+        Xstar = -Zstar*np.sqrt(p['Phiscale']) 
+        Phiprime = get_second_order_Phiprime(Xstar)
+        Xsep = get_Xsep(k, Phiprime)
+        deltaX = np.abs(Xstar-Xsep)
+        X = Xstar - deltaX*libfac
+        print(Phiprime, Xstar/np.sqrt(p['Phiscale']), Xsep/np.sqrt(p['Phiscale']), X/np.sqrt(p['Phiscale']))
         Y = 0
         return cls(j, k, X, Y, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
 
