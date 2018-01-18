@@ -24,6 +24,8 @@ class TestPoincare(unittest.TestCase):
     
     def compare_poincare_particles(self, ps1, ps2, delta=1.e-15):
         self.assertEqual(type(ps1), type(ps2))
+        ps1 = ps1[1:]
+        ps2 = ps2[1:] # ignore the dummy particle for primary at index 0
         for p1, p2 in zip(ps1, ps2):
             for attr in ['X', 'Y', 'm', 'M', 'Lambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
@@ -58,7 +60,7 @@ class TestPoincare(unittest.TestCase):
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
         pvars2 = pvars.copy()
-        self.compare_poincare_particles(pvars.particles[1:], pvars2.particles[1:]) # ignore nans in particles[0]
+        self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
         pvars = Poincare.from_Simulation(self.sim, average = False)
