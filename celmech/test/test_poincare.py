@@ -1,12 +1,13 @@
-import rebound
-import reboundx
+print('****testpoincare****')
+#import rebound
 import unittest
-import math
-import numpy as np
-from celmech import Poincare, PoincareHamiltonian
-from random import random, seed
+#import math
+#import numpy as np
+#from celmech import Poincare, PoincareHamiltonian
+#from random import random, seed
 
 class TestPoincare(unittest.TestCase):
+    '''
     def setUp(self):
         self.sim = rebound.Simulation()
         self.sim.add(m=1.)
@@ -25,6 +26,8 @@ class TestPoincare(unittest.TestCase):
     
     def compare_poincare_particles(self, ps1, ps2, delta=1.e-15):
         self.assertEqual(type(ps1), type(ps2))
+        ps1 = ps1[1:]
+        ps2 = ps2[1:] # ignore the dummy particle for primary at index 0
         for p1, p2 in zip(ps1, ps2):
             for attr in ['X', 'Y', 'm', 'M', 'Lambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
@@ -36,7 +39,6 @@ class TestPoincare(unittest.TestCase):
             p2 = sim2.particles[i]
             for attr in ['m', 'x', 'y', 'z', 'vx', 'vy', 'vz']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
-
     def test_orbelements(self):
         pvars = Poincare.from_Simulation(self.sim, average=False)
         ps = pvars.particles
@@ -59,7 +61,7 @@ class TestPoincare(unittest.TestCase):
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
         pvars2 = pvars.copy()
-        self.compare_poincare_particles(pvars.particles[1:], pvars2.particles[1:]) # ignore nans in particles[0]
+        self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
         pvars = Poincare.from_Simulation(self.sim, average = False)
@@ -93,7 +95,7 @@ def packed_sim(Nseed):
     if sim.particles[1].a/sim.particles[2].a > 0.98:
         return packed_sim(Nseed+1000)
     return sim
-
+    '''
 def mad(arr):
     """ Median Absolute Deviation: a "Robust" version of standard deviation.
         Indices variabililty of the sample.
@@ -111,7 +113,6 @@ def averaging_error(Nseed):
     a20 = o[1].a
     a30 = o[2].a
     tsyn = 2*np.pi/(o[0].n-o[1].n)
-    #print(tsyn)
     tmax = 30*tsyn
     Nout = 100
     times = np.linspace(0, tmax, Nout)
@@ -119,7 +120,6 @@ def averaging_error(Nseed):
     pvars = Poincare.from_Simulation(sim)
     Hsim = PoincareHamiltonian(pvars)
 
-    #print(ps[1].m, ps[2].m)
     
     Nsma = np.zeros((3,Nout))
     Hsma = np.zeros((3,Nout))
@@ -143,7 +143,6 @@ def averaging_error(Nseed):
     Nmad2 = mad((Nsma[1]-a20)/a20)
     Nmad3 = mad((Nsma[2]-a30)/a30)
     
-    #print(Nmad1, Nmad2)
     Nmed1 = np.median((Nsma[0]-a10)/a10)
     Pmed1 = np.median((Hsma[0]-a10)/a10)
     err1 = abs(Pmed1-Nmed1)/Nmad1

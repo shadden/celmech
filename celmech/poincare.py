@@ -41,7 +41,7 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, poincareparticles=[]):
         self.G = G
-        self.particles = [PoincareParticle(np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)]
+        self.particles = [PoincareParticle(np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:
                 self.add(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M)
@@ -222,7 +222,7 @@ class PoincareHamiltonian(Hamiltonian):
             # fix this to include higher order terms
             subdict = { hIn:XIn/sqrt(LambdaIn) , kIn:(-1)*YIn/sqrt(LambdaIn), hOut:XOut/sqrt(LambdaOut) , kOut:(-1)*YOut/sqrt(LambdaOut), S("alpha"):salpha}
 
-        alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
+        alpha = self.particles[indexIn].a/self.particles[indexOut].a
         self.Hparams[salpha] = alpha
         self.Hparams[Function('b')] = laplace_B
         exprn = exprn.subs(subdict)
@@ -270,7 +270,7 @@ class PoincareHamiltonian(Hamiltonian):
         
         # Resonance index
         assert l<=k, "Invalid resonance term, l must be less than or equal to k."
-        alpha = self.state.get_a(indexIn)/self.state.get_a(indexOut)
+        alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
 	
         # Resonance components
         #
