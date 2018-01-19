@@ -17,11 +17,16 @@ before_install:
 
 install:
   - conda update --yes conda
-  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "2.7" ]]; then conda create -n testenv --yes libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 sympy=1.1.1 setuptools python=$TRAVIS_PYTHON_VERSION; fi
-  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "3.5" ]]; then conda create -n testenv --yes numpy scipy matplotlib setuptools sympy=1.1.1 python=$TRAVIS_PYTHON_VERSION; fi
+  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "2.7" ]]; then conda create -n testenv --yes -c anaconda libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 mpmath=1.0.0 sympy=1.1.1 setuptools python=$TRAVIS_PYTHON_VERSION; fi
+  - if [[ ${TRAVIS_PYTHON_VERSION:0:3} == "3.5" ]]; then conda create -n testenv --yes -c anaconda libgfortran=1.0 numpy=1.9 scipy=0.16 matplotlib=1.4 mpmath=1.0.0 sympy=1.1.1 setuptools python=$TRAVIS_PYTHON_VERSION; fi
   - source activate testenv
   - pip install rebound
-  - python setup.py install
+  - cd $TRAVIS_BUILD_DIR/ && python setup.py install
 
 script:
-  - cd $TRAVIS_BUILD_DIR/ && python setup.py test
+  - if [[ $TESTPART == "IPYTHON1" ]]; then cd $TRAVIS_BUILD_DIR/ && python setup.py test; fi
+  - if [[ $TESTPART == "IPYTHON1" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Andoyer_Resonance_Models.ipynb; fi
+  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Basic_Poincare_Integration.ipynb; fi
+  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py ResonanceWidths_And_Intersections.ipynb; fi
+  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Secular_System_Integration.ipynb; fi
+

@@ -78,9 +78,21 @@ def get_Xstarunstable(k, Phiprime):
 
     return Xstarunstable        
 
+def get_Hsep(k, Phiprime):
+    Xu = get_Xstarunstable(k, Phiprime)
+    Hsep = Xu**4 - 3.*Phiprime/2.*Xu**2 + np.abs(Xu)**(k-1)*Xu
+    return Hsep
+
 def get_Xsep(k, Phiprime):
     if k==2:
-        return -np.sqrt(1.+3.*Phiprime/2.)
+        if Phiprime < -2./3.:
+            raise ValueError("k=2 resonance has no separatrix for Phiprime < -2/3")
+        else:
+            Hsep = get_Hsep(k, Phiprime)
+            disc = np.sqrt((1.+1.5*Phiprime)**2+4.*Hsep)
+            Xsep = -np.sqrt((1+1.5*Phiprime+disc)/2.)
+            
+        return Xsep
 
 def get_Xplusminus(k, Phiprime):
     pass
@@ -144,6 +156,15 @@ class Andoyer(object):
         return -3.*self.Phiprime/p['a']/p['tau']
 
     @classmethod
+    def from_Z(cls, j, k, Z, phi, Phiprime, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
+        p = calc_expansion_params(G, m1, m2, M1, M2, j, k, a10)
+        SPhi = 0.5*Z**2
+        Phi = SPhi*p['Phiscale']
+        X = np.sqrt(2.*Phi)*np.cos(phi)
+        Y = np.sqrt(2.*Phi)*np.sin(phi)
+        return cls(j, k, X, Y, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
+    
+    @classmethod
     def from_elements(cls, j, k, Zstar, libfac, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., K=0., deltalambda=np.pi, lambda1=0.):
         p = calc_expansion_params(G, m1, m2, M1, M2, j, k, a10)
         #Psi1star = 0.5*Zstar**2*(p['f']**2 + p['g']**2)/(p['ff']**2 + p['gg']**2)
@@ -154,6 +175,7 @@ class Andoyer(object):
         Xsep = get_Xsep(k, Phiprime)
         deltaX = np.abs(Xstar-Xsep)
         X = Xstar - deltaX*libfac
+        print(Phiprime, Xstar, Xsep, X)
         print(Phiprime, Xstar/np.sqrt(p['Phiscale']), Xsep/np.sqrt(p['Phiscale']), X/np.sqrt(p['Phiscale']))
         Y = 0
         return cls(j, k, X, Y, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)

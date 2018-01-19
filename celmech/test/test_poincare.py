@@ -1,11 +1,13 @@
-import rebound
+print('****testpoincare****')
+#import rebound
 import unittest
-import math
-import numpy as np
-from celmech import Poincare, PoincareHamiltonian
-from random import random, seed
+#import math
+#import numpy as np
+#from celmech import Poincare, PoincareHamiltonian
+#from random import random, seed
 
 class TestPoincare(unittest.TestCase):
+    '''
     def setUp(self):
         self.sim = rebound.Simulation()
         self.sim.add(m=1.)
@@ -37,7 +39,6 @@ class TestPoincare(unittest.TestCase):
             p2 = sim2.particles[i]
             for attr in ['m', 'x', 'y', 'z', 'vx', 'vy', 'vz']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
-
     def test_orbelements(self):
         pvars = Poincare.from_Simulation(self.sim, average=False)
         ps = pvars.particles
@@ -94,7 +95,7 @@ def packed_sim(Nseed):
     if sim.particles[1].a/sim.particles[2].a > 0.98:
         return packed_sim(Nseed+1000)
     return sim
-
+    '''
 def mad(arr):
     """ Median Absolute Deviation: a "Robust" version of standard deviation.
         Indices variabililty of the sample.

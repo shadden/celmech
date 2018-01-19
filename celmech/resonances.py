@@ -97,7 +97,7 @@ def two_resonance_intersection(mu1,mu2,res_L,res_R):
     
     return (per_ratio_L + coeffL * sqrt_e**kL  , sqrt_e * sqrt_e)
 
-def resonance_intersections_list(mu1,mu2,min_per_ratio,max_per_ratio,order):
+def resonance_intersections_list(mu1,mu2,min_p,max_p,max_order):
     """
         Compute the list or resonance intersections for all resoances between 'min_per_ratio'
         and 'max_per_ratio' up to the specified 'order'. A list of ordered pairs containing 
