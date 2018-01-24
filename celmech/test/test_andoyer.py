@@ -1,8 +1,8 @@
 import rebound
 import unittest
-#import math
-#import numpy as np
-#from celmech import Andoyer
+import math
+import numpy as np
+from celmech import Andoyer
 
 class TestAndoyer(unittest.TestCase):
     def setUp(self):
@@ -41,7 +41,7 @@ class TestAndoyer(unittest.TestCase):
         for p1, p2 in zip(ps1, ps2):
             for attr in ['X', 'Y', 'm', 'M', 'Lambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
-    '''
+
     def test_rebound_transformations(self):
         avars = Andoyer.from_Simulation(self.sim, 4, 1)
         sim = avars.to_Simulation()
@@ -69,7 +69,7 @@ class TestAndoyer(unittest.TestCase):
 
         pvars2 = avars2.to_Poincare()
         self.compare_poincare_particles(pvars.particles, pvars2.particles, 1.e-10)
-    '''
+
 if __name__ == '__main__':
     unittest.main()
 

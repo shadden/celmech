@@ -1,13 +1,12 @@
-print('****testpoincare****')
-#import rebound
+import rebound
 import unittest
-#import math
-#import numpy as np
-#from celmech import Poincare, PoincareHamiltonian
-#from random import random, seed
+import math
+import numpy as np
+from celmech import Poincare, PoincareHamiltonian
+from random import random, seed
 
 class TestPoincare(unittest.TestCase):
-    '''
+
     def setUp(self):
         self.sim = rebound.Simulation()
         self.sim.add(m=1.)
@@ -95,7 +94,7 @@ def packed_sim(Nseed):
     if sim.particles[1].a/sim.particles[2].a > 0.98:
         return packed_sim(Nseed+1000)
     return sim
-    '''
+
 def mad(arr):
     """ Median Absolute Deviation: a "Robust" version of standard deviation.
         Indices variabililty of the sample.

@@ -175,8 +175,6 @@ class Andoyer(object):
         Xsep = get_Xsep(k, Phiprime)
         deltaX = np.abs(Xstar-Xsep)
         X = Xstar - deltaX*libfac
-        print(Phiprime, Xstar, Xsep, X)
-        print(Phiprime, Xstar/np.sqrt(p['Phiscale']), Xsep/np.sqrt(p['Phiscale']), X/np.sqrt(p['Phiscale']))
         Y = 0
         return cls(j, k, X, Y, a10, G, m1, M1, m2, M2, Psi2, psi2, Phiprime, K, deltalambda, lambda1)
 

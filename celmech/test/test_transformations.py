@@ -1,9 +1,9 @@
 import unittest
-#import numpy as np
-#from celmech.transformations import masses_to_jacobi, masses_from_jacobi, ActionAngleToXY, XYToActionAngle
+import numpy as np
+from celmech.transformations import masses_to_jacobi, masses_from_jacobi, ActionAngleToXY, XYToActionAngle
 
 class TestTransformations(unittest.TestCase):
-    '''
+
     def setUp(self):
         pass
 
@@ -33,7 +33,7 @@ class TestTransformations(unittest.TestCase):
         A2,a2 = XYToActionAngle(X,Y)
         self.assertAlmostEqual(A,A2)
         self.assertAlmostEqual(a,a2)
-    '''
+
 if __name__ == '__main__':
     unittest.main()
 
