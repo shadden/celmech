@@ -32,12 +32,43 @@ class TestPoincare(unittest.TestCase):
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
     def compare_simulations(self, sim1, sim2, delta=1.e-15):
-        equal = True
         for i in range(1,sim1.N):
             p1 = sim1.particles[i]
             p2 = sim2.particles[i]
             for attr in ['m', 'x', 'y', 'z', 'vx', 'vy', 'vz']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
+
+    def compare_simulations_orb(self, sim1, sim2, delta=1.e-15):
+        self.assertAlmostEqual(sim1.particles[0].m, sim2.particles[0].m, delta=delta)
+        orbs1 = sim1.calculate_orbits(jacobi_masses=True)
+        orbs2 = sim2.calculate_orbits(jacobi_masses=True)
+        for i in range(sim1.N-1):
+            self.assertAlmostEqual(sim1.particles[i+1].m, sim2.particles[i+1].m, delta=delta)
+            o1 = orbs1[i]
+            o2 = orbs2[i]
+            for attr in ['a', 'e', 'inc']:
+                self.assertAlmostEqual(getattr(o1, attr), getattr(o2, attr), delta=delta)
+            for attr in ['Omega', 'pomega', 'theta']:
+                self.assertAlmostEqual(np.cos(getattr(o1, attr)), np.cos(getattr(o2, attr)), delta=delta)
+
+    def test_jacobi_masses(self):
+        pvars = Poincare.from_Simulation(self.sim, average=False)
+        
+        sim = pvars.to_Simulation(average=False)
+        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
+
+        sim = pvars.to_Simulation(masses=[1.,1.e-3,1.e-7,1.e-5], average=False)
+        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
+        
+      
+        # use default jacobi masses but pass it an inconsistent set of jacobi masses
+        pvars.particles[1].M = 1.
+        pvars.particles[2].M = 1.
+        pvars.particles[3].M = 1.
+        sim = pvars.to_Simulation(average=False)
+        with self.assertRaises(AssertionError):
+            self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
+
     def test_orbelements(self):
         pvars = Poincare.from_Simulation(self.sim, average=False)
         ps = pvars.particles
@@ -55,7 +86,7 @@ class TestPoincare(unittest.TestCase):
         for i, orb in enumerate(orbs):
             sim.add(m=self.sim.particles[i+1].m, a=orb.a, e=orb.e, pomega=orb.pomega, l=orb.l, primary=sim.particles[0])
         sim.move_to_com()
-        self.compare_simulations(self.sim, sim, delta=1.e-14)
+        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
 
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
@@ -63,9 +94,11 @@ class TestPoincare(unittest.TestCase):
         self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
+        # averaging operation is not symmetric because have to use current
+        # Lambdas to calculate correction. So turn off averaging for test
         pvars = Poincare.from_Simulation(self.sim, average = False)
         sim = pvars.to_Simulation(average = False)
-        self.compare_simulations(self.sim, sim, delta=1.e-14)
+        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
 
     def test_averaging(self): # see PoincareTest.ipynb in celmech/celmech/test for a description
         errs = np.array([averaging_error(Nseed) for Nseed in range(100)]) # takes about 5 sec

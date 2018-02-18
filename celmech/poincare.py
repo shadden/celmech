@@ -66,15 +66,22 @@ class Poincare(object):
             pvars = pvars.average_synodic_terms()
         return pvars
 
-    def to_Simulation(self, average=True):
+    def to_Simulation(self, masses=None, average=True):
+        ''' 
+        if masses is None, will calculate physical masses from the jacobi ones.
+        if masses is a list, will use those as the physical masses.
+        '''
+
         if average is True:
             pvars = self.average_synodic_terms(inverse=True)
         else:
             pvars = self
 
-        mjac = [p.m for p in pvars.particles]
-        Mjac = [p.M for p in pvars.particles]
-        masses = masses_from_jacobi(mjac, Mjac)
+        if not masses:
+            mjac = [p.m for p in pvars.particles]
+            Mjac = [p.M for p in pvars.particles]
+            masses = masses_from_jacobi(mjac, Mjac)
+
         sim = rebound.Simulation()
         sim.G = pvars.G
         sim.add(m=masses[0])
