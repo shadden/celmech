@@ -25,8 +25,8 @@ install:
 
 script:
   - if [[ $TESTPART == "IPYTHON1" ]]; then cd $TRAVIS_BUILD_DIR/ && python setup.py test; fi
-  - if [[ $TESTPART == "IPYTHON1" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Andoyer_Resonance_Models.ipynb; fi
-  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Basic_Poincare_Integration.ipynb; fi
-  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py ResonanceWidths_And_Intersections.ipynb; fi
-  - if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Secular_System_Integration.ipynb; fi
+  #- if [[ $TESTPART == "IPYTHON1" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Andoyer_Resonance_Models.ipynb; fi
+  #- if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Basic_Poincare_Integration.ipynb; fi
+  #- if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py ResonanceWidths_And_Intersections.ipynb; fi
+  #- if [[ $TESTPART == "IPYTHON2" ]]; then cd $TRAVIS_BUILD_DIR/jupyter_examples/ && python ipynb2py.py Secular_System_Integration.ipynb; fi
 
