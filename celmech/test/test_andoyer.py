@@ -91,6 +91,17 @@ class TestAndoyer(unittest.TestCase):
             sim = avars.to_Simulation(masses=m, average=False)
             self.compare_particles(self.sim, sim, i1, 1, self.delta)
             self.compare_particles(self.sim, sim, i2, 2, self.delta)
+    
+    def test_dP(self):
+        j=5
+        k=2
+        sim = rebound.Simulation()
+        sim.add(m=1.)
+        sim.add(m=1.e-6, P=1.)
+        sim.add(m=3.e-6, P=1.68)
+        sim.move_to_com()
+        avars = Andoyer.from_Simulation(sim,j,k, a10=0.32, average=False) # real a0 ~0.29, 10% err
+        self.assertAlmostEqual(1.68-float(j)/(j-k), avars.dP, delta=0.01) # err is da^2 or smaller, so 1%
 
     '''
     def test_rebound_transformations(self):

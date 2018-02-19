@@ -31,3 +31,14 @@ def ActionAngleToXY(Action,angle):
 
 def XYToActionAngle(X,Y):
         return 0.5 * (X*X+Y*Y), np.arctan2(Y,X)
+
+def rotate_actions(A1,a1,A2,a2,rotmatrix):
+    AX1,AY1 = ActionAngleToXY(A1,a1)
+    AX2,AY2 = ActionAngleToXY(A2,a2)
+    BX1,BX2 = np.dot(rotmatrix, np.array([AX1,AX2]) )
+    BY1,BY2 = np.dot(rotmatrix, np.array([AY1,AY2]) )
+    B1,b1 = XYToActionAngle(BX1,BY1)
+    B2,b2 = XYToActionAngle(BX2,BY2)
+    return B1,b1,B2,b2
+
+
