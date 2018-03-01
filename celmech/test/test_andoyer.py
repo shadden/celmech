@@ -2,7 +2,7 @@ import rebound
 import unittest
 import math
 import numpy as np
-from celmech import Andoyer
+from celmech import Andoyer, Poincare
 
 class TestAndoyer(unittest.TestCase):
     def setUp(self):
@@ -102,6 +102,71 @@ class TestAndoyer(unittest.TestCase):
         sim.move_to_com()
         avars = Andoyer.from_Simulation(sim,j,k, a10=0.32, average=False) # real a0 ~0.29, 10% err
         self.assertAlmostEqual(1.68-float(j)/(j-k), avars.dP, delta=0.01) # err is da^2 or smaller, so 1%
+
+    def test_H(self):
+        j=3
+        k=1
+        a10 = 1.02
+        sim = rebound.Simulation()
+        sim.G = 4*np.pi**2
+        sim.add(m=1.)
+        sim.add(m=1.e-6, e=0.01, P=1., pomega=-np.pi/2, f=np.pi, jacobi_masses=True)
+        sim.add(m=3.e-6, e=0.03, pomega=np.pi/2, P=float(j)/(j-k), jacobi_masses=True)#float(j)/(j-k), theta=3.14)
+        sim.move_to_com()
+        avars = Andoyer.from_Simulation(sim,j,k, a10=a10, average=True) 
+        p = avars.params
+        pvars = Poincare.from_Simulation(sim, average=True) 
+        Gamma1 = pvars.particles[1].Gamma
+        Gamma2 = pvars.particles[2].Gamma
+        Lambda1 = pvars.particles[1].Lambda
+        Lambda2 = pvars.particles[2].Lambda
+        lambda1 = pvars.particles[1].l
+        lambda2 = pvars.particles[2].l
+        gamma1 = pvars.particles[1].gamma
+        gamma2 = pvars.particles[2].gamma
+        n10 = np.sqrt(p['G']*p['M1']/p['a10']**3)
+        n20 = np.sqrt(p['G']*p['M2']/p['a10']**3*p['alpha']**3)
+        z1 = np.sqrt(2*Gamma1/p['Lambda10'])
+        z2 = np.sqrt(2*Gamma2/p['Lambda20'])
+        Hkep = -0.5*(n10*p['Lambda10']**3/Lambda1**2 + n20*p['Lambda20']**3/Lambda2**2)
+        L10 = p['Lambda10']
+        L20 = p['Lambda20']
+        Hkepexpanded = -n10*L10**3/2*(1/L10**2 - 2*avars.dL1/L10**3 + 3*avars.dL1**2/L10**4)-n20*L20**3/2*(1/L20**2 - 2*avars.dL2/L20**3 + 3*avars.dL2**2/L20**4)
+        Hresprefac = -p['G']*p['m1']*p['m2']/p['a10']*p['alpha']
+        Hres = Hresprefac*(p['f']*z1*np.cos(j*lambda2 - (j-k)*lambda1 + gamma1)+p['g']*z2*np.cos(j*lambda2 - (j-k)*lambda1 + gamma2))
+        H0 = -n20*p['K0']/2/(j-k)
+        H1 = n20*p['eta']/(j-k)*avars.dK*(1. - 1.5*p['eta']/p['K0']*avars.dK)
+        H2 = n20*p['eta']*p['a']*avars.dP**2
+        Hkeptransformed = H0 + H1 + H2
+        Hrestransformed = n20*p['eta']*p['c']*(2*avars.Psi1)**(k/2.)*np.cos(avars.theta+k*avars.psi1)
+
+        self.assertAlmostEqual(Hkeptransformed, Hkepexpanded, delta=1.e-15) # should be exact
+        self.assertAlmostEqual(Hrestransformed, Hres, delta=1.e-15) # should be exact for first order resonance (k=1)
+        self.assertAlmostEqual(Hkepexpanded, Hkep, delta=(a10-1.)**2) # should match to O(da/a)^2, atrue=1, a10=a10
+    
+    def test_ecom(self):
+        j=57
+        k=2
+        sim = rebound.Simulation()
+        sim.G = 4*np.pi**2
+        sim.add(m=1.)
+        sim.add(m=1.e-6, e=0.01, P=1., pomega=-np.pi/6, f=np.pi, jacobi_masses=True)
+        sim.add(m=3.e-6, e=0.03, pomega=np.pi/3, P=float(j)/(j-k), jacobi_masses=True)#float(j)/(j-k), theta=3.14)
+        sim.move_to_com()
+        ps = sim.particles
+        e1x = ps[1].e*np.cos(ps[1].pomega)
+        e1y = ps[1].e*np.sin(ps[1].pomega)
+        e2x = ps[2].e*np.cos(ps[2].pomega)
+        e2y = ps[2].e*np.sin(ps[2].pomega)
+
+        avars = Andoyer.from_Simulation(sim,j,k, a10=1.02, average=True) 
+        m1 = avars.params['m1']
+        m2 = avars.params['m2']
+        ecomx = (m1*e1x + m2*e2x)/(m1+m2)
+        ecomy = (m1*e1y + m2*e2y)/(m1+m2)
+        ecomsim = np.sqrt(ecomx**2 + ecomy**2)
+                
+        self.assertAlmostEqual(avars.ecom, ecomsim, delta=1.e-3)
 
     '''
     def test_rebound_transformations(self):
