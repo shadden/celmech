@@ -7,13 +7,15 @@ from celmech.transformations import ActionAngleToXY, XYToActionAngle, rotate_act
 import rebound
 
 # will give you the phiprime that yields an equilibrium Xstar, always in the range of phiprime where there exists a separatrix
-def get_Phiprime(k, Xstar):
+def get_Phiprime(k, Xstarres):
+    if Xstarres >= 0:
+        raise ValueError("Xstarres passed to get_Phiprime must be < 0")
     if k == 1:
-        pass
+        Phiprime = (4.*Xstarres**3 + 1.)/(3.*Xstarres)
     if k == 2:
-        Phiprime = (4.*Xstar**2 - 2.)/3.
+        Phiprime = (4.*Xstarres**2 - 2.)/3.
     if k == 3:
-        pass
+        Phiprime = (4.*Xstarres**2 + 3.*Xstarres)/3.
 
     return Phiprime
 
@@ -42,21 +44,38 @@ def get_Hsep(k, Phiprime):
     return Hsep
 
 def get_Xsep(k, Phiprime):
+    if k==1:
+        if Phiprime < 1.:
+            raise ValueError("k=1 resonance has no separatrix for Phiprime < 1")
+        else:
+            Xu = get_Xstarunstable(k, Phiprime)
+            disc = np.sqrt(1.5*Phiprime - 2*Xu**2)
+            Xouter = -Xu - disc
+            Xinner = -Xu + disc
     if k==2:
         if Phiprime < -2./3.:
             raise ValueError("k=2 resonance has no separatrix for Phiprime < -2/3")
         else:
             Hsep = get_Hsep(k, Phiprime)
-            disc = np.sqrt((1.+1.5*Phiprime)**2+4.*Hsep)
-            Xsep = -np.sqrt((1+1.5*Phiprime+disc)/2.)
+            b = (1.+1.5*Phiprime)
+            disc = np.sqrt(b**2+4.*Hsep)
+            Xouter = -np.sqrt((b+disc)/2.) # b >= 0 if Phiprime >= -2/3, so b + disc adds to give biggest absolute value
+            Xinner = -np.sqrt((b-disc)/2.) # b >= 0 if Phiprime >= -2/3, so b - disc subtracts to give smaller absolute value
+    if k==3:
+        if Phiprime < -9./48.:
+            raise ValueError("k=3 resonance has no separatrix for Phiprime < -9/48")
+        else:
+            Xu = get_Xstarunstable(k, Phiprime)
+            disc = 1.+2*Xu
+            Xouter = -(disc + np.sqrt(disc))/2.
+            Xinner = -(disc - np.sqrt(disc))/2.
+            #Xouter = -0.5*(1. + 2.*Xu + disc)
+            #Xinner = -0.5*(1. + 2.*Xu - disc)
             
-        return Xsep
+    return Xinner, Xouter
 
 def get_Xplusminus(k, Phiprime):
     pass
-
-def get_second_order_Phiprime(Xstar):
-    return (4*Xstar**2 + 2.*np.abs(Xstar)/Xstar)/3.
 
 class Andoyer(object):
     def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Psi2=0., psi2=0., dK=0., theta=0., lambda1=0.):
@@ -82,7 +101,7 @@ class Andoyer(object):
 
     @property
     def B(self):
-        return 3.*self.Phiprime*self.params['Phi0']/8.
+        return self.Phiprime_to_B(self.Phiprime)
         
     @property
     def dP(self):
@@ -149,28 +168,49 @@ class Andoyer(object):
         p['C'] = -g/f*np.sqrt(p['alpha'])*np.sqrt(M1/M2)
     
     @classmethod
-    def from_elements(cls, j, k, Zstar, libfac, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., dK=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=Psi2, psi2=psi2, dK=dK, theta=theta, lambda1=lambda1)
-        Psi1star = 0.5*Zstar**2*andvars.params['Zfac']
-        Phistar = Psi1star/k/andvars.params['Phi0']
+    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., theta=0, lambda1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=Psi2, psi2=psi2, dK=0., theta=theta, lambda1=lambda1)
+        p = andvars.params
+        Psi1star = 0.5*Zstar**2*p['Zfac']
+        Phistar = Psi1star/k/p['Phi0']
         Xstar = -np.sqrt(2.*Phistar)
-        andvars.Phiprime = get_second_order_Phiprime(Xstar)
-        Xsep = get_Xsep(k, andvars.Phiprime)
-        deltaX = np.abs(Xstar-Xsep)
-        andvars.X = Xstar - deltaX*libfac
+        andvars.Phiprime = get_Phiprime(k, Xstar)
+        Xinner, Xouter = get_Xsep(k, andvars.Phiprime)
+        if libfac > 0: # offset toward outer branch of separatrix
+            andvars.X = Xstar - libfac*np.abs(Xstar-Xouter)
+        else: # offset toward inner branch of separatrix
+            andvars.X = Xstar - libfac*np.abs(Xstar-Xinner)
+
+        if a1 is None:
+            a1 = a10
+        dL1 = m1*np.sqrt(G*M1)*(np.sqrt(a1)-np.sqrt(a10))
+        andvars.dK = p['K0']/p['Lambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
+
         return andvars
     
     @classmethod
     def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., dK=0., theta=0, lambda1=0.):
         andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=Psi2, psi2=psi2, dK=dK, theta=theta, lambda1=lambda1)
-        Psi1 = 0.5*Z**2*andvars.params['Zfac']
-        Phi = Psi1/k/andvars.params['Phi0']
+        Phistar = andvars.Z_to_Phi(Zstar)
+        Xstar = -np.sqrt(2.*Phistar)
+        andvars.Phiprime = get_Phiprime(k, Xstar)
+        
+        Phi = andvars.Z_to_Phi(Z)
         andvars.X = np.sqrt(2.*Phi)*np.cos(phi)
         andvars.Y = np.sqrt(2.*Phi)*np.sin(phi)
-        Psi1star = 0.5*Zstar**2*andvars.params['Zfac']
-        Phistar = Psi1star/k/andvars.params['Phi0']
+
+        return andvars
+
+    @classmethod
+    def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., dK=0., theta=0, lambda1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=Psi2, psi2=psi2, dK=dK, theta=theta, lambda1=lambda1)
+        Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
-        andvars.Phiprime = get_second_order_Phiprime(Xstar)
+        andvars.Phiprime = get_Phiprime(k, Xstar)
+
+        Phi = andvars.dP_to_Phi(dP, andvars.Phiprime)
+        andvars.X = np.sqrt(2.*Phi)*np.cos(phi)
+        andvars.Y = np.sqrt(2.*Phi)*np.sin(phi)
 
         return andvars
     
@@ -206,6 +246,7 @@ class Andoyer(object):
        
         Lambda1 = p['Lambda10'] + self.dL1
         Lambda2 = p['Lambda20'] + self.dL2
+        print(self.dL1, self.dL2)
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_actions(self.Psi1,self.psi1,self.Psi2,self.psi2,p['invpsirotmatrix'])
         Gamma1 *= p['eta']
@@ -217,7 +258,7 @@ class Andoyer(object):
         pvars = Poincare(p['G'])
         pvars.add(p['m1'], Lambda1, lambda1, Gamma1, gamma1, p['M1'])
         pvars.add(p['m2'], Lambda2, lambda2, Gamma2, gamma2, p['M2'])
-        
+
         return pvars
 
     @classmethod
@@ -234,7 +275,34 @@ class Andoyer(object):
         '''
         pvars = self.to_Poincare()
         return pvars.to_Simulation(masses, average)
+
+    def Z_to_Phi(self, Z):
+        p = self.params
+        Psi1 = 0.5*Z**2*p['Zfac']
+        Phi = Psi1/p['k']/p['Phi0']
+        return Phi
     
+    def Phi_to_Z(self, Phi):
+        p = self.params
+        Psi1 = Phi*p['Phi0']*p['k']
+        Z = np.sqrt(2*Psi1)/np.sqrt(p['Zfac'])
+        return Z 
+    
+    def dP_to_Phi(self, dP, Phiprime):
+        p = self.params
+        B = self.Phiprime_to_B(Phiprime)
+        Phi = (dP + B)/p['Phi0']
+        return Phi
+    
+    def Phi_to_dP(self, Phi, Phiprime):
+        p = self.params
+        B = self.Phiprime_to_B(Phiprime)
+        dP = Phi*p['Phi0'] - B
+        return dP 
+
+    def Phiprime_to_B(self, Phiprime):
+        return 3.*Phiprime*self.params['Phi0']/8.
+
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, andvars):
         X, Y, Phi, phi, Phiprime, k = symbols('X, Y, Phi, phi, Phiprime, k')
