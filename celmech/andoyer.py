@@ -19,6 +19,15 @@ def get_Phiprime(k, Xstarres):
 
     return Phiprime
 
+def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's no separatrix
+    if k == 1:
+        Xstarres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5))+2.*np.pi/3.)
+    if k == 2:
+        Xstarres = -0.5*np.sqrt(3.*Phiprime+2.)
+    if k == 3:
+        Xstarres = (-3.-np.sqrt(9.+48.*Phiprime))/8.
+    return Xstarres
+
 def get_Xstarunstable(k, Phiprime):
     if k == 1:
         if Phiprime < 1.:
@@ -102,6 +111,12 @@ class Andoyer(object):
     @property
     def B(self):
         return self.Phiprime_to_B(self.Phiprime)
+    
+    @property
+    def Zstar(self):
+        Xstar = get_Xstarres(self.params['k'], self.Phiprime)
+        Phistar = Xstar**2/2. 
+        return self.Phi_to_Z(Phistar)
         
     @property
     def dP(self):
@@ -140,7 +155,7 @@ class Andoyer(object):
     
     @property
     def phiecom(self):
-        return -self.psi2
+        return -self.psi2 + np.pi
 
     def calc_params(self, j, k, a10, G, m1, M1, m2, M2):
         self.params = {'j':j, 'k':k, 'a10':a10, 'G':G, 'm1':m1, 'M1':M1, 'm2':m2, 'M2':M2}
@@ -168,8 +183,8 @@ class Andoyer(object):
         p['C'] = -g/f*np.sqrt(p['alpha'])*np.sqrt(M1/M2)
     
     @classmethod
-    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Psi2=0., psi2=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=Psi2, psi2=psi2, dK=0., theta=theta, lambda1=lambda1)
+    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., ecom=0., phiecom=0., theta=0, lambda1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=0., psi2=0., dK=0., theta=theta, lambda1=lambda1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
@@ -185,7 +200,10 @@ class Andoyer(object):
             a1 = a10
         dL1 = m1*np.sqrt(G*M1)*(np.sqrt(a1)-np.sqrt(a10))
         andvars.dK = p['K0']/p['Lambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
-
+        
+        andvars.Psi2 = ecom**2/2.*p['Zfac']*p['beta']**2
+        andvars.psi2 = -phiecom + np.pi
+        
         return andvars
     
     @classmethod
