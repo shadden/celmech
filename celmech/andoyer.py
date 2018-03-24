@@ -87,17 +87,21 @@ def get_Xplusminus(k, Phiprime):
     pass
 
 class Andoyer(object):
-    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Psi2=0., psi2=0., dK=0., theta=0., lambda1=0.):
+    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Psi2=0., psi2=0., dKprime=0., theta=0., lambda1=0.):
         self.calc_params(j, k, a10, G, m1, M1, m2, M2)
         self.X = X
         self.Y = Y
         self.Psi2 = Psi2
         self.psi2 = psi2
         self.Phiprime = Phiprime
-        self.dK = dK
+        self.dKprime = dKprime
         self.theta = theta
         self.lambda1 = lambda1
-    
+   
+    @property
+    def dK(self):
+        return self.Kprime*self.params['K0']/self.params['eta']
+
     @property
     def Phi(self):
         Phi, phi = XYToActionAngle(self.X, self.Y)
@@ -161,6 +165,7 @@ class Andoyer(object):
         self.params = {'j':j, 'k':k, 'a10':a10, 'G':G, 'm1':m1, 'M1':M1, 'm2':m2, 'M2':M2}
         p = self.params
         p['alpha'] = (M1/M2)**(1./3.)*(float(j-k)/j)**(2./3.) 
+        p['a20'] = a10/p['alpha']
         p['Lambda10'] = m1*np.sqrt(G*M1*a10)
         p['Lambda20'] = m2*np.sqrt(G*M2*a10/p['alpha'])
         p['K0'] = (j-k)*p['Lambda20'] + j*p['Lambda10']
@@ -184,7 +189,7 @@ class Andoyer(object):
     
     @classmethod
     def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., ecom=0., phiecom=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=0., psi2=0., dK=0., theta=theta, lambda1=lambda1)
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Psi2=0., psi2=0., dKprime=0., theta=theta, lambda1=lambda1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
@@ -198,8 +203,9 @@ class Andoyer(object):
 
         if a1 is None:
             a1 = a10
-        dL1 = m1*np.sqrt(G*M1)*(np.sqrt(a1)-np.sqrt(a10))
-        andvars.dK = p['K0']/p['Lambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
+        dL1hat = (np.sqrt(a1)-np.sqrt(a10))/np.sqrt(a10)
+        dL2hat = dL1hat + (j-k)/(3.*j)*andvars.dP
+        andvars.dKprime = ((j-k)*p['Lambda20']*dL2hat + j*p['Lambda10']*dL1hat)/p['K0']
         
         andvars.Psi2 = ecom**2/2.*p['Zfac']*p['beta']**2
         andvars.psi2 = -phiecom + np.pi
@@ -264,7 +270,6 @@ class Andoyer(object):
        
         Lambda1 = p['Lambda10'] + self.dL1
         Lambda2 = p['Lambda20'] + self.dL2
-        print(self.dL1, self.dL2)
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_actions(self.Psi1,self.psi1,self.Psi2,self.psi2,p['invpsirotmatrix'])
         Gamma1 *= p['eta']

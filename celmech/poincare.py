@@ -6,30 +6,65 @@ from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from itertools import combinations
 import rebound
 
+def single_true(iterable): # Returns true if only one element in the iterable is set 
+    i = iter(iterable)
+    return any(i) and not any(i)
+
 class PoincareParticle(object):
-    def __init__(self, m, Lambda, l, Gamma, gamma, M, G):
-        X = np.sqrt(2.*Gamma)*np.cos(gamma)
-        Y = np.sqrt(2.*Gamma)*np.sin(gamma)
-        self.m = m
+    def __init__(self, m, M, l, gamma, G=1., sLambda=None, sGamma=None, Lambda=None, Gamma=None, a=None, e=None):
+        """
+        We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
+        """
+        if not single_true([sLambda, Lambda, a]):
+            raise AttributeError("Can only pass one of Lambda, sLambda (specific Lambda, i.e. per unit mass), or a (semimajor axis)")
+        if not single_true([sGamma, Gamma, e]):
+            raise AttributeError("Can only pass one of Gamma, sGamma (specific Gamma, i.e. per unit mass), or e (eccentricity)")
+        
+        if sLambda:
+            self.sLambda = sLambda
+        elif Lambda:
+            try:
+                self.sLambda = Lambda/m
+            except:
+                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+        elif a:
+            self.sLambda = np.sqrt(G*M*a)
+
+        if Gamma:
+            try:
+                sGamma = Gamma/m
+            except:
+                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+        elif e:
+            sGamma = self.sLambda*(1.-np.sqrt(1.-e**2))
+
+        sX = np.sqrt(2.*sGamma)*np.cos(gamma)
+        sY = np.sqrt(2.*sGamma)*np.sin(gamma)
+        self.m = m 
         self.M = M
         self.G = G
-        self.Lambda = Lambda
         self.l = l
-        self.X = X
-        self.Y = Y
+        self.sX = sX # X per unit sqrt(mass)
+        self.sY = sY
     
     @property
+    def Lambda(self):
+        return self.m*self.sLambda
+    @property
     def Gamma(self):
-        return (self.X**2+self.Y**2)/2.
+        return self.m*(self.sX**2+self.sY**2)/2.
+    @property
+    def sGamma(self):
+        return (self.sX**2+self.sY**2)/2.
     @property
     def gamma(self):
-        return np.arctan2(self.Y, self.X)
+        return np.arctan2(self.sY, self.sX)
     @property
     def a(self):
-        return self.Lambda**2/self.m**2/self.G/self.M
+        return self.sLambda**2/self.G/self.M
     @property
     def e(self):
-        GbyL = self.Gamma/self.Lambda
+        GbyL = self.sGamma/self.sLambda
         return np.sqrt(1 - (1-GbyL)*(1-GbyL))
     @property
     def pomega(self):

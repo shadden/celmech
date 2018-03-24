@@ -2,7 +2,7 @@ import rebound
 import unittest
 import math
 import numpy as np
-from celmech import Poincare, PoincareHamiltonian
+from celmech import Poincare, PoincareHamiltonian, PoincareParticle
 from random import random, seed
 
 class TestPoincare(unittest.TestCase):
@@ -103,6 +103,27 @@ class TestPoincare(unittest.TestCase):
     def test_averaging(self): # see PoincareTest.ipynb in celmech/celmech/test for a description
         errs = np.array([averaging_error(Nseed) for Nseed in range(100)]) # takes about 5 sec
         self.assertLess(np.median(errs), 3.)        
+
+    def test_particles(self):
+        m=1.e-5
+        M=3.
+        G=2.
+        a=7.
+        e=0.1
+        pomega=1.3
+        l=0.7
+        sLambda = np.sqrt(G*M*a)
+        sGamma = sLambda*(1.-np.sqrt(1.-e**2))
+        Lambda = m*sLambda
+        Gamma = m*sGamma
+        p = PoincareParticle(m, M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega)
+        tp = PoincareParticle(0., M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega)
+        self.assertAlmostEqual(p.a, a, delta=1.e-15)
+        self.assertAlmostEqual(p.e, e, delta=1.e-15)
+        self.assertAlmostEqual(p.pomega, pomega, delta=1.e-15)
+        self.assertAlmostEqual(tp.a, a, delta=1.e-15)
+        self.assertAlmostEqual(tp.e, e, delta=1.e-15)
+        self.assertAlmostEqual(tp.pomega, pomega, delta=1.e-15)
 
 def packed_sim(Nseed):
     seed(Nseed)

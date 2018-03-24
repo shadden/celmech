@@ -168,6 +168,25 @@ class TestAndoyer(unittest.TestCase):
                 
         self.assertAlmostEqual(avars.ecom, ecomsim, delta=1.e-3)
 
+    def test_from_elements(self):
+        j=5
+        k=2
+        Zstar=0.1
+        libfac=0.5
+        a10=3.
+        a1=3.1
+        G=2.
+        m1=1.e-7
+        m2=1.e-4
+        ecom=0.05
+        phiecom=0.7
+
+        avars = Andoyer.from_elements(j,k,Zstar,libfac,a10,a1,G,m1=m1,m2=m2,ecom=ecom,phiecom=phiecom)
+        self.assertAlmostEqual(avars.Zstar, Zstar, delta=1.e-12)
+        self.assertAlmostEqual(avars.ecom, ecom, delta=1.e-15)
+        self.assertAlmostEqual(avars.phiecom, phiecom, delta=1.e-15)
+        sim = avars.to_Simulation()
+        self.assertAlmostEqual(sim.particles[1].a, a1, delta=3*((a1-a10)/a10)**2)# should match to O(da/a)^2, atrue=1, a10=a10
     '''
     def test_rebound_transformations(self):
         avars = Andoyer.from_Simulation(self.sim, 4, 1)
