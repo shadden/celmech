@@ -28,7 +28,7 @@ class TestPoincare(unittest.TestCase):
         ps1 = ps1[1:]
         ps2 = ps2[1:] # ignore the dummy particle for primary at index 0
         for p1, p2 in zip(ps1, ps2):
-            for attr in ['X', 'Y', 'm', 'M', 'Lambda', 'l']:
+            for attr in ['sX', 'sY', 'm', 'M', 'sLambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
     def compare_simulations(self, sim1, sim2, delta=1.e-15):
@@ -116,14 +116,32 @@ class TestPoincare(unittest.TestCase):
         sGamma = sLambda*(1.-np.sqrt(1.-e**2))
         Lambda = m*sLambda
         Gamma = m*sGamma
-        p = PoincareParticle(m, M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega)
-        tp = PoincareParticle(0., M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega)
+        p = PoincareParticle(m=m, M=M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega)
+        tp = PoincareParticle(m=0., M=M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega)
         self.assertAlmostEqual(p.a, a, delta=1.e-15)
         self.assertAlmostEqual(p.e, e, delta=1.e-15)
         self.assertAlmostEqual(p.pomega, pomega, delta=1.e-15)
         self.assertAlmostEqual(tp.a, a, delta=1.e-15)
         self.assertAlmostEqual(tp.e, e, delta=1.e-15)
         self.assertAlmostEqual(tp.pomega, pomega, delta=1.e-15)
+        pvars = Poincare(G, poincareparticles=[p, tp])
+        ps = pvars.particles
+        self.assertAlmostEqual(ps[1].a, a, delta=1.e-15)
+        self.assertAlmostEqual(ps[1].e, e, delta=1.e-15)
+        self.assertAlmostEqual(ps[1].pomega, pomega, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].a, a, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].e, e, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].pomega, pomega, delta=1.e-15)
+        pvars = Poincare(G=G)
+        pvars.add(m=m, M=M, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega)
+        pvars.add(m=0., M=M, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega)
+        ps = pvars.particles
+        self.assertAlmostEqual(ps[1].a, a, delta=1.e-15)
+        self.assertAlmostEqual(ps[1].e, e, delta=1.e-15)
+        self.assertAlmostEqual(ps[1].pomega, pomega, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].a, a, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].e, e, delta=1.e-15)
+        self.assertAlmostEqual(ps[2].pomega, pomega, delta=1.e-15)
 
 def packed_sim(Nseed):
     seed(Nseed)
@@ -173,7 +191,6 @@ def averaging_error(Nseed):
     pvars = Poincare.from_Simulation(sim)
     Hsim = PoincareHamiltonian(pvars)
 
-    
     Nsma = np.zeros((3,Nout))
     Hsma = np.zeros((3,Nout))
 

@@ -7,8 +7,9 @@ from itertools import combinations
 import rebound
 
 def single_true(iterable): # Returns true if only one element in the iterable is set 
-    i = iter(iterable)
-    return any(i) and not any(i)
+    # make generator from iterable setting any zeros as valid entries (otherwise they evaluate to False)
+    i = iter([item if item != 0 else True for item in iterable]) # make generator and set zeros to valid inputs
+    return any(i) and not any(i) # any(i) True once first valid item found. not any(i) ensures no additional ones exist
 
 class PoincareParticle(object):
     def __init__(self, m, M, l, gamma, G=1., sLambda=None, sGamma=None, Lambda=None, Gamma=None, a=None, e=None):
@@ -18,6 +19,7 @@ class PoincareParticle(object):
         if not single_true([sLambda, Lambda, a]):
             raise AttributeError("Can only pass one of Lambda, sLambda (specific Lambda, i.e. per unit mass), or a (semimajor axis)")
         if not single_true([sGamma, Gamma, e]):
+            print('****', Gamma, sGamma, e)
             raise AttributeError("Can only pass one of Gamma, sGamma (specific Gamma, i.e. per unit mass), or e (eccentricity)")
         
         if sLambda:
@@ -46,7 +48,13 @@ class PoincareParticle(object):
         self.l = l
         self.sX = sX # X per unit sqrt(mass)
         self.sY = sY
-    
+   
+    @property
+    def X(self):
+        return self.m*self.sX
+    @property
+    def Y(self):
+        return self.m*self.sY
     @property
     def Lambda(self):
         return self.m*self.sLambda
@@ -76,10 +84,10 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, poincareparticles=[]):
         self.G = G
-        self.particles = [PoincareParticle(np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan)] # dummy particle for primary
+        self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan, sLambda=np.nan, sGamma=np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:
-                self.add(p.m, p.Lambda, p.l, p.Gamma, p.gamma, p.M)
+                self.add(m=p.m, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, M=p.M)
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
@@ -94,9 +102,9 @@ class Poincare(object):
             M = Mjac[i]
             m = mjac[i]
             orb = o[i-1]
-            Lambda = m*np.sqrt(sim.G*M*orb.a)
-            Gamma = Lambda*(1.-np.sqrt(1.-orb.e**2))
-            pvars.add(m, Lambda, orb.l, Gamma, -orb.pomega, M)
+            sLambda = np.sqrt(sim.G*M*orb.a)
+            sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
+            pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, gamma=-orb.pomega, M=M)
         if average is True:
             pvars = pvars.average_synodic_terms()
         return pvars
@@ -122,14 +130,12 @@ class Poincare(object):
         sim.add(m=masses[0])
         ps = pvars.particles
         for i in range(1, pvars.N):
-            a = ps[i].Lambda**2/ps[i].m**2/pvars.G/ps[i].M
-            e = np.sqrt(1.-(1.-ps[i].Gamma/ps[i].Lambda)**2)
-            sim.add(m=masses[i], a=a, e=e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
+            sim.add(m=masses[i], a=ps[i].a, e=ps[i].e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
         sim.move_to_com()
         return sim
     
-    def add(self, m, Lambda, l, Gamma, gamma, M):
-        self.particles.append(PoincareParticle(m, Lambda, l, Gamma, gamma, M, self.G))
+    def add(self, **kwargs):
+        self.particles.append(PoincareParticle(G=self.G, **kwargs))
 
     def copy(self):
         return Poincare(self.G, self.particles[1:self.N])
@@ -141,30 +147,22 @@ class Poincare(object):
         """
         corrpvars = pvars.copy()
         pairs = combinations(range(1,pvars.N), 2)
+        #TODO assumes particles ordered going outward so a1 < a2 always. Sort first?
         for i1, i2 in pairs:
-            s=0
             ps = pvars.particles
-            L1 = ps[i1].Lambda
-            L2 = ps[i2].Lambda
             m1 = ps[i1].m
             m2 = ps[i2].m
-            M1 = ps[1].M 
-            M2 = ps[2].M 
             deltalambda = ps[i1].l-ps[i2].l
             G = pvars.G
 
-            n1 = G**2*M2**2*m1**3/L1**3
-            n2 = G**2*M2**2*m2**3/L2**3
-            deltan = (n1-n2)/n2
-            prefac = m1/M1*L2/deltan
-            alpha = (m2/m1*L1/L2)**2
-
+            prefac = G/ps[i2].a/(ps[i1].n-ps[i2].n) 
+            alpha = ps[i1].a/ps[i2].a
             summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
             s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_coefficient(0.5, 0, 0, alpha)/2.)
             if inverse is True:
                 s *= -1
-            corrpvars.particles[i1].Lambda += s 
-            corrpvars.particles[i2].Lambda -= s
+            corrpvars.particles[i1].sLambda += m2*s # prefac*m1*m2*s/m1 (sLambda=Lambda/m)
+            corrpvars.particles[i2].sLambda -= m1*s
 
         return corrpvars
 
@@ -226,9 +224,9 @@ class PoincareHamiltonian(Hamiltonian):
         ps = state.particles
         vpp = 4 # vars per particle
         for i in range(1, state.N):
-            ps[i].X = y[vpp*(i-1)]
-            ps[i].Y = y[vpp*(i-1)+1]
-            ps[i].Lambda = y[vpp*(i-1)+2]
+            ps[i].sX = y[vpp*(i-1)]/np.sqrt(ps[i].m)
+            ps[i].sY = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
+            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].m
             ps[i].l = y[vpp*(i-1)+3]
     
     def add_Hkep_term(self, H, index):
