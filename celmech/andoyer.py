@@ -264,7 +264,6 @@ class Andoyer(object):
        
         Lambda1 = p['Lambda10'] + self.dL1
         Lambda2 = p['Lambda20'] + self.dL2
-        print(self.dL1, self.dL2)
 
         Gamma1,gamma1,Gamma2,gamma2 = rotate_actions(self.Psi1,self.psi1,self.Psi2,self.psi2,p['invpsirotmatrix'])
         Gamma1 *= p['eta']

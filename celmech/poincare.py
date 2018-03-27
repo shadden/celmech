@@ -16,11 +16,9 @@ class PoincareParticle(object):
         """
         We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
         """
-        print("Gamma", Gamma, "sGamma", sGamma)
         if not single_true([sLambda, Lambda, a]):
             raise AttributeError("Can only pass one of Lambda, sLambda (specific Lambda, i.e. per unit mass), or a (semimajor axis)")
         if not single_true([sGamma, Gamma, e]):
-            print('****', Gamma, sGamma, e)
             raise AttributeError("Can only pass one of Gamma, sGamma (specific Gamma, i.e. per unit mass), or e (eccentricity)")
         
         if sLambda:
@@ -34,15 +32,12 @@ class PoincareParticle(object):
             self.sLambda = np.sqrt(G*M*a)
 
         if Gamma:
-            print("Gamma", Gamma)
             try:
                 sGamma = Gamma/m
             except:
                 raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
         elif e:
-            print("e")
             sGamma = self.sLambda*(1.-np.sqrt(1.-e**2))
-        print("here", sGamma)
         self.sX = np.sqrt(2.*sGamma)*np.cos(gamma) # X per unit sqrt(mass)
         self.sY = np.sqrt(2.*sGamma)*np.sin(gamma)
         self.m = m 
@@ -65,7 +60,7 @@ class PoincareParticle(object):
     @property
     def Gamma(self):
         return self.m*(self.sX**2+self.sY**2)/2.
-    @Lambda.setter
+    @Gamma.setter
     def Gamma(self, value):
         self.sGamma = value/self.m
     @property
@@ -111,7 +106,6 @@ class Poincare(object):
             orb = o[i-1]
             sLambda = np.sqrt(sim.G*M*orb.a)
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
-            print("***", i, sLambda, sGamma)
             pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, gamma=-orb.pomega, M=M)
         if average is True:
             pvars = pvars.average_synodic_terms()
@@ -138,7 +132,6 @@ class Poincare(object):
         sim.add(m=masses[0])
         ps = pvars.particles
         for i in range(1, pvars.N):
-            print(ps[i].sGamma, ps[i].sLambda, ps[i].e)
             sim.add(m=masses[i], a=ps[i].a, e=ps[i].e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
         sim.move_to_com()
         return sim
