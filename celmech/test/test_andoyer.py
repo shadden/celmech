@@ -82,7 +82,7 @@ class TestAndoyer(unittest.TestCase):
     def test_masses(self):
         # turn off averaging for all transformation tests since averaging
         # is not symmetric back and forth (there's diff of O(s^2))
-     
+        print("####g=", self.sim.G) 
         masses = [1., 1.e-5, 1.e-7, 1.e-3]
         pairs = [[1,2], [2,3], [1,3]]
         for i1, i2 in pairs:
