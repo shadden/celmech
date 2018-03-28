@@ -176,9 +176,10 @@ class Andoyer(object):
         norm = np.sqrt((j-k)/3./j)*np.sqrt((f**2*m2*p['sLambda20'] + g**2*m1*p['sLambda10'])/p['K0']) # np.sqrt(ff**2 + gg**2)
         p['Zfac'] = (f**2 + g**2)/norm**2
         p['C'] = -1./j*np.sqrt(g**2/(f**2 + g**2))*np.sqrt(float(j-k)/3./j)
-        
-        p['a'] = -0.5*(p['j']-p['k'])
-        p['c'] = -m1/M2*m2*p['sLambda20']/p['eta']*norm**k # still singular
+
+        p['n0'] = 1./j*G**2*M1**2/p['sLambda10']**3
+        p['a'] = -0.5*p['n0']*(p['j']-p['k'])**2
+        p['c'] = -(j-k)*p['n0']*((j-k)/3./j)**((k-2.)/2.)*p['K0']/M2/np.sqrt(G*M1*a10)*((m2*p['sLambda20']*f**2 + m1*p['sLambda10']*g**2)/p['K0'])**(k/2.)
         p['Phi0'] = (4.*k**(k/2.)*p['c']/p['a'])**(2./(4.-k))
         p['tau'] = 4./(p['Phi0']*p['a'])
     
