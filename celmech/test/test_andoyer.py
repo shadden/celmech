@@ -3,6 +3,7 @@ import unittest
 import math
 import numpy as np
 from celmech import Andoyer, Poincare
+from celmech.transformations import ActionAngleToXY, XYToActionAngle
 
 class TestAndoyer(unittest.TestCase):
     def setUp(self):
@@ -41,7 +42,6 @@ class TestAndoyer(unittest.TestCase):
             for attr in ['a', 'e', 'inc']:
                 self.assertAlmostEqual(getattr(o1, attr), getattr(o2, attr), delta=delta)
             for attr in ['Omega', 'pomega', 'theta']:
-                print(attr)
                 self.assertAlmostEqual(np.cos(getattr(o1, attr)), np.cos(getattr(o2, attr)), delta=delta)
    
     def compare_particles(self, sim1, sim2, i1, i2, delta=1.e-15):
@@ -115,26 +115,26 @@ class TestAndoyer(unittest.TestCase):
         avars = Andoyer.from_Simulation(sim,j,k, a10=a10, average=True) 
         p = avars.params
         pvars = Poincare.from_Simulation(sim, average=True) 
-        Gamma1 = pvars.particles[1].Gamma
-        Gamma2 = pvars.particles[2].Gamma
-        Lambda1 = pvars.particles[1].Lambda
-        Lambda2 = pvars.particles[2].Lambda
+        sGamma1 = pvars.particles[1].sGamma
+        sGamma2 = pvars.particles[2].sGamma
+        sLambda1 = pvars.particles[1].sLambda
+        sLambda2 = pvars.particles[2].sLambda
         lambda1 = pvars.particles[1].l
         lambda2 = pvars.particles[2].l
         gamma1 = pvars.particles[1].gamma
         gamma2 = pvars.particles[2].gamma
         n10 = np.sqrt(p['G']*p['M1']/p['a10']**3)
         n20 = np.sqrt(p['G']*p['M2']/p['a10']**3*p['alpha']**3)
-        z1 = np.sqrt(2*Gamma1/p['Lambda10'])
-        z2 = np.sqrt(2*Gamma2/p['Lambda20'])
-        Hkep = -0.5*(n10*p['Lambda10']**3/Lambda1**2 + n20*p['Lambda20']**3/Lambda2**2)
-        L10 = p['Lambda10']
-        L20 = p['Lambda20']
-        Hkepexpanded = -n10*L10**3/2*(1/L10**2 - 2*avars.dL1/L10**3 + 3*avars.dL1**2/L10**4)-n20*L20**3/2*(1/L20**2 - 2*avars.dL2/L20**3 + 3*avars.dL2**2/L20**4)
+        z1 = np.sqrt(2*sGamma1/p['sLambda10'])
+        z2 = np.sqrt(2*sGamma2/p['sLambda20'])
+        Hkep = -0.5*(n10*p['m1']*p['sLambda10']**3/sLambda1**2 + n20*p['m2']*p['sLambda20']**3/sLambda2**2)
+        sL10 = p['sLambda10']
+        sL20 = p['sLambda20']
+        Hkepexpanded = -n10*p['m1']*sL10/2*(1. - 2*avars.dL1hat + 3*avars.dL1hat**2)-n20*p['m2']*sL20/2*(1. - 2*avars.dL2hat + 3*avars.dL2hat**2)
         Hresprefac = -p['G']*p['m1']*p['m2']/p['a10']*p['alpha']
         Hres = Hresprefac*(p['f']*z1*np.cos(j*lambda2 - (j-k)*lambda1 + gamma1)+p['g']*z2*np.cos(j*lambda2 - (j-k)*lambda1 + gamma2))
         H0 = -n20*p['K0']/2/(j-k)
-        H1 = n20*p['eta']/(j-k)*avars.dK*(1. - 1.5*p['eta']/p['K0']*avars.dK)
+        H1 = n20*p['K0']/(j-k)*avars.dKprime*(1. - 1.5*avars.dKprime)
         H2 = n20*p['eta']*p['a']*avars.dP**2
         Hkeptransformed = H0 + H1 + H2
         Hrestransformed = n20*p['eta']*p['c']*(2*avars.Psi1)**(k/2.)*np.cos(avars.theta+k*avars.psi1)
@@ -165,7 +165,9 @@ class TestAndoyer(unittest.TestCase):
         ecomy = (m1*e1y + m2*e2y)/(m1+m2)
         ecomsim = np.sqrt(ecomx**2 + ecomy**2)
                 
-        self.assertAlmostEqual(avars.ecom, ecomsim, delta=1.e-3)
+        self.assertAlmostEqual(avars.Zcom, ecomsim, delta=1.e-3)
+        phiecomsim = np.arctan2(ecomy, ecomx)
+        self.assertAlmostEqual(avars.phiZcom, phiecomsim, delta=1.e-3)
 
     def test_from_elements(self):
         j=5
@@ -180,12 +182,51 @@ class TestAndoyer(unittest.TestCase):
         ecom=0.05
         phiecom=0.7
 
-        avars = Andoyer.from_elements(j,k,Zstar,libfac,a10,a1,G,m1=m1,m2=m2,ecom=ecom,phiecom=phiecom)
+        avars = Andoyer.from_elements(j,k,Zstar,libfac,a10,a1,G,m1=m1,m2=m2,Zcom=ecom,phiZcom=phiecom)
         self.assertAlmostEqual(avars.Zstar, Zstar, delta=1.e-12)
-        self.assertAlmostEqual(avars.ecom, ecom, delta=1.e-15)
-        self.assertAlmostEqual(avars.phiecom, phiecom, delta=1.e-15)
+        self.assertAlmostEqual(avars.Zcom, ecom, delta=1.e-15)
+        self.assertAlmostEqual(avars.phiZcom, phiecom, delta=1.e-15)
         sim = avars.to_Simulation()
         self.assertAlmostEqual(sim.particles[1].a, a1, delta=3*((a1-a10)/a10)**2)# should match to O(da/a)^2, atrue=1, a10=a10
+
+    def test_ZsGammaConversion(self):
+        avars = Andoyer.from_Simulation(self.sim, 4, 1)
+        Z = avars.Z
+        phiZ = avars.psi1
+        Zcom = avars.Zcom
+        phiZcom = avars.phiZcom
+        sGamma1, gamma1, sGamma2, gamma2 = avars.Zs_to_sGammas(Z, phiZ, Zcom, phiZcom)
+        nZ, nphiZ, nZcom, nphiZcom = avars.sGammas_to_Zs(sGamma1, gamma1, sGamma2, gamma2)
+        self.assertAlmostEqual(nZ,Z, delta=1.e-15)
+        self.assertAlmostEqual(np.mod(nphiZ, 2*np.pi), np.mod(phiZ, 2*np.pi), delta=1.e-15)
+        self.assertAlmostEqual(nZcom, Zcom, delta=1.e-15)
+        self.assertAlmostEqual(np.mod(nphiZcom, 2*np.pi), np.mod(phiZcom, 2*np.pi), delta=1.e-15)
+
+        # should also be equivalent for 2 massive particles to rotation
+        pvars = Poincare.from_Simulation(self.sim)
+        ps = pvars.particles
+        p = avars.params
+        f, g = p['f'], p['g']
+        ff = f*np.sqrt(p['eta']/p['m1']/p['sLambda10'])
+        gg = g*np.sqrt(p['eta']/p['m2']/p['sLambda20'])
+        norm = np.sqrt(ff*ff + gg*gg)
+        psirotmatrix = np.array([[ff,gg],[-gg,ff]]) / norm
+        invpsirotmatrix = np.array([[ff,-gg],[gg,ff]]) / norm
+        Psi1,psi1,Psi2,psi2 = self.rotate_actions(ps[1].Gamma/p['eta'],ps[1].gamma,ps[2].Gamma/p['eta'],ps[2].gamma, psirotmatrix)
+        self.assertAlmostEqual(Psi1, avars.Psi1, delta=1.e-15)
+        self.assertAlmostEqual(np.mod(psi1, 2*np.pi), np.mod(avars.psi1, 2*np.pi), delta=1.e-15)
+        self.assertAlmostEqual(Psi2, avars.Psi2, delta=1.e-15)
+        self.assertAlmostEqual(np.mod(psi2, 2*np.pi), np.mod(avars.psi2, 2*np.pi), delta=1.e-15)
+
+    def rotate_actions(self,A1,a1,A2,a2,rotmatrix):
+        AX1,AY1 = ActionAngleToXY(A1,a1)
+        AX2,AY2 = ActionAngleToXY(A2,a2)
+        BX1,BX2 = np.dot(rotmatrix, np.array([AX1,AX2]) )
+        BY1,BY2 = np.dot(rotmatrix, np.array([AY1,AY2]) )
+        B1,b1 = XYToActionAngle(BX1,BY1)
+        B2,b2 = XYToActionAngle(BX2,BY2)
+        return B1,b1,B2,b2
+
     '''
     def test_rebound_transformations(self):
         avars = Andoyer.from_Simulation(self.sim, 4, 1)
