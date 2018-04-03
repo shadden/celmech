@@ -47,10 +47,16 @@ class PoincareParticle(object):
    
     @property
     def X(self):
-        return self.m*self.sX
+        return np.sqrt(self.m)*self.sX
+    @X.setter
+    def X(self, value):
+        self.sX = X/np.sqrt(self.m)
     @property
     def Y(self):
-        return self.m*self.sY
+        return np.sqrt(self.m)*self.sY
+    @Y.setter
+    def Y(self, value):
+        self.sY = Y/np.sqrt(self.m)
     @property
     def Lambda(self):
         return self.m*self.sLambda
@@ -208,7 +214,7 @@ class PoincareHamiltonian(Hamiltonian):
         vpp = 4 # vars per particle
         y = np.zeros(vpp*(state.N-1)) # remove padded 0th element in ps for y
         for i in range(1, state.N):
-            y[vpp*(i-1)] = ps[i].X  
+            y[vpp*(i-1)] = ps[i].X
             y[vpp*(i-1)+1] = ps[i].Y
             y[vpp*(i-1)+2] = ps[i].Lambda
             y[vpp*(i-1)+3] = ps[i].l 
