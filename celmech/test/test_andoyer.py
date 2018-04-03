@@ -57,10 +57,10 @@ class TestAndoyer(unittest.TestCase):
         for attr in ['Omega', 'pomega', 'theta']:
             self.assertAlmostEqual(np.cos(getattr(o1, attr)), np.cos(getattr(o2, attr)), delta=delta)
 
-    def compare_andoyer(self, a1, a2, delta=1.e-15):
-        self.assertEqual(type(a1), type(a2))
-        for attr in ['X', 'Y', 'Psi2', 'psi2', 'Phiprime', 'K', 'deltalambda', 'lambda1']:
-            self.assertAlmostEqual(getattr(a1, attr), getattr(a2, attr), delta=delta)
+    #def compare_andoyer(self, a1, a2, delta=1.e-15):
+    #    self.assertEqual(type(a1), type(a2))
+    #    for attr in ['X', 'Y', 'Psi2', 'psi2', 'Phiprime', 'K', 'deltalambda', 'lambda1']:
+    #        self.assertAlmostEqual(getattr(a1, attr), getattr(a2, attr), delta=delta)
     
     def compare_poincare_particles(self, ps1, ps2, delta=1.e-15):
         self.assertEqual(type(ps1), type(ps2))
@@ -135,9 +135,9 @@ class TestAndoyer(unittest.TestCase):
         Hres = Hresprefac*(p['f']*z1*np.cos(j*lambda2 - (j-k)*lambda1 + gamma1)+p['g']*z2*np.cos(j*lambda2 - (j-k)*lambda1 + gamma2))
         H0 = -n20*p['K0']/2/(j-k)
         H1 = n20*p['K0']/(j-k)*avars.dKprime*(1. - 1.5*avars.dKprime)
-        H2 = n20*p['eta']*p['a']*avars.dP**2
+        H2 = p['eta']*p['a']*avars.dP**2
         Hkeptransformed = H0 + H1 + H2
-        Hrestransformed = n20*p['eta']*p['c']*(2*avars.Psi1)**(k/2.)*np.cos(avars.theta+k*avars.psi1)
+        Hrestransformed = p['eta']*p['c']*(2*avars.Psi1)**(k/2.)*np.cos(avars.theta+k*avars.psi1)
 
         self.assertAlmostEqual(Hkeptransformed, Hkepexpanded, delta=1.e-15) # should be exact
         self.assertAlmostEqual(Hrestransformed, Hres, delta=1.e-15) # should be exact for first order resonance (k=1)

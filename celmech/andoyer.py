@@ -87,7 +87,7 @@ def get_Xplusminus(k, Phiprime):
     pass
 
 class Andoyer(object):
-    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., lambda1=0.):
+    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
         self.calc_params(j, k, a10, G, m1, M1, m2, M2)
         self.X = X
         self.Y = Y
@@ -96,7 +96,7 @@ class Andoyer(object):
         self.Phiprime = Phiprime
         self.dKprime = dKprime
         self.theta = theta
-        self.lambda1 = lambda1
+        self.theta1 = theta1
     
     @property
     def Phi(self):
@@ -123,9 +123,14 @@ class Andoyer(object):
         return self.Psi1/self.params['k'] - self.B
 
     @property
+    def lambda1(self):
+        p = self.params
+        return np.mod((p['j']*p['K0']*self.theta1 - p['m2']*p['sLambda20']*self.theta)/p['K0'],2*np.pi)
+    
+    @property
     def lambda2(self):
         p = self.params
-        return np.mod((self.theta + (p['j']-p['k'])*self.lambda1)/p['j'],2*np.pi)
+        return np.mod(((p['j']-p['k'])*p['K0']*self.theta1 + p['m1']*p['sLambda10']*self.theta)/p['K0'],2*np.pi)
         
     @property
     def psi1(self):
@@ -184,8 +189,8 @@ class Andoyer(object):
         p['tau'] = 4./(p['Phi0']*p['a'])
     
     @classmethod
-    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=0., phiZcom=0., dKprime=0., theta=theta, lambda1=lambda1)
+    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=0., phiZcom=0., dKprime=0., theta=theta, theta1=theta1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
@@ -208,8 +213,8 @@ class Andoyer(object):
         return andvars
     
     @classmethod
-    def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, lambda1=lambda1)
+    def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
@@ -221,8 +226,8 @@ class Andoyer(object):
         return andvars
 
     @classmethod
-    def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, lambda1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, lambda1=lambda1)
+    def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
@@ -247,7 +252,7 @@ class Andoyer(object):
         andvars.dKprime = ((j-k)*p['m2']*p['sLambda20']*dL2hat + j*p['m1']*p['sLambda10']*dL1hat)/p['K0']
        
         andvars.theta = j*p2.l - (j-k)*p1.l
-        andvars.lambda1 = p1.l
+        andvars.theta1 = (p['m1']*p['sLambda10']*p1.l + p['m2']*p['sLambda20']*p2.l)/p['K0']
       
         Z, phiZ, andvars.Zcom, andvars.phiZcom = andvars.sGammas_to_Zs(p1.sGamma, p1.gamma, p2.sGamma, p2.gamma)
         Psi1 = p['Zfac']*Z**2/2.
