@@ -21,7 +21,12 @@ def get_Phiprime(k, Xstarres):
 
 def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's no separatrix
     if k == 1:
-        Xstarres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5))+2.*np.pi/3.)
+        if Phiprime >= 1:
+            Xstarres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5))+2.*np.pi/3.)
+        elif Phiprime > 0:
+            Xstarres = np.sqrt(Phiprime)*np.cosh(1./3.*np.arccosh(Phiprime**(-1.5)))
+        elif Phiprime < 0:
+            Xstarres = np.sqrt(-Phiprime)*np.sinh(1./3.*np.arcsinh(-abs(Phiprime)**(-1.5)))
     if k == 2:
         Xstarres = -0.5*np.sqrt(3.*Phiprime+2.)
     if k == 3:
@@ -87,13 +92,13 @@ def get_Xplusminus(k, Phiprime):
     pass
 
 class Andoyer(object):
-    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Phiprime=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
+    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., B=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
         self.calc_params(j, k, a10, G, m1, M1, m2, M2)
         self.X = X
         self.Y = Y
         self.Zcom = Zcom
         self.phiZcom = phiZcom
-        self.Phiprime = Phiprime
+        self.B = B
         self.dKprime = dKprime
         self.theta = theta
         self.theta1 = theta1
@@ -109,9 +114,12 @@ class Andoyer(object):
         return np.mod(phi, 2.*np.pi)
 
     @property
-    def B(self):
-        return self.Phiprime_to_B(self.Phiprime)
-    
+    def Phiprime(self):
+        return 8.*self.B/3.
+    @Phiprime.setter
+    def Phiprime(self, value):
+        self.B = 3.*value/8.
+
     @property
     def Zstar(self):
         Xstar = get_Xstarres(self.params['k'], self.Phiprime)
@@ -120,7 +128,7 @@ class Andoyer(object):
         
     @property
     def dP(self):
-        return self.Psi1/self.params['k'] - self.B
+        return (self.Phi-self.B)*self.params['Phi0']
 
     @property
     def lambda1(self):
@@ -165,6 +173,18 @@ class Andoyer(object):
     def dL2hat(self):
         p = self.params
         return self.dKprime + (p['j']-p['k'])/3.*p['m1']*p['sLambda10']/p['K0']*self.dP
+    
+    @property
+    def dK(self):
+        return self.dKprime*self.params['K0']/self.params['eta']
+
+    @property
+    def wlib(self):
+        return 2*(2*self.B)**(self.params['k']/4.)/self.params['tau']
+    
+    @property
+    def tlib(self):
+        return 2*np.pi/self.wlib
 
     def calc_params(self, j, k, a10, G, m1, M1, m2, M2):
         self.params = {'j':j, 'k':k, 'a10':a10, 'G':G, 'm1':m1, 'M1':M1, 'm2':m2, 'M2':M2}
@@ -186,7 +206,7 @@ class Andoyer(object):
         p['a'] = -0.5*p['n0']*(p['j']-p['k'])**2
         p['c'] = -(j-k)*p['n0']*((j-k)/3./j)**((k-2.)/2.)*p['K0']/M2/np.sqrt(G*M1*a10)*((m2*p['sLambda20']*f**2 + m1*p['sLambda10']*g**2)/p['K0'])**(k/2.)
         p['Phi0'] = (4.*k**(k/2.)*p['c']/p['a'])**(2./(4.-k))
-        p['tau'] = 4./(p['Phi0']*p['a'])
+        p['tau'] = 4./(p['Phi0']*abs(p['a']))
     
     @classmethod
     def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
@@ -197,6 +217,7 @@ class Andoyer(object):
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
         Xinner, Xouter = get_Xsep(k, andvars.Phiprime)
+        #print(Zstar, Xstar, andvars.Phiprime, Xinner, Xouter)
         if libfac > 0: # offset toward outer branch of separatrix
             andvars.X = Xstar - libfac*np.abs(Xstar-Xouter)
         else: # offset toward inner branch of separatrix
@@ -258,13 +279,12 @@ class Andoyer(object):
         Psi1 = p['Zfac']*Z**2/2.
         psi1 = -phiZ
 
-        B = Psi1/k - dP
+        andvars.B = (Psi1/k - dP)/p['Phi0']
         Phi = Psi1/k/p['Phi0']
         phi = andvars.theta + k*psi1
 
         andvars.X = np.sqrt(2*Phi)*np.cos(phi)
         andvars.Y = np.sqrt(2*Phi)*np.sin(phi)
-        andvars.Phiprime = (8.*B/3./p['Phi0'])
         
         return andvars
 
@@ -276,12 +296,9 @@ class Andoyer(object):
 
         sGamma1, gamma1, sGamma2, gamma2 = self.Zs_to_sGammas(self.Z, self.phiZ, self.Zcom, self.phiZcom)
         
-        lambda1 = self.lambda1
-        lambda2 = self.lambda2
-      
         pvars = Poincare(p['G'])
-        pvars.add(m=p['m1'], sLambda=sLambda1, l=lambda1, sGamma=sGamma1, gamma=gamma1, M=p['M1'])
-        pvars.add(m=p['m2'], sLambda=sLambda2, l=lambda2, sGamma=sGamma2, gamma=gamma2, M=p['M2'])
+        pvars.add(m=p['m1'], sLambda=sLambda1, l=self.lambda1, sGamma=sGamma1, gamma=gamma1, M=p['M1'])
+        pvars.add(m=p['m2'], sLambda=sLambda2, l=self.lambda2, sGamma=sGamma2, gamma=gamma2, M=p['M2'])
 
         return pvars
 
@@ -314,18 +331,15 @@ class Andoyer(object):
     
     def dP_to_Phi(self, dP, Phiprime):
         p = self.params
-        B = self.Phiprime_to_B(Phiprime)
+        B = 3.*Phiprime/8.
         Phi = (dP + B)/p['Phi0']
         return Phi
     
     def Phi_to_dP(self, Phi, Phiprime):
         p = self.params
-        B = self.Phiprime_to_B(Phiprime)
+        B = 3.*Phiprime/8.
         dP = Phi*p['Phi0'] - B
         return dP 
-
-    def Phiprime_to_B(self, Phiprime):
-        return 3.*Phiprime*self.params['Phi0']/8.
 
     def Zs_to_sGammas(self, Z, phiZ, Zcom, phiZcom):
         ZX, ZY = pol_to_cart(Z, phiZ)
@@ -366,20 +380,25 @@ class Andoyer(object):
     
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, andvars):
-        X, Y, Phi, phi, Phiprime, k = symbols('X, Y, Phi, phi, Phiprime, k')
-        pqpairs = [(X, Y)]
-        Hparams = {Phiprime:andvars.Phiprime, k:andvars.params['k']}
+        X, Y, Phi, phi, B, theta, k = symbols('X, Y, Phi, phi, B, theta, k')
+        pqpairs = [(X, Y), (B, theta)]
+        p = andvars.params
+        Hparams = {k:p['k']}
 
-        H = (X**2 + Y**2)**2 - S(3)/S(2)*Phiprime*(X**2 + Y**2) + (X**2 + Y**2)**((k-S(1))/S(2))*X
-        if andvars.params['tau'] < 0:
-            H *= -1
-
+        H = -((X**2 + Y**2) - S(2)*B)**2 - (X**2 + Y**2)**((k-S(1))/S(2))*X # + n0*tau*dK*(1-1.5*eta*Phi0*dK/K0)
+        
         super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
-        self.Hpolar = 4*Phi**2 - S(3)*Phiprime*Phi + (2*Phi)**(k/S(2))*cos(phi)
+        self.Hpolar = -4*(Phi-B)**2 - (2*Phi)**(k/S(2))*cos(phi)
 
     def state_to_list(self, state):
-        return [state.X, state.Y] 
+        return [state.X, state.Y, state.B, -state.theta] # - because B is conjugate to -theta
 
     def update_state_from_list(self, state, y):
+        p = state.params
         state.X = y[0]
         state.Y = y[1]
+        state.B = y[2]
+        state.theta = -y[3] # because B conjugate to -theta
+
+        theta1dot = p['n0']*p['tau']*(1.-3.*p['Phi0']*state.dKprime)
+        state.theta1 = theta1dot*self.integrator.t

@@ -133,8 +133,8 @@ class TestAndoyer(unittest.TestCase):
         Hkepexpanded = -n10*p['m1']*sL10/2*(1. - 2*avars.dL1hat + 3*avars.dL1hat**2)-n20*p['m2']*sL20/2*(1. - 2*avars.dL2hat + 3*avars.dL2hat**2)
         Hresprefac = -p['G']*p['m1']*p['m2']/p['a10']*p['alpha']
         Hres = Hresprefac*(p['f']*z1*np.cos(j*lambda2 - (j-k)*lambda1 + gamma1)+p['g']*z2*np.cos(j*lambda2 - (j-k)*lambda1 + gamma2))
-        H0 = -n20*p['K0']/2/(j-k)
-        H1 = n20*p['K0']/(j-k)*avars.dKprime*(1. - 1.5*avars.dKprime)
+        H0 = -p['n0']*p['K0']/2
+        H1 = p['eta']*p['n0']*avars.dK*(1-1.5*p['eta']/p['K0']*avars.dK)
         H2 = p['eta']*p['a']*avars.dP**2
         Hkeptransformed = H0 + H1 + H2
         Hrestransformed = p['eta']*p['c']*(2*avars.Psi1)**(k/2.)*np.cos(avars.theta+k*avars.psi1)
@@ -142,6 +142,10 @@ class TestAndoyer(unittest.TestCase):
         self.assertAlmostEqual(Hkeptransformed, Hkepexpanded, delta=1.e-15) # should be exact
         self.assertAlmostEqual(Hrestransformed, Hres, delta=1.e-15) # should be exact for first order resonance (k=1)
         self.assertAlmostEqual(Hkepexpanded, Hkep, delta=(a10-1.)**2) # should match to O(da/a)^2, atrue=1, a10=a10
+
+        #Hfinal = -p['eta']*p['Phi0']/p['tau']*(4.*avars.Phi**2 - 3.*avars.Phiprime*avars.Phi + 9./16.*avars.Phiprime**2 + (2.*avars.Phi)**(k/2.)*np.cos(avars.phi) - p['n0']*p['tau']/p['Phi0']*avars.dK*(1.-1.5*p['eta']/p['K0']*avars.dK))+ H0
+        Hfinal = -p['eta']*p['Phi0']/p['tau']*(4.*(avars.Phi-avars.B)**2 + (2.*avars.Phi)**(k/2.)*np.cos(avars.phi) - p['n0']*p['tau']/p['Phi0']*avars.dK*(1.-1.5*p['eta']/p['K0']*avars.dK))+ H0
+        self.assertAlmostEqual(Hfinal, Hkepexpanded+Hres, delta=1.e-15) # should be exact
     
     def test_ecom(self):
         j=57

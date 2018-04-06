@@ -24,6 +24,10 @@ class Hamiltonian(object):
         self._update()
 
     def integrate(self, time):
+        try:
+            time /= self.state.params['tau'] # scale time if defined
+        except:
+            pass
         if not hasattr(self, 'Nderivs'):
             self._update()
         if time > self.integrator.t:

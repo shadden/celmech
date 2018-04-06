@@ -137,6 +137,7 @@ class Poincare(object):
         sim.G = pvars.G
         sim.add(m=masses[0])
         ps = pvars.particles
+        #print(mjac, Mjac, masses)
         for i in range(1, pvars.N):
             sim.add(m=masses[i], a=ps[i].a, e=ps[i].e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
         sim.move_to_com()
