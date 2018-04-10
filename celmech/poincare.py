@@ -3,6 +3,7 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
+from celmech.resonances import resonance_jk_list
 from itertools import combinations
 import rebound
 
@@ -81,6 +82,8 @@ class PoincareParticle(object):
     @property
     def e(self):
         GbyL = self.sGamma/self.sLambda
+        if 1-(1.-GbyL)*(1.-GbyL) < 0:
+            raise AttributeError("sGamma:{0}, sLambda:{1}, GbyL:{2}, val:{3}".format(self.sGamma, self.sLambda, GbyL, 1-(1.-GbyL)*(1.-GbyL)))
         return np.sqrt(1 - (1-GbyL)*(1-GbyL))
     @property
     def pomega(self):
@@ -114,7 +117,7 @@ class Poincare(object):
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
             pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, gamma=-orb.pomega, M=M)
         if average is True:
-            pvars = pvars.average_synodic_terms()
+            pvars.average_synodic_terms()
         return pvars
 
     def to_Simulation(self, masses=None, average=True):
@@ -124,21 +127,19 @@ class Poincare(object):
         '''
 
         if average is True:
-            pvars = self.average_synodic_terms(inverse=True)
-        else:
-            pvars = self
+            self.average_synodic_terms(inverse=True)
 
         if not masses:
-            mjac = [p.m for p in pvars.particles]
-            Mjac = [p.M for p in pvars.particles]
+            mjac = [p.m for p in self.particles]
+            Mjac = [p.M for p in self.particles]
             masses = masses_from_jacobi(mjac, Mjac)
 
         sim = rebound.Simulation()
-        sim.G = pvars.G
+        sim.G = self.G
         sim.add(m=masses[0])
-        ps = pvars.particles
+        ps = self.particles
         #print(mjac, Mjac, masses)
-        for i in range(1, pvars.N):
+        for i in range(1, self.N):
             sim.add(m=masses[i], a=ps[i].a, e=ps[i].e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
         sim.move_to_com()
         return sim
@@ -149,20 +150,70 @@ class Poincare(object):
     def copy(self):
         return Poincare(self.G, self.particles[1:self.N])
 
-    def average_synodic_terms(pvars, inverse=False):
+    def average_resonant_terms(self, i1=1, i2=2, deltaP=0.03, exclude=[], order=2, inverse=False):
+        """
+        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
+        averaged over all the resonant terms we do not include in the Hamiltonian.
+        """
+        ps = self.particles
+        m1 = ps[i1].m
+        m2 = ps[i2].m
+        n1 = ps[i1].n
+        n2 = ps[i2].n
+        Pratio = n2/n1 # P1/P2
+        alpha = ps[i1].a/ps[i2].a
+        e1 = ps[1].e
+        e2 = ps[2].e
+        l1 = ps[i1].l
+        l2 = ps[i2].l
+        gamma1 = ps[i1].gamma
+        gamma2 = ps[i2].gamma
+        G = self.G
+        prefac = G/ps[i2].a
+
+        sum1 = 0.
+        sum2 = 0.
+        prevsum=0.
+        jklist = resonance_jk_list(Pratio-deltaP, min(Pratio+deltaP, 0.995), order)
+        for j,k in jklist:
+            if [j,k] in exclude:
+                continue
+            prefac1 = (j-k)/(j*n2 - (j-k)*n1)
+            prefac2 = j/(j*n2 - (j-k)*n1)
+            theta = j*l2 - (j-k)*l1
+            for l in range(k+1): # 0 to k inclusive
+                Cjkl = general_order_coefficient(j,k,l,alpha)
+                Bjkl = Cjkl*e1**l*e2**(k-l) 
+                cosine = np.cos(theta + l*gamma1 - (l-k)*gamma2)
+                sum1 += prefac1*Bjkl*cosine
+                sum2 += prefac2*Bjkl*cosine
+                denom = 1.-float(j-k)/j*n1/n2
+                #print(j,k,(sum1-prevsum)*prefac*m2/ps[i1].sLambda, denom, 1./j*m2/ps[i2].M/denom)
+            prevsum=sum1
+
+        sum1 *= prefac
+        sum2 *= prefac
+        print(sum1*m2/ps[i1].sLambda, sum2*m1/ps[i2].sLambda)
+        if inverse is True:
+            sum1 *= -1
+            sum2 *= -1
+        ps[i1].sLambda += m2*sum1
+        ps[i2].sLambda -= m1*sum2
+
+    def average_synodic_terms(self, inverse=False):
         """
         Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
         averaged over all the synodic terms we do not include in the Hamiltonian.
         """
-        corrpvars = pvars.copy()
-        pairs = combinations(range(1,pvars.N), 2)
+        corrpvars = self.copy() # so we use original values when planet appears in more than one pair
+        pairs = combinations(range(1,self.N), 2)
         #TODO assumes particles ordered going outward so a1 < a2 always. Sort first?
         for i1, i2 in pairs:
-            ps = pvars.particles
+            ps = self.particles
             m1 = ps[i1].m
             m2 = ps[i2].m
             deltalambda = ps[i1].l-ps[i2].l
-            G = pvars.G
+            G = self.G
 
             prefac = G/ps[i2].a/(ps[i1].n-ps[i2].n) 
             alpha = ps[i1].a/ps[i2].a
@@ -172,8 +223,9 @@ class Poincare(object):
                 s *= -1
             corrpvars.particles[i1].sLambda += m2*s # prefac*m1*m2*s/m1 (sLambda=Lambda/m)
             corrpvars.particles[i2].sLambda -= m1*s
-
-        return corrpvars
+        
+        for i, p in enumerate(self.particles):
+            p.sLambda = corrpvars.particles[i].sLambda
 
     @property
     def N(self):

@@ -210,7 +210,7 @@ class Andoyer(object):
     
     @classmethod
     def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=0., phiZcom=0., dKprime=0., theta=theta, theta1=theta1)
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=0., theta=theta, theta1=theta1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
@@ -227,9 +227,6 @@ class Andoyer(object):
             a1 = a10
         dL1 = m1*np.sqrt(G*M1)*(np.sqrt(a1)-np.sqrt(a10))
         andvars.dKprime = p['eta']/p['m1']/p['sLambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
-        
-        andvars.Zcom = Zcom
-        andvars.phiZcom = phiZcom
         
         return andvars
     
@@ -307,6 +304,9 @@ class Andoyer(object):
         if a10 is None:
             a10 = sim.particles[i1].a
         pvars = Poincare.from_Simulation(sim, average)
+        #if average is True:
+        #    pvars.average_resonant_terms(i1=i1, i2=i2, exclude=[[j,k]])
+        
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
     def to_Simulation(self, masses=None, average=True):
@@ -315,6 +315,8 @@ class Andoyer(object):
         If 2 planets are part of larger system, need to pass physical masses=[M, m1, m2]
         '''
         pvars = self.to_Poincare()
+        #if average is True:
+        #    pvars.average_resonant_terms(exclude=[[self.params['j'], self.params['k']]], inverse=True)
         return pvars.to_Simulation(masses, average)
 
     def Z_to_Phi(self, Z):
