@@ -109,7 +109,7 @@ class Poincare(object):
         pvars = Poincare(sim.G)
         ps = sim.particles
         o = sim.calculate_orbits(jacobi_masses=True)
-        for i in range(1,sim.N):
+        for i in range(1,sim.N-sim.N_var):
             M = Mjac[i]
             m = mjac[i]
             orb = o[i-1]
