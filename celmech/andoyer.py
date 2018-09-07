@@ -12,11 +12,12 @@ def get_Phiprime(k, Xstarres):
         raise ValueError("Xstarres passed to get_Phiprime must be < 0")
     if k == 1:
         Phiprime = (4.*Xstarres**3 + 1.)/(3.*Xstarres)
-    if k == 2:
+    elif k == 2:
         Phiprime = (4.*Xstarres**2 - 2.)/3.
-    if k == 3:
+    elif k == 3:
         Phiprime = (4.*Xstarres**2 + 3.*Xstarres)/3.
-
+    else:
+        raise AttributeError('Order {0} not supported'.format(k))
     return Phiprime
 
 def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's no separatrix
@@ -27,10 +28,12 @@ def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's n
             Xstarres = np.sqrt(Phiprime)*np.cosh(1./3.*np.arccosh(Phiprime**(-1.5)))
         elif Phiprime < 0:
             Xstarres = np.sqrt(-Phiprime)*np.sinh(1./3.*np.arcsinh(-abs(Phiprime)**(-1.5)))
-    if k == 2:
+    elif k == 2:
         Xstarres = -0.5*np.sqrt(3.*Phiprime+2.)
-    if k == 3:
+    elif k == 3:
         Xstarres = (-3.-np.sqrt(9.+48.*Phiprime))/8.
+    else:
+        raise AttributeError('Order {0} not supported'.format(k))
     return Xstarres
 
 def get_Xstarunstable(k, Phiprime):
