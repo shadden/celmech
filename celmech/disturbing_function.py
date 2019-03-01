@@ -4,6 +4,7 @@ from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint3
 from scipy.integrate import quad
 import math
 import numpy as np
+from scipy.optimize import leastsq
 
 def laplace_coefficient(s,j,n,a):
     """
@@ -28,17 +29,23 @@ def general_order_coefficient(res_j, order, epower, a):
     clibcelmech.GeneralOrderCoefficient.restype = c_double
     return clibcelmech.GeneralOrderCoefficient(c_int(res_j), c_int(order), c_int(epower), c_double(a))
 
+# Vector of resonance coefficients
+def get_res_coeff_vector(j,k):
+    alpha = ((j-k)/j)**(2/3.)
+    Cjkl = general_order_coefficient
+    return np.array([general_order_coefficient(j,k,l,alpha) for l in range(k+1)])
+
 def get_fg_coeffs(res_j,res_k):
 	"""Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
-	Cjkl = general_order_coefficient
-	fK = Cjkl(res_j, res_k, res_k, alpha)
-	gK = Cjkl(res_j, res_k, 0 , alpha)
-	# target fn
-#	err_sq = lambda x,y: np.total([(( Cjlk(res_j,res_k,l,alpha) - binom(res_k,l)* f**(l) * g**(res_k-l) ) /  Cjlk(res_j,res_k,l,alpha))**2 for l in range(0,res_k+1)])
-	f = -1 * np.abs(fK)**(1./res_k)
-	g =      np.abs(gK)**(1./res_k)
+        vec = get_res_coeff_vector(j,k)
+        resids_vec_fn = lambda fg: vec - np.array([binom(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
+        ex = (1-alpha)
+        f0 = -1 / ex
+        g0 = 1 / ex
+        f,g = leastsq(resids_vec_fn,(f0,g0))[0]
+
 	return f,g
 
 def Xlm0(l,m,e):
