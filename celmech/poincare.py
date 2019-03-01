@@ -299,9 +299,7 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
     
-    def add_secular_terms(self, indexIn, indexOut,order=2,fixed_Lambdas=True):
-
-        
+    def add_secular_terms(self, order=2,fixed_Lambdas=True, indexIn=1, indexOut=2):
         G = symbols('G')
         mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
         mIn,MIn,LambdaIn,lambdaIn,GammaIn,gammaIn,XIn,YIn = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexIn)) 
@@ -339,7 +337,7 @@ class PoincareHamiltonian(Hamiltonian):
         self.H += exprn
         self._update()
 
-    def add_all_resonance_subterms(self, indexIn, indexOut, j, k):
+    def add_all_resonance_subterms(self, j, k, indexIn=1, indexOut=2):
         """
         Add all the terms associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
@@ -349,9 +347,9 @@ class PoincareHamiltonian(Hamiltonian):
         k           -    order of the resonance
         """
         for l in range(k+1):
-            self.add_single_resonance(indexIn,indexOut, j, k, l)
+            self.add_single_resonance(j=j, k=k, l=l, indexIn=indexIn, indexOut=indexOut) 
 
-    def add_single_resonance(self, indexIn, indexOut, j, k, l):
+    def add_single_resonance(self, j, k, l, indexIn=1, indexOut=2):
         """
         Add a single term associated the j:j-k MMR between planets 'indexIn' and 'indexOut'.
         Inputs:
