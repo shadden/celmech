@@ -34,14 +34,14 @@ def general_order_coefficient(res_j, order, epower, a):
 def get_res_coeff_vector(j,k):
     alpha = ((j-k)/j)**(2/3.)
     Cjkl = general_order_coefficient
-    return np.array([general_order_coefficient(j,k,l,alpha) for l in range(k+1)])
+    return np.array([general_order_coefficient(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
 
 def get_fg_coeffs(res_j,res_k):
     """Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
     res_pratio = float(res_j - res_k) /float(res_j)
     alpha = res_pratio**(2./3.)
-    vec = get_res_coeff_vector(j,k)
-    resids_vec_fn = lambda fg: vec - np.array([binomial(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
+    vec = get_res_coeff_vector(res_j,res_k)
+    resids_vec_fn = lambda fg: vec - np.array([binomial(res_k,l) * fg[0]**(l) * fg[1]**(res_k-l) for l in range(res_k+1)],dtype=np.float64)
     ex = (1-alpha)
     f0 = -1 / ex
     g0 = 1 / ex
