@@ -37,17 +37,16 @@ def get_res_coeff_vector(j,k):
     return np.array([general_order_coefficient(j,k,l,alpha) for l in range(k+1)])
 
 def get_fg_coeffs(res_j,res_k):
-	"""Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
-	res_pratio = float(res_j - res_k) /float(res_j)
-	alpha = res_pratio**(2./3.)
-        vec = get_res_coeff_vector(j,k)
-        resids_vec_fn = lambda fg: vec - np.array([binomial(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
-        ex = (1-alpha)
-        f0 = -1 / ex
-        g0 = 1 / ex
-        f,g = leastsq(resids_vec_fn,(f0,g0))[0]
-
-	return f,g
+    """Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
+    res_pratio = float(res_j - res_k) /float(res_j)
+    alpha = res_pratio**(2./3.)
+    vec = get_res_coeff_vector(j,k)
+    resids_vec_fn = lambda fg: vec - np.array([binomial(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
+    ex = (1-alpha)
+    f0 = -1 / ex
+    g0 = 1 / ex
+    f,g = leastsq(resids_vec_fn,(f0,g0))[0]
+    return f,g
 
 def Xlm0(l,m,e):
     """ 
