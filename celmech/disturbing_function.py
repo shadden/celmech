@@ -6,6 +6,7 @@ import math
 import numpy as np
 from scipy.optimize import leastsq
 
+
 def laplace_coefficient(s,j,n,a):
     """
     Calculates nth derivative with respect to a (alpha) of Laplace coefficient b_s^j(a).
@@ -40,7 +41,7 @@ def get_fg_coeffs(res_j,res_k):
 	res_pratio = float(res_j - res_k) /float(res_j)
 	alpha = res_pratio**(2./3.)
         vec = get_res_coeff_vector(j,k)
-        resids_vec_fn = lambda fg: vec - np.array([binom(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
+        resids_vec_fn = lambda fg: vec - np.array([binomial(k,l) * fg[0]**(l) * fg[1]**(k-l) for l in range(k+1)])
         ex = (1-alpha)
         f0 = -1 / ex
         g0 = 1 / ex
