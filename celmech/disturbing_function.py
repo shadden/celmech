@@ -32,9 +32,11 @@ def general_order_coefficient(res_j, order, epower, a):
 
 # Vector of resonance coefficients
 def get_res_coeff_vector(j,k):
-    alpha = ((j-k)/j)**(2/3.)
+    """Returns a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance""" 
+    res_pratio = float(j - k) /float(j)
+    alpha = res_pratio**(2./3.)
     Cjkl = general_order_coefficient
-    return np.array([general_order_coefficient(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
+    return np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
 
 def get_fg_coeffs(res_j,res_k):
     """Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
