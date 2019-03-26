@@ -179,7 +179,7 @@ double laplace(double s, int i, int j, double a)
       q++;
       term *= as * factor1 * factor2 / (factor3 * q);
       ctr += 1;
-      if (ctr > 100){ // failsafe in case alpha too close to 1
+      if (ctr > 10000){ // failsafe in case alpha too close to 1
           return NAN;
       }
     }
