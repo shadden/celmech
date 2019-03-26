@@ -166,7 +166,7 @@ double laplace(double s, int i, int j, double a)
   term = as * factor1 * factor2 / (factor3 * q);
 
   /* sum series */
-
+  int ctr = 0;
   while(term*factor4 > LAPLACE_EPS)
     {
       factor4 = 1.0;
@@ -178,7 +178,10 @@ double laplace(double s, int i, int j, double a)
       factor3 += 1.0;
       q++;
       term *= as * factor1 * factor2 / (factor3 * q);
-
+      ctr += 1;
+      if (ctr > 100){ // failsafe in case alpha too close to 1
+          return NAN;
+      }
     }
 
   /* fix coefficient */
