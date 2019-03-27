@@ -8,6 +8,7 @@ import rebound
 
 # will give you the phiprime that yields an equilibrium Xstar, always in the range of phiprime where there exists a separatrix
 def get_Phiprime(k, Xstarres):
+    Phiprime = np.nan
     if Xstarres >= 0:
         raise ValueError("Xstarres passed to get_Phiprime must be < 0")
     if k == 1:
@@ -21,6 +22,7 @@ def get_Phiprime(k, Xstarres):
     return Phiprime
 
 def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's no separatrix
+    Xstarres = np.nan
     if k == 1:
         if Phiprime >= 1:
             Xstarres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5))+2.*np.pi/3.)
@@ -37,6 +39,7 @@ def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's n
     return Xstarres
 
 def get_Xstarunstable(k, Phiprime):
+    Xstarunstable = np.nan
     if k == 1:
         if Phiprime < 1.:
             raise ValueError("k=1 resonance has no unstable fixed point for Phiprime < 1")
@@ -61,6 +64,7 @@ def get_Hsep(k, Phiprime):
     return Hsep
 
 def get_Xsep(k, Phiprime):
+    Xinner, Xouter = np.nan, np.nan
     if k==1:
         if Phiprime < 1.:
             raise ValueError("k=1 resonance has no separatrix for Phiprime < 1")
