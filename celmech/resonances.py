@@ -13,6 +13,10 @@ def farey_sequence(n):
     return sequence
 def resonant_period_ratios(min_per_ratio,max_per_ratio,order):
     """Return the period ratios of all resonances up to order 'order' between 'min_per_ratio' and 'max_per_ratio' """
+    if min_per_ratio <= 0.:
+        raise AttributeError("min_per_ratio of {0} passed to resonant_period_ratios can't be <= 0".format(min_per_ratio))
+    if max_per_ratio >= 1.:
+        raise AttributeError("max_per_ratio of {0} passed to resonant_period_ratios can't be >= 1".format(max_per_ratio))
     minJ = int(np.floor(1. /(1. - min_per_ratio)))
     maxJ = int(np.ceil(1. /(1. - max_per_ratio)))
     res_ratios=[(minJ-1,minJ)]
