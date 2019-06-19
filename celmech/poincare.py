@@ -113,6 +113,8 @@ class Poincare(object):
             M = Mjac[i]
             m = mjac[i]
             orb = o[i-1]
+            if orb.a <= 0. or orb.e >= 1.:
+                raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (jacobi) a={1}, e={2}".format(i, orb.a, orb.e))
             sLambda = np.sqrt(sim.G*M*orb.a)
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
             pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, gamma=-orb.pomega, M=M)
