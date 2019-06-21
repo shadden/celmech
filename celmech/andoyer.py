@@ -5,12 +5,13 @@ from celmech.poincare import PoincareParticle, Poincare
 from celmech.disturbing_function import get_fg_coeffs
 from celmech.transformations import ActionAngleToXY, XYToActionAngle, pol_to_cart, cart_to_pol
 import rebound
+import warnings
 
 # will give you the phiprime that yields an equilibrium Xstar, always in the range of phiprime where there exists a separatrix
 def get_Phiprime(k, Xstarres):
     Phiprime = np.nan
     if Xstarres >= 0:
-        raise ValueError("Xstarres passed to get_Phiprime must be < 0")
+        warnings.warn("Xstarres passed to get_Phiprime must be 0. Returning nan")
     if k == 1:
         Phiprime = (4.*Xstarres**3 + 1.)/(3.*Xstarres)
     elif k == 2:
@@ -21,7 +22,7 @@ def get_Phiprime(k, Xstarres):
         raise AttributeError('Order {0} not supported'.format(k))
     return Phiprime
 
-def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's no separatrix
+def get_Xstarres(k, Phiprime): 
     Xstarres = np.nan
     if k == 1:
         if Phiprime >= 1:
@@ -31,9 +32,15 @@ def get_Xstarres(k, Phiprime): # res fixed point always exists even if there's n
         elif Phiprime < 0:
             Xstarres = np.sqrt(-Phiprime)*np.sinh(1./3.*np.arcsinh(-abs(Phiprime)**(-1.5)))
     elif k == 2:
-        Xstarres = -0.5*np.sqrt(3.*Phiprime+2.)
-    elif k == 3:
-        Xstarres = (-3.-np.sqrt(9.+48.*Phiprime))/8.
+        if Phiprime < -2./3.: # wide of bifurcation. Origin is the stable fixed point
+            Xstarres = 0.
+        else:
+            Xstarres = -0.5*np.sqrt(3.*Phiprime+2.)
+    elif k == 3: 
+        if Phiprime < -9./48:
+            warnings.warn("Resonant fixed point for k=3 does not exist for Phiprime < -9./48.")
+        else:
+            Xstarres = (-3.-np.sqrt(9.+48.*Phiprime))/8.
     else:
         raise AttributeError('Order {0} not supported'.format(k))
     return Xstarres
@@ -42,32 +49,53 @@ def get_Xstarunstable(k, Phiprime):
     Xstarunstable = np.nan
     if k == 1:
         if Phiprime < 1.:
-            raise ValueError("k=1 resonance has no unstable fixed point for Phiprime < 1")
-        Xstarunstable = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5)))
+            warnings.warn("k=1 resonance has no unstable fixed point for Phiprime < 1")
+        else:
+            Xstarunstable = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5)))
     if k == 2:
         if Phiprime < -2./3.:
-            raise ValueError("k=2 resonance has no unstable fixed point for Phiprime < -2/3")
-        if Phiprime < 2./3.:
+            warnings.warn("k=2 resonance has no unstable fixed point for Phiprime < -2/3")
+        elif Phiprime < 2./3.:
             Xstarunstable = 0.
         else:
             Xstarunstable = 0.5*np.sqrt(3.*Phiprime-2.)
     if k == 3:
         if Phiprime < -9./48.:
-            raise ValueError("k=3 resonance has no unstable fixed point for Phiprime < -9/48")
-        Xstarunstable = (-3.+np.sqrt(9.+48.*Phiprime))/8.
+            warnings.warn("k=3 resonance has no unstable fixed point for Phiprime < -9/48")
+        else:
+            Xstarunstable = (-3.+np.sqrt(9.+48.*Phiprime))/8.
 
     return Xstarunstable        
+
+def get_Xstarnonres(k, Phiprime):
+    Xstarnonres = np.nan
+    if k == 1:
+        if Phiprime < 1.:
+            warnings.warn("k=1 resonance does not have a non-resonant fixed point for Phiprime < 1")
+        else:
+            Xstarnonres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5)) + 4.*np.pi/3.)
+    if k == 2:
+        if Phiprime < 2./3.:
+            warnings.warn("k=2 resonance has no non-resonant fixed point for Phiprime < 2/3")
+        else:
+            Xstarnonres = 0.
+    if k == 3:
+        Xstarnonres = 0.
+
+    return Xstarnonres
 
 def get_Hsep(k, Phiprime):
     Xu = get_Xstarunstable(k, Phiprime)
     Hsep = Xu**4 - 3.*Phiprime/2.*Xu**2 + np.abs(Xu)**(k-1)*Xu
+    if np.isnan(Hsep):
+        warnings.warn("There is no separatrix for the passed value of Phiprime")
     return Hsep
 
 def get_Xsep(k, Phiprime):
     Xinner, Xouter = np.nan, np.nan
     if k==1:
         if Phiprime < 1.:
-            raise ValueError("k=1 resonance has no separatrix for Phiprime < 1")
+            warnings.warn("k=1 resonance has no separatrix for Phiprime < 1")
         else:
             Xu = get_Xstarunstable(k, Phiprime)
             disc = np.sqrt(1.5*Phiprime - 2*Xu**2)
@@ -75,7 +103,10 @@ def get_Xsep(k, Phiprime):
             Xinner = -Xu + disc
     if k==2:
         if Phiprime < -2./3.:
-            raise ValueError("k=2 resonance has no separatrix for Phiprime < -2/3")
+            warnings.warn("k=2 resonance has no separatrix for Phiprime < -2/3")
+        elif Phiprime < 2./3.:
+            Xouter = -np.sqrt(3*Phiprime/2.+1.)
+            Xinner = 0.
         else:
             Hsep = get_Hsep(k, Phiprime)
             b = (1.+1.5*Phiprime)
@@ -84,7 +115,7 @@ def get_Xsep(k, Phiprime):
             Xinner = -np.sqrt((b-disc)/2.) # b >= 0 if Phiprime >= -2/3, so b - disc subtracts to give smaller absolute value
     if k==3:
         if Phiprime < -9./48.:
-            raise ValueError("k=3 resonance has no separatrix for Phiprime < -9/48")
+            warnings.warn("k=3 resonance has no separatrix for Phiprime < -9/48")
         else:
             Xu = get_Xstarunstable(k, Phiprime)
             disc = 1.+2*Xu
@@ -95,9 +126,27 @@ def get_Xsep(k, Phiprime):
             
     return Xinner, Xouter
 
-def get_Xplusminus(k, Phiprime):
-    pass
-
+def get_num_fixed_points(k, Phiprime):
+    num = 0
+    if k==1:
+        if Phiprime <= 1.:
+            num = 1
+        elif Phiprime > 1:
+            num = 3
+    if k==2:
+        if Phiprime <= -2./3.:
+            num = 1
+        elif Phiprime <= 2./3.:
+            num = 2
+        elif Phiprime > 2/3.:
+            num = 3
+    if k==3:
+        if Phiprime <= -9./48.:
+            num = 1
+        elif Phiprime > -9./48.:
+            num = 3
+    return num
+            
 class Andoyer(object):
     def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., B=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
         self.calc_params(j, k, a10, G, m1, M1, m2, M2)
@@ -132,7 +181,31 @@ class Andoyer(object):
         Xstar = get_Xstarres(self.params['k'], self.Phiprime)
         Phistar = Xstar**2/2. 
         return self.Phi_to_Z(Phistar)
+    
+    @property
+    def Zstar_unstable(self):
+        Xstar_unstable = get_Xstarunstable(self.params['k'], self.Phiprime)
+        Phistar_unstable = Xstar_unstable**2/2. 
+        return self.Phi_to_Z(Phistar_unstable)
         
+    @property
+    def Zstar_nonres(self):
+        Xstar_nonres = get_Xstarnonres(self.params['k'], self.Phiprime)
+        Phistar_nonres = Xstar_nonres**2/2. 
+        return self.Phi_to_Z(Phistar_nonres)
+
+    @property
+    def Zsep_outer(self):
+        Xinner, Xouter = get_Xsep(self.params['k'], self.Phiprime)
+        Phisep_outer = Xouter**2/2.
+        return self.Phi_to_Z(Phisep_outer)
+    
+    @property
+    def Zsep_inner(self):
+        Xinner, Xouter = get_Xsep(self.params['k'], self.Phiprime)
+        Phisep_inner = Xinner**2/2.
+        return self.Phi_to_Z(Phisep_inner)
+    
     @property
     def dP(self):
         return (self.Phi-self.B)*self.params['Phi0']
