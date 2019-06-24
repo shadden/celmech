@@ -17,7 +17,7 @@ try:
     ghash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")
     ghash_arg = "-DCELMECHGITHASH="+ghash.strip()
 except:
-    ghash_arg = "-DCELMECHGITHASH=8f4183f6ba0017a1a0da122491116decce8e936c" #GITHASHAUTOUPDATE
+    ghash_arg = "-DCELMECHGITHASH=6a225e5abe5b082b795ba477411a21fe25c4a610" #GITHASHAUTOUPDATE
 
 extra_link_args=[]
 if sys.platform == 'darwin':
@@ -37,7 +37,7 @@ libcelmechmodule = Extension('libcelmech',
                     )
 
 setup(name='celmech',
-    version='0.3.1',
+    version='0.3.2',
     description='Open source tools for celestial mechanics',
     url='http://github.com/shadden/celmech',
     author='Dan Tamayo, Sam Hadden',
