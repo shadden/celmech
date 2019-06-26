@@ -13,7 +13,7 @@ class TestAndoyer(unittest.TestCase):
         self.sim.add(m=1.e-7, P=2., e=0.01, pomega=2.3, l=4.4)
         self.sim.add(m=1.e-3, a=1., e=0.2, pomega=0.3, l=0.4)
         self.sim.move_to_com()
-        self.delta = 1.e-10
+        self.delta = 1.e-10 # some digits are lost taking differences of nearby quantities to get resonance
 
     def tearDown(self):
         self.sim = None
@@ -231,33 +231,74 @@ class TestAndoyer(unittest.TestCase):
         B2,b2 = XYToActionAngle(BX2,BY2)
         return B1,b1,B2,b2
 
+    def test_scale_invariance(self):
+        avars = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
+
+        for p in self.sim.particles:
+            p.m *= 3.
+            p.vx *= np.sqrt(3.)
+            p.vy *= np.sqrt(3.)
+            p.vz *= np.sqrt(3.)
+
+        avarsscaled = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
+        self.assertAlmostEqual(avars.X, avarsscaled.X, delta=self.delta) 
+        self.assertAlmostEqual(avars.Y, avarsscaled.Y, delta=self.delta) 
+        self.assertAlmostEqual(avars.Zcom, avarsscaled.Zcom, delta=self.delta) 
+        self.assertAlmostEqual(avars.phiZcom, avarsscaled.phiZcom, delta=self.delta) 
+        self.assertAlmostEqual(avars.B, avarsscaled.B, delta=self.delta) 
+        self.assertAlmostEqual(avars.dKprime, avarsscaled.dKprime, delta=self.delta) 
+        self.assertAlmostEqual(avars.theta, avarsscaled.theta, delta=self.delta) 
+        self.assertAlmostEqual(avars.theta1, avarsscaled.theta1, delta=self.delta) 
+
+    def test_rotational_invariance(self):
+        avars = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
+
+        rot = np.pi/3.
+        ps = self.sim.particles
+        simrot = rebound.Simulation()
+        simrot.G = self.sim.G
+        simrot.add(m=ps[0].m)
+        for p in ps[1:]:
+            simrot.add(m=p.m, a=p.a, e=p.e, inc=p.inc, Omega=p.Omega+rot, pomega=p.pomega+rot, l=p.l+rot)
+        simrot.move_to_com()
+
+        avarsrot = Andoyer.from_Simulation(simrot, 4, 1, i1=1, i2=2)
+        self.assertAlmostEqual(avars.X, avarsrot.X, delta=self.delta) 
+        self.assertAlmostEqual(avars.Y, avarsrot.Y, delta=self.delta) 
+        self.assertAlmostEqual(avars.Zcom, avarsrot.Zcom, delta=self.delta) 
+        self.assertAlmostEqual(avars.phiZcom, avarsrot.phiZcom, delta=self.delta) 
+        self.assertAlmostEqual(avars.B, avarsrot.B, delta=self.delta) 
+        self.assertAlmostEqual(avars.dKprime, avarsrot.dKprime, delta=self.delta) 
+        self.assertAlmostEqual(avars.theta, avarsrot.theta, delta=self.delta) 
+        self.assertAlmostEqual(avars.theta1, avarsrot.theta1, delta=self.delta) 
+
     '''
     def test_rebound_transformations(self):
-        avars = Andoyer.from_Simulation(self.sim, 4, 1)
-        sim = avars.to_Simulation()
+        avars = andoyer.from_simulation(self.sim, 4, 1)
+        sim = avars.to_simulation()
         self.compare_simulations(self.sim, sim, delta=1.e-3)
 
     def test_properties(self):
-        a = Andoyer.from_Simulation(self.sim, 4, 1)
+        a = andoyer.from_simulation(self.sim, 4, 1)
         p = a.params
-        o = self.sim.calculate_orbits(jacobi_masses=True)
-        self.assertAlmostEqual(a.lambda1, o[0].l, delta=self.delta)
-        self.assertAlmostEqual(a.lambda2, o[1].l, delta=self.delta)
-        self.assertAlmostEqual(a.deltalambda, o[1].l-o[0].l, delta=self.delta)
-        self.assertAlmostEqual(np.mod(p['j']*a.lambda2 - (p['j']-p['k'])*a.lambda1 + p['k']*a.psi1, 2.*np.pi), a.phi, delta=self.delta)
-        self.assertAlmostEqual(a.SPhi, a.Z**2/2., delta=self.delta)
-        self.assertAlmostEqual(a.Phi/p['Phiscale'], a.Z**2/2., delta=self.delta)
-        self.assertAlmostEqual(a.SX, a.Z*np.cos(a.phi), delta=self.delta)
-        self.assertAlmostEqual(a.SY, a.Z*np.sin(a.phi), delta=self.delta)
+        o = self.sim.calculate_orbits(jacobi_masses=true)
+        self.assertalmostequal(a.lambda1, o[0].l, delta=self.delta)
+        self.assertalmostequal(a.lambda2, o[1].l, delta=self.delta)
+        self.assertalmostequal(a.deltalambda, o[1].l-o[0].l, delta=self.delta)
+        self.assertalmostequal(np.mod(p['j']*a.lambda2 - (p['j']-p['k'])*a.lambda1 + p['k']*a.psi1, 2.*np.pi), a.phi, delta=self.delta)
+        self.assertalmostequal(a.sphi, a.z**2/2., delta=self.delta)
+        self.assertalmostequal(a.phi/p['phiscale'], a.z**2/2., delta=self.delta)
+        self.assertalmostequal(a.sx, a.z*np.cos(a.phi), delta=self.delta)
+        self.assertalmostequal(a.sy, a.z*np.sin(a.phi), delta=self.delta)
 
     def test_andoyer_poincare_transformations(self):
-        avars = Andoyer.from_Simulation(self.sim, 4, 1)
+        avars = andoyer.from_simulation(self.sim, 4, 1)
         
-        pvars = avars.to_Poincare()
-        avars2 = Andoyer.from_Poincare(pvars, 4, 1, avars.params['a10'])
+        pvars = avars.to_poincare()
+        avars2 = andoyer.from_poincare(pvars, 4, 1, avars.params['a10'])
         self.compare_andoyer(avars, avars2, delta=1.e-10)
 
-        pvars2 = avars2.to_Poincare()
+        pvars2 = avars2.to_poincare()
         self.compare_poincare_particles(pvars.particles, pvars2.particles, 1.e-10)
     '''
 

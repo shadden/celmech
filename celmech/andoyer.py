@@ -347,7 +347,7 @@ class Andoyer(object):
         dL2hat = (p2.sLambda-p['sLambda20'])/p['sLambda20']
 
         dP = 3.*j/(j-k)*(dL2hat - dL1hat)
-        andvars.dKprime = ((j-k)*p['m2']*p['sLambda20']*dL2hat + j*p['m1']*p['sLambda10']*dL1hat)/p['K0']
+        andvars.dKprime = (j-k)*p['m2']*p['sLambda20']/p['K0']*dL2hat + j*p['m1']*p['sLambda10']/p['K0']*dL1hat
        
         andvars.theta = j*p2.l - (j-k)*p1.l
         andvars.theta1 = (p['m1']*p['sLambda10']*p1.l + p['m2']*p['sLambda20']*p2.l)/p['K0']
@@ -381,12 +381,9 @@ class Andoyer(object):
 
     @classmethod
     def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average=True):
-        if a10 is None:
-            a10 = sim.particles[i1].a
         pvars = Poincare.from_Simulation(sim, average)
-        #if average is True:
-        #    pvars.average_resonant_terms(i1=i1, i2=i2, exclude=[[j,k]])
-        
+        if a10 is None:
+            a10 = pvars.particles[i1].a
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
     def to_Simulation(self, masses=None, average=True):
