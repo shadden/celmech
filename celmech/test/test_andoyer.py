@@ -233,12 +233,18 @@ class TestAndoyer(unittest.TestCase):
 
     def test_scale_invariance(self):
         avars = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
-
+        
+        mfac = 3.
+        dfac = 0.05
+        vfac = np.sqrt(mfac/dfac)
         for p in self.sim.particles:
-            p.m *= 3.
-            p.vx *= np.sqrt(3.)
-            p.vy *= np.sqrt(3.)
-            p.vz *= np.sqrt(3.)
+            p.m *= mfac 
+            p.vx *= vfac
+            p.vy *= vfac
+            p.vz *= vfac
+            p.x *= dfac
+            p.y *= dfac
+            p.z *= dfac
 
         avarsscaled = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
         self.assertAlmostEqual(avars.X, avarsscaled.X, delta=self.delta) 
