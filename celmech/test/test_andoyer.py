@@ -244,14 +244,16 @@ class TestAndoyer(unittest.TestCase):
         self.assertAlmostEqual(avars.X, avarsscaled.X, delta=self.delta) 
         self.assertAlmostEqual(avars.Y, avarsscaled.Y, delta=self.delta) 
         self.assertAlmostEqual(avars.Zcom, avarsscaled.Zcom, delta=self.delta) 
-        self.assertAlmostEqual(avars.phiZcom, avarsscaled.phiZcom, delta=self.delta) 
+        self.assertAlmostEqual(np.cos(avars.phiZcom), np.cos(avarsscaled.phiZcom), delta=self.delta) 
         self.assertAlmostEqual(avars.B, avarsscaled.B, delta=self.delta) 
         self.assertAlmostEqual(avars.dKprime, avarsscaled.dKprime, delta=self.delta) 
-        self.assertAlmostEqual(avars.theta, avarsscaled.theta, delta=self.delta) 
-        self.assertAlmostEqual(avars.theta1, avarsscaled.theta1, delta=self.delta) 
+        self.assertAlmostEqual(np.cos(avars.theta), np.cos(avarsscaled.theta), delta=self.delta) 
+        self.assertAlmostEqual(np.cos(avars.theta1), np.cos(avarsscaled.theta1), delta=self.delta) 
 
     def test_rotational_invariance(self):
-        avars = Andoyer.from_Simulation(self.sim, 4, 1, i1=1, i2=2)
+        j=4
+        k=1
+        avars = Andoyer.from_Simulation(self.sim, j, k, i1=1, i2=2)
 
         rot = np.pi/3.
         ps = self.sim.particles
@@ -262,15 +264,17 @@ class TestAndoyer(unittest.TestCase):
             simrot.add(m=p.m, a=p.a, e=p.e, inc=p.inc, Omega=p.Omega+rot, pomega=p.pomega+rot, l=p.l+rot)
         simrot.move_to_com()
 
-        avarsrot = Andoyer.from_Simulation(simrot, 4, 1, i1=1, i2=2)
+        avarsrot = Andoyer.from_Simulation(simrot, j, k, i1=1, i2=2)
         self.assertAlmostEqual(avars.X, avarsrot.X, delta=self.delta) 
         self.assertAlmostEqual(avars.Y, avarsrot.Y, delta=self.delta) 
         self.assertAlmostEqual(avars.Zcom, avarsrot.Zcom, delta=self.delta) 
-        self.assertAlmostEqual(avars.phiZcom, avarsrot.phiZcom, delta=self.delta) 
+        self.assertAlmostEqual(np.cos(avars.phiZcom+rot), np.cos(avarsrot.phiZcom), delta=self.delta) 
         self.assertAlmostEqual(avars.B, avarsrot.B, delta=self.delta) 
         self.assertAlmostEqual(avars.dKprime, avarsrot.dKprime, delta=self.delta) 
-        self.assertAlmostEqual(avars.theta, avarsrot.theta, delta=self.delta) 
-        self.assertAlmostEqual(avars.theta1, avarsrot.theta1, delta=self.delta) 
+        self.assertAlmostEqual(np.cos(avars.theta+k*rot), np.cos(avarsrot.theta), delta=self.delta) 
+        p = avars.params
+        fac = (p['m1']*p['sLambda10'] + p['m2']*p['sLambda20'])/p['K0']
+        self.assertAlmostEqual(np.cos(avars.theta1+fac*rot), np.cos(avarsrot.theta1), delta=self.delta) 
 
     '''
     def test_rebound_transformations(self):

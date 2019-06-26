@@ -348,9 +348,11 @@ class Andoyer(object):
 
         dP = 3.*j/(j-k)*(dL2hat - dL1hat)
         andvars.dKprime = (j-k)*p['m2']*p['sLambda20']/p['K0']*dL2hat + j*p['m1']*p['sLambda10']/p['K0']*dL1hat
-       
-        andvars.theta = j*p2.l - (j-k)*p1.l
-        andvars.theta1 = (p['m1']*p['sLambda10']*p1.l + p['m2']*p['sLambda20']*p2.l)/p['K0']
+      
+        l1 = np.mod(p1.l, 2*np.pi)
+        l2 = np.mod(p2.l, 2*np.pi)
+        andvars.theta = j*l2 - (j-k)*l1
+        andvars.theta1 = (p['m1']*p['sLambda10']*l1 + p['m2']*p['sLambda20']*l2)/p['K0']
       
         Z, phiZ, andvars.Zcom, andvars.phiZcom = andvars.sGammas_to_Zs(p1.sGamma, p1.gamma, p2.sGamma, p2.gamma)
         Psi1 = p['Zfac']*Z**2/2.
