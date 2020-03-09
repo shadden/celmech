@@ -1,4 +1,5 @@
 from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e, expand_trig
+from sympy import I,exp,series
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
 from scipy.integrate import quad
@@ -31,12 +32,16 @@ def general_order_coefficient(res_j, order, epower, a):
     return clibcelmech.GeneralOrderCoefficient(c_int(res_j), c_int(order), c_int(epower), c_double(a))
 
 # Vector of resonance coefficients
-def get_res_coeff_vector(j,k):
+def get_res_coeff_vector(j,k,include_indirect_terms = True):
     """Returns a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance""" 
     res_pratio = float(j - k) /float(j)
     alpha = res_pratio**(2./3.)
     Cjkl = general_order_coefficient
-    return np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
+    vals = np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
+    if j==k + 1 and include_indirect_terms:
+        correction = Nto1_indirect_term_correction(j)
+        vals[0] += correction
+    return vals
 
 def get_fg_coeffs(res_j,res_k):
     """Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
@@ -60,6 +65,48 @@ def Xlm0(l,m,e):
     c = m + 1
     fn = hyperexpand(hyper([a,b],[c],e*e))
     return (-e / 2)**m * binomial(l+m+1,m) * fn
+
+def Nto1_indirect_term_correction(N):
+    r"""
+    Get the correction to the DF coefficient of an
+    N:1 resonance that comes from the indirect term
+    to leading order in eccentricity.
+
+    The corrections applies to the coefficient associated
+    with the argument
+        $N\lambda_2 - \lambda_1 - (N-1)\varpi_2$
+    and is computed by means of expanding the expression
+    for the Hansen coefficient.
+
+    Arguemnts
+    ---------
+    N : int
+        Integer denoting the specific N:1 MMR to compute
+        the correction for.
+
+    Returns
+    -------
+    correction_term : float
+        Correction term to add to Cjkl(N,N-1,0,alpha)
+    """
+    u,e,x=symbols('u,e,x')
+    expif = cos(u)-e + I * sqrt(1-e*e) * sin(u)
+    M = u - e * sin(u)
+    exp_iNpl1M = exp(-I * N * M)
+    r_by_a = 1 - e * cos(u)
+    integrand = expif * exp_iNpl1M / (r_by_a)**2
+    s = series(integrand,e,0,N)
+    subdict={
+        sin(u):(x - 1/x) / 2 / I,
+        exp(I*u): x,
+        exp(-I*u): 1/x,
+        cos(u):(x + 1/x) / 2}
+    term = s.coeff(e,N-1)
+    term = term.subs(subdict).expand()
+    coeff = term.coeff(x,0).evalf()
+    alpha  = N**(-2/3)
+    return -1 * coeff * alpha
+
 
 def secular_eps_l_Df_m(l,m,e,e1):
     """
