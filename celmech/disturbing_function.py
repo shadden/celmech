@@ -89,21 +89,26 @@ def Nto1_indirect_term_correction(N):
     correction_term : float
         Correction term to add to Cjkl(N,N-1,0,alpha)
     """
-    u,e,x=symbols('u,e,x')
-    expif = cos(u)-e + I * sqrt(1-e*e) * sin(u)
-    M = u - e * sin(u)
-    exp_iNpl1M = exp(-I * N * M)
-    r_by_a = 1 - e * cos(u)
-    integrand = expif * exp_iNpl1M / (r_by_a)**2
-    s = series(integrand,e,0,N)
-    subdict={
-        sin(u):(x - 1/x) / 2 / I,
-        exp(I*u): x,
-        exp(-I*u): 1/x,
-        cos(u):(x + 1/x) / 2}
-    term = s.coeff(e,N-1)
-    term = term.subs(subdict).expand()
-    coeff = term.coeff(x,0).evalf()
+    hard_coded_coeffs = [2,27/8,16/3,3125/284] 
+    assert N>1,"Indirect terms not implemented for {}:1 resonance!".format(N)
+    if N<len(hard_coded_coeffs) + 2:
+        coeff = hard_coded_coeffs[N-2]
+    else:
+        u,e,x=symbols('u,e,x')
+        expif = cos(u)-e + I * sqrt(1-e*e) * sin(u)
+        M = u - e * sin(u)
+        exp_iNpl1M = exp(-I * N * M)
+        r_by_a = 1 - e * cos(u)
+        integrand = expif * exp_iNpl1M / (r_by_a)**2
+        s = series(integrand,e,0,N)
+        subdict={
+            sin(u):(x - 1/x) / 2 / I,
+            exp(I*u): x,
+            exp(-I*u): 1/x,
+            cos(u):(x + 1/x) / 2}
+        term = s.coeff(e,N-1)
+        term = term.subs(subdict).expand()
+        coeff = term.coeff(x,0).evalf()
     alpha  = N**(-2/3)
     return -1 * coeff * alpha
 
