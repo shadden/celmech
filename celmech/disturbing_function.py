@@ -6,6 +6,7 @@ from scipy.integrate import quad
 import math
 import numpy as np
 from scipy.optimize import leastsq
+from scipy.special import poch,factorial2,binom,factorial,gamma
 
 
 def laplace_coefficient(s,j,n,a):
@@ -235,9 +236,29 @@ def NewcombOperator(a,b,c,d):
     return tot / 4 / d
 
 def HansenCoefficient_term(a,b,c,sigma):
+    r"""
+    Series coefficient in Taylor series
+    of the Hansen coefficient X^{a,b}_c(e).
+    The Hansen coefficient is given by:
+
+        X^{a,b}_c(e) = e^{|c-b|} \times
+        \sum_{\sigma=0}^\infty HansenCoefficient_term(a,b,c)e^{2\sigma}
+
+    Arguments
+    ---------
+    a : int
+    b : int
+    c : int
+    sigma : int
+
+    Returns
+    -------
+    float
+    """
     alpha = max(c-b,0)
     beta  = max(b-c,0)
     return NewcombOperator(a,b,alpha+sigma,beta+sigma)
+
 def threeFtwo(a,b):
     """
     Hypergerometric 3_F_2([a1,a2,a3],[b1,b2],1)
@@ -262,6 +283,30 @@ def threeFtwo(a,b):
     return tot
 
 def KaulaF(n,q,p,j):
+    """
+    Series coefficient in the Taylor expansion of the
+    Kaula inclination function F_{nqp}(I).
+    See, e.g., Kaula (1962,1966) or Ellis & Murray (2000).
+
+    The function returns the jth term of the Taylor
+    expansion in the variable s = sin(I/2). I.e.
+        KaulaF(n,q,p,j) = (1/j!) d^j F{nqp}/ ds^j
+
+    This implementation is based on the Mathematica
+    package by Fabio Zugno available at:
+        https://library.wolfram.com/infocenter/MathSource/4256/
+
+    Arguments
+    ---------
+    n : int
+    q : int
+    p : int
+    j : int
+
+    Returns
+    -------
+    float
+    """
     if n - 2*p - q < 0: 
         return (-1)**(n-q) * factorial(n+q) * KaulaF(n,-q,n-p,j) / factorial(n-q)
     if q==0 and 2 * p == n:
