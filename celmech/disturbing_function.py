@@ -186,3 +186,186 @@ class laplace_B(Function):
             return exprn.subs(x,alpha)
         else:
             return laplace_coefficient(s,j,n,alpha)/ alpha**n
+
+
+def NCOd0(a,b,c):
+    """
+    Value of of Newcomb operator
+        X^{a,b}_{c,0}
+        
+    Arguments
+    ---------
+    a : int
+    b : int
+    c : int
+    
+    Returns
+    -------
+    X^{a,b}_{c,0} : float
+    """
+    if c==0: return 1
+    if c==1: return b - a /2
+    nc1 = NCOd0(a,b+1,c-1)
+    nc2 = NCOd0(a,b+2,c-2)
+    return  (2 * (2*b-a) * nc1 + (b-a) * nc2 )/ c / 4
+
+def NewcombOperator(a,b,c,d):
+    """
+    Value of of Newcomb operator
+        X^{a,b}_{c,0}
+        
+    Arguments
+    ---------
+    a : int
+    b : int
+    c : int
+    d : int
+    
+    Returns
+    -------
+    X^{a,b}_{c,d} : float
+    """
+    if c<0 or d<0: return 0
+    if d==0: return NCOd0(a,b,c)
+    tot = -2 * (2 * b + a) * NewcombOperator(a,b-1,c,d-1)
+    tot += -1 * (b + a) * NewcombOperator(a,b-2,c,d-2)
+    tot += -1 * (c - 5 * d + 4 + 4 * b + a ) * NewcombOperator(a,b,c-1,d-1)    
+    for j in range(2,d+1):
+        tot += 2 * (c-d+b) * (-1)**j * binom(3/2,j) * NewcombOperator(a,b,c-j,d-j)
+    return tot / 4 / d
+
+def HansenCoefficient_term(a,b,c,sigma):
+    alpha = max(c-b,0)
+    beta  = max(b-c,0)
+    return NewcombOperator(a,b,alpha+sigma,beta+sigma)
+def threeFtwo(a,b):
+    """
+    Hypergerometric 3_F_2([a1,a2,a3],[b1,b2],1)
+    
+    Used in calcluations of KaulaF function
+    
+    Arguments
+    ---------
+    a : list of ints
+    b :  list of ints
+    
+    Returns
+    -------
+    float
+    """
+    a1,a2,a3 = a
+    b1,b2 = b
+    kmax = min(1-a1,1-a2,1-a3)
+    tot = 0
+    for k in range(0,kmax):
+        tot += poch(a1,k) * poch(a2,k) *poch(a3,k) / poch(b1,k) / poch(b2,k) / factorial(k)
+    return tot
+
+def KaulaF(n,q,p,j):
+    if n - 2*p - q < 0: 
+        return (-1)**(n-q) * factorial(n+q) * KaulaF(n,-q,n-p,j) / factorial(n-q)
+    if q==0 and 2 * p == n:
+        return (-1)**(j+n) * binom(n,j) * binom(n+j,j) * factorial2(n-1) / factorial2(n)
+    
+    numerator =  (-1)**j * factorial2(2*n-2*p-1)     
+    numerator*= binom(n/2+p+q/2,j) 
+    numerator *= threeFtwo([-j,-2*p,-n-q],[1+n-2*p-q,-(n/2)-p-q/2]) 
+    denom =  factorial(n -2 * p - q) * factorial2(2 * p)
+    return numerator / denom 
+
+def KK(i,n,m):
+    numerator = (-1)**(i-n) * (1 + 2 * n) * gamma(1/2 + i) * gamma(3/2 + i)
+    denom = 4 * gamma((2 + i-m-n)/2) * gamma((2 + i + m-n)/2) * gamma((3 + i - m + n)/2) * gamma((3 + i + m + n)/2)
+    return numerator / denom
+def getrange(lim1,lim2,n):
+    assert n>0, "Negative interval n={} passed to getrange".format(n)
+    if lim1 < lim2:
+        return range(lim1,lim2 + n,n)
+    else:
+        return range(lim1,lim2-n,-n)
+    
+def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
+    
+    nlim1 = int(np.ceil(max(h,(h + abs(k)) / 2)))
+    nlim2 = i
+    hplusk_mod2 = (h+k) % 2
+    delta = 1 - np.alltrue(np.array([h,k,v1-v2,v4-v3]) == 0)
+    inc_total= 0
+    for n in getrange(nlim1,nlim2,1):
+        mlim1 = max(n-i,p-n+h,p-k-n+hplusk_mod2)
+        mlim2 = min(i-n,p+n-h,n+p-k-hplusk_mod2)
+        for m in getrange(mlim1,mlim2,2):
+            term = (-1)**(k+m+n-p) * KK(i,n,m)
+            term *= KaulaF(n,-k-m+p,(-h + m + n - p)//2,z1)
+            term *= KaulaF(n, k+m-p,(-h - m + n + p)//2,z2)
+            inc_total += term
+    
+    ecc_total = 0
+    for t in range(0,u+1):
+        term = (-1)**(u + t) / factorial(u-t) / factorial(t)
+        term *= HansenCoefficient_term(i+t,v1,v2,z3)
+        term *= HansenCoefficient_term(-1-i-t,v3,v4,z4)
+        ecc_total += term
+        
+    return (1 + delta) * inc_total * ecc_total
+
+def DFCoeff(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
+    """
+    Get the coefficient of the disturbing function term:
+    
+      s1^{|j5|+2*z1} * s2^{|j6|+2*z2} * e2^{|j4|+2*z4} * e1^{|j3|+2*z3} \times 
+          cos[j1*L2 + j2*L1 + j3 * pomega1 + j4 * w2 + j5 * Omega1 + j6 * Omega2)
+
+    where s1 = sin(I1/2) and s2 = sin(I2/2) as a dictionary of Laplace coefficient 
+    arguemnts and their numerical coefficents.
+    
+    Arguments:
+    ----------
+    j1 : int
+        Coefficient of outer planet's mean longitude in cosine argument
+    j2 : int
+        Coefficient of inner planet's mean longitude in cosine argument
+    j3 : int
+        Coefficient of inner planet's mean longitude in cosine argument
+    j4 : int
+        Coefficient of outer planet's mean longitude in cosine argument
+    j5 : int
+        Coefficient of inner planet's longitude of ascending node in cosine argument
+    j6 : int
+        Coefficient of outer planet's longitude of ascending node in cosine argument
+    z1 : int
+        Select specific term where the exponent of s1 is |j5|+2*z1
+    z2 : int
+        Select specific term where the exponent of s2 is |j6|+2*z3
+    z3 : int
+        Select specific term where the exponent of e1 is |j3|+2*z3
+    z4 : int
+        Select specific term where the exponent of e1 is |j4|+2*z4
+        
+    Returns
+    -------
+    dictionary 
+        The coefficient is given by the sum over laplace coefficients
+        contained in the dictionary entries: 
+            \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
+        where the dictionary entries are in the form { (p,(s,j,n)) : C }
+    """
+    # must be even power in inclination
+    if j5 + j6 % 2:
+        return []
+    # Sum of integer coefficients must be 0
+    if j1 + j2 + j3 + j4 + j5 + j6:
+        return []
+    h = (-j5-j6)//2
+    k = (j6-j5)//2
+    
+    n0 = int(np.ceil(max(h,-j5/2,-j6/2)))
+    
+    total = {}
+    for i in getrange(n0,z1 + z2 + (abs(j5)+abs(j6)//2),1):
+        for p in getrange(h-i,i-h,2):
+            for u in getrange(0,2*z3 + 2*z4 + abs(j3) + abs(j4),1):
+                cf = FX(h, k, i, p, u, j2 + j3, j2, j1 + j4, j1, z1, z2, z3, z4)
+                if not np.isclose(cf,0):
+                    total.update({(i+u,(i+1/2,abs(j1+j4-h+p),u)):cf})
+    return total
