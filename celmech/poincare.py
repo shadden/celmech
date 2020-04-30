@@ -13,7 +13,7 @@ def single_true(iterable): # Returns true if only one element in the iterable is
     return any(i) and not any(i) # any(i) True once first valid item found. not any(i) ensures no additional ones exist
 
 class PoincareParticle(object):
-    def __init__(self, m, M, l, gamma, G=1., sLambda=None, sGamma=None, Lambda=None, Gamma=None, a=None, e=None):
+    def __init__(self, m, M, l, gamma, q, G=1., sLambda=None, sGamma=None, sQ=None, Lambda=None, Gamma=None, Q=None,  a=None, e=None, inc=None):
         """
         We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
         """
@@ -21,6 +21,8 @@ class PoincareParticle(object):
             raise AttributeError("Can only pass one of Lambda, sLambda (specific Lambda, i.e. per unit mass), or a (semimajor axis)")
         if not single_true([sGamma, Gamma, e]):
             raise AttributeError("Can only pass one of Gamma, sGamma (specific Gamma, i.e. per unit mass), or e (eccentricity)")
+        if not single_true([sQ, Q, inc]):
+            raise AttributeError("Can only pass one of Q, sQ (specific Q, i.e. per unit mass), or inc (inclination)")
         
         if sLambda:
             self.sLambda = sLambda
@@ -28,7 +30,7 @@ class PoincareParticle(object):
             try:
                 self.sLambda = Lambda/m
             except:
-                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+                raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif a:
             self.sLambda = np.sqrt(G*M*a)
 
@@ -36,46 +38,92 @@ class PoincareParticle(object):
             try:
                 sGamma = Gamma/m
             except:
-                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+                raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif e:
             sGamma = self.sLambda*(1.-np.sqrt(1.-e**2))
+
+        if Q:
+            try:
+                sQ = Q/m
+            except:
+                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+        elif inc:
+            sQ = (self.sLambda - self.sGamma) * (1 - np.cos(inc))
+
         self.sX = np.sqrt(2.*sGamma)*np.cos(gamma) # X per unit sqrt(mass)
         self.sY = np.sqrt(2.*sGamma)*np.sin(gamma)
+
+        self.sU = np.sqrt(2.*sQ)*np.cos(q) # Xinc per unit sqrt(mass)
+        self.sV = np.sqrt(2.*sQ)*np.sin(q)
+
         self.m = m 
         self.M = M
         self.G = G
         self.l = l
+        self.q = q 
    
     @property
     def X(self):
         return np.sqrt(self.m)*self.sX
     @X.setter
     def X(self, value):
-        self.sX = X/np.sqrt(self.m)
+        self.sX = value/np.sqrt(self.m)
     @property
     def Y(self):
         return np.sqrt(self.m)*self.sY
     @Y.setter
     def Y(self, value):
-        self.sY = Y/np.sqrt(self.m)
+        self.sY = value/np.sqrt(self.m)
+
+    @property
+    def U(self):
+        return np.sqrt(self.m)*self.sU
+    @U.setter
+    def U(self, value):
+        self.sU = value/np.sqrt(self.m)
+
+    @property
+    def V(self):
+        return np.sqrt(self.m)*self.sV
+    @V.setter
+    def V(self, value):
+        self.sV = value/np.sqrt(self.m)
+
     @property
     def Lambda(self):
         return self.m*self.sLambda
     @Lambda.setter
     def Lambda(self, value):
         self.sLambda = value/self.m
+
     @property
     def Gamma(self):
         return self.m*(self.sX**2+self.sY**2)/2.
     @Gamma.setter
     def Gamma(self, value):
         self.sGamma = value/self.m
+
+    @property
+    def Q(self):
+        return self.m*(self.sU**2+self.sV**2)/2.
+    @Q.setter
+    def Q(self, value):
+        self.sQ = value/self.m
+
     @property
     def sGamma(self):
         return (self.sX**2+self.sY**2)/2.
     @property
     def gamma(self):
         return np.arctan2(self.sY, self.sX)
+
+    @property
+    def sQ(self):
+        return (self.sU**2+self.sV**2)/2.
+    @property
+    def q(self):
+        return np.arctan2(self.sV,self.sU)
+
     @property
     def a(self):
         return self.sLambda**2/self.G/self.M
@@ -85,6 +133,7 @@ class PoincareParticle(object):
         if 1-(1.-GbyL)*(1.-GbyL) < 0:
             raise AttributeError("sGamma:{0}, sLambda:{1}, GbyL:{2}, val:{3}".format(self.sGamma, self.sLambda, GbyL, 1-(1.-GbyL)*(1.-GbyL)))
         return np.sqrt(1 - (1-GbyL)*(1-GbyL))
+
     @property
     def pomega(self):
         return -self.gamma
