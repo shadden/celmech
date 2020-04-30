@@ -11,8 +11,9 @@ from scipy.special import poch,factorial2,binom,factorial,gamma
 
 def laplace_coefficient(s,j,n,a):
     """
-    Calculates nth derivative with respect to a (alpha) of Laplace coefficient b_s^j(a).
-    Code due to Jack Wisdom. Changed notation to match Murray & Dermott (Eq. 6.67)
+    Calculates alpha^n times the nth derivative with respect to a (alpha) of 
+    Laplace coefficient b_s^j(a). Code due to Jack Wisdom. Changed notation 
+    to match Murray & Dermott (Eq. 6.67)
     
     Arguments
     ---------
@@ -27,6 +28,40 @@ def laplace_coefficient(s,j,n,a):
     """    
     clibcelmech.laplace.restype = c_double
     return clibcelmech.laplace(c_double(s), c_int(j), c_int(n), c_double(a))
+
+def laplace_b(s,j,n,a):
+    """
+    Calculates nth derivative with respect to a (alpha) of Laplace coefficient b_s^j(a).
+    Uses recursion and scipy special functions instead of C code unlike
+    'laplace_coefficient' function.
+    
+    Arguments
+    ---------
+    s : float 
+        half-integer parameter of Laplace coefficient. 
+    j : int 
+        integer parameter of Laplace coefficient. 
+    n : int 
+        return nth derivative with respect to a of b_s^j(a)
+    a : float
+        semimajor axis ratio a1/a2 (alpha)
+    """    
+    if j<0:
+        return my_laplace(s,j,n,alpha)
+    if n >= 2:
+        return s * (
+            my_laplace(s+1,j-1,n-1,alpha) 
+            -  2 * alpha * my_laplace(s+1,j,n-1,alpha)
+            + my_laplace(s+1,j+1,n-1,alpha)
+            - 2 * (n-1) * my_laplace(s+1,j,n-2,alpha)
+        )
+    if n==1:
+        return s * (
+            my_laplace(s+1,j-1,0,alpha) 
+            - 2 * alpha * my_laplace(s+1,j,0,alpha) 
+            + my_laplace(s+1,j+1,0,alpha)
+        )
+    return 2 * poch(s,j) * alpha**j * hyp2f1(s,s+j,j+1,alpha**2)/ factorial(j)
 
 def general_order_coefficient(res_j, order, epower, a):
     clibcelmech.GeneralOrderCoefficient.restype = c_double
@@ -396,10 +431,18 @@ def DFCoeff(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
     # must be even power in inclination
-    if j5 + j6 % 2:
+    if abs(j5 + j6) % 2:
+        warnings.warn(
+                "\n DFCoeff called with an argument not symmetric w.r.t. planet inclinations:\n" + 
+                "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
+                )
         return []
     # Sum of integer coefficients must be 0
     if j1 + j2 + j3 + j4 + j5 + j6:
+        warnings.warn(
+                "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" + 
+                "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
+                )
         return []
     h = (-j5-j6)//2
     k = (j6-j5)//2
