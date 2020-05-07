@@ -60,7 +60,7 @@ class PoincareParticle(object):
         self.M = M
         self.G = G
         self.l = l
-        self.q = q 
+        
    
     @property
     def X(self):
@@ -133,10 +133,21 @@ class PoincareParticle(object):
         if 1-(1.-GbyL)*(1.-GbyL) < 0:
             raise AttributeError("sGamma:{0}, sLambda:{1}, GbyL:{2}, val:{3}".format(self.sGamma, self.sLambda, GbyL, 1-(1.-GbyL)*(1.-GbyL)))
         return np.sqrt(1 - (1-GbyL)*(1-GbyL))
+    @property
+    def inc(self):
+        QbyLminusG = self.sQ / (self.sLambda - self.sGamma)
+        cosi = 1 - QbyLminusG
+        if np.abs(cosi) > 1:
+            raise AttributeError("sGamma:{0}, sLambda:{1}, sQ:{2}, cosi:{3}".format(self.sGamma, self.sLambda, self.sQ,cosi))
+        return np.arccos(cosi)
 
     @property
     def pomega(self):
         return -self.gamma
+
+    @property
+    def Omega(self):
+        return -self.q
     @property
     def n(self):
         return np.sqrt(self.G*self.M/self.a**3)
@@ -144,10 +155,10 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, poincareparticles=[]):
         self.G = G
-        self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan, sLambda=np.nan, sGamma=np.nan)] # dummy particle for primary
+        self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:
-                self.add(m=p.m, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, M=p.M)
+                self.add(m=p.m, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ = p.sQ,q=p.q, M=p.M)
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
@@ -166,7 +177,8 @@ class Poincare(object):
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (jacobi) a={1}, e={2}".format(i, orb.a, orb.e))
             sLambda = np.sqrt(sim.G*M*orb.a)
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
-            pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, gamma=-orb.pomega, M=M)
+            sQ = sLambda*np.sqrt(1.-orb.e**2) * (1 - np.cos(orb.inc))
+            pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, sQ = sQ, gamma=-orb.pomega,q=-orb.Omega ,M=M)
         if average is True:
             pvars.average_synodic_terms()
         return pvars
@@ -191,7 +203,7 @@ class Poincare(object):
         ps = self.particles
         #print(mjac, Mjac, masses)
         for i in range(1, self.N):
-            sim.add(m=masses[i], a=ps[i].a, e=ps[i].e, pomega=-ps[i].gamma, l=ps[i].l, jacobi_masses=True)
+            sim.add(m=masses[i], a=ps[i].a, e=ps[i].e,inc=ps[i].inc, pomega=-ps[i].gamma, l=ps[i].l,Omega=ps[i].Omega, jacobi_masses=True)
         sim.move_to_com()
         return sim
     
@@ -291,6 +303,7 @@ class PoincareHamiltonian(Hamiltonian):
         for i in range(1, pvars.N):
             pqpairs.append(symbols("X{0}, Y{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
+            pqpairs.append(symbols("U{0}, V{0}".format(i))) 
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
             H = self.add_Hkep_term(H, i)
@@ -315,13 +328,15 @@ class PoincareHamiltonian(Hamiltonian):
     
     def state_to_list(self, state):
         ps = state.particles
-        vpp = 4 # vars per particle
+        vpp = 6 # vars per particle
         y = np.zeros(vpp*(state.N-1)) # remove padded 0th element in ps for y
         for i in range(1, state.N):
             y[vpp*(i-1)] = ps[i].X
             y[vpp*(i-1)+1] = ps[i].Y
             y[vpp*(i-1)+2] = ps[i].Lambda
             y[vpp*(i-1)+3] = ps[i].l 
+            y[vpp*(i-1)+4] = ps[i].U
+            y[vpp*(i-1)+5] = ps[i].V
         return y
     def set_secular_mode(self):
         # 
@@ -340,6 +355,9 @@ class PoincareHamiltonian(Hamiltonian):
             ps[i].sY = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
             ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].m
             ps[i].l = y[vpp*(i-1)+3]
+            ps[i].sU = y[vpp*(i-1)+4] / np.sqrt(ps[i].m) 
+            ps[i].sV = y[vpp*(i-1)+5] / np.sqrt(ps[i].m) 
+            
     
     def add_Hkep_term(self, H, index):
         """
