@@ -6,7 +6,10 @@ from scipy.integrate import quad
 import math
 import numpy as np
 from scipy.optimize import leastsq
-from scipy.special import poch,factorial2,binom,factorial,gamma
+from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
+from collections import defaultdict
+import warnings
+
 
 
 def laplace_coefficient(s,j,n,a):
@@ -29,7 +32,7 @@ def laplace_coefficient(s,j,n,a):
     clibcelmech.laplace.restype = c_double
     return clibcelmech.laplace(c_double(s), c_int(j), c_int(n), c_double(a))
 
-def laplace_b(s,j,n,a):
+def laplace_b(s,j,n,alpha):
     """
     Calculates nth derivative with respect to a (alpha) of Laplace coefficient b_s^j(a).
     Uses recursion and scipy special functions instead of C code unlike
@@ -46,22 +49,52 @@ def laplace_b(s,j,n,a):
     a : float
         semimajor axis ratio a1/a2 (alpha)
     """    
+    assert alpha>=0 and alpha<1, "alpha not in range [0,1): alpha={}".format(alpha)
     if j<0:
-        return my_laplace(s,j,n,alpha)
+        return laplace_b(s,j,n,alpha)
     if n >= 2:
         return s * (
-            my_laplace(s+1,j-1,n-1,alpha) 
-            -  2 * alpha * my_laplace(s+1,j,n-1,alpha)
-            + my_laplace(s+1,j+1,n-1,alpha)
-            - 2 * (n-1) * my_laplace(s+1,j,n-2,alpha)
+            laplace_b(s+1,j-1,n-1,alpha) 
+            -  2 * alpha * laplace_b(s+1,j,n-1,alpha)
+            + laplace_b(s+1,j+1,n-1,alpha)
+            - 2 * (n-1) * laplace_b(s+1,j,n-2,alpha)
         )
     if n==1:
         return s * (
-            my_laplace(s+1,j-1,0,alpha) 
-            - 2 * alpha * my_laplace(s+1,j,0,alpha) 
-            + my_laplace(s+1,j+1,0,alpha)
+            laplace_b(s+1,j-1,0,alpha) 
+            - 2 * alpha * laplace_b(s+1,j,0,alpha) 
+            + laplace_b(s+1,j+1,0,alpha)
         )
     return 2 * poch(s,j) * alpha**j * hyp2f1(s,s+j,j+1,alpha**2)/ factorial(j)
+
+def eval_DFCoeff_dict(Coeff_dict,alpha):
+    r"""
+    Evaluate a dictionary representing a sum
+    of Laplace coefficient terms like those returned
+    by DFCoeff_C and DFCoeff_Cbar evaluated at a 
+    specific value of semi-major axis ratio, alpha.
+
+    Arguments
+    ---------
+    Coeff_dict : dictionary
+        Dictionary with entries {(p,(s,j,n)) : coeff}
+        representing a sum of Laplace coefficients:
+         coeff * \alpha^p * d^n b_s^{(j)}(\alpha) / d\alpha^n
+    alpha : float
+        Value of semi-major axis ratio a1/a2 appearing
+        as an argument of Laplace coefficients.
+
+    Returns
+    -------
+    float : 
+        The sum of Laplace coefficeint terms represented
+        by dictionary entries.
+    """
+    tot = 0
+    for key,val in Coeffs_dict.items():
+        p,arg = key
+        tot += val * alpha**p * laplace_b(*arg,alpha)
+    return tot
 
 def general_order_coefficient(res_j, order, epower, a):
     clibcelmech.GeneralOrderCoefficient.restype = c_double
@@ -342,13 +375,13 @@ def KaulaF(n,q,p,j):
     -------
     float
     """
-    if n - 2*p - q < 0: 
-        return (-1)**(n-q) * factorial(n+q) * KaulaF(n,-q,n-p,j) / factorial(n-q)
     if q==0 and 2 * p == n:
         return (-1)**(j+n) * binom(n,j) * binom(n+j,j) * factorial2(n-1) / factorial2(n)
-    
+    if n - 2*p - q < 0: 
+        if n-q<0: return 0
+        return (-1)**(n-q) * factorial(n+q) * KaulaF(n,-q,n-p,j) / factorial(n-q)
     numerator =  (-1)**j * factorial2(2*n-2*p-1)     
-    numerator*= binom(n/2+p+q/2,j) 
+    numerator *= binom(n/2+p+q/2,j) 
     numerator *= threeFtwo([-j,-2*p,-n-q],[1+n-2*p-q,-(n/2)-p-q/2]) 
     denom =  factorial(n -2 * p - q) * factorial2(2 * p)
     return numerator / denom 
@@ -357,7 +390,7 @@ def KK(i,n,m):
     numerator = (-1)**(i-n) * (1 + 2 * n) * gamma(1/2 + i) * gamma(3/2 + i)
     denom = 4 * gamma((2 + i-m-n)/2) * gamma((2 + i + m-n)/2) * gamma((3 + i - m + n)/2) * gamma((3 + i + m + n)/2)
     return numerator / denom
-def getrange(lim1,lim2,n):
+def getrange(lim1,lim2,n=1):
     assert n>0, "Negative interval n={} passed to getrange".format(n)
     if lim1 < lim2:
         return range(lim1,lim2 + n,n)
@@ -389,11 +422,15 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
         
     return (1 + delta) * inc_total * ecc_total
 
-def DFCoeff(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
-    """
+def Xi(N,n,k,m):
+    return (-1)**(N-n) * binom(n, N-n-m) * binom(abs(k)/2,m)
+
+
+def DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
+    r"""
     Get the coefficient of the disturbing function term:
     
-      s1^{|j5|+2*z1} * s2^{|j6|+2*z2} * e2^{|j4|+2*z4} * e1^{|j3|+2*z3} \times 
+      s1^{|j5|+2z1} s2^{|j6|+2z2} * e2^{|j4|+2*z4} * e1^{|j3|+2*z3} \times 
           cos[j1*L2 + j2*L1 + j3 * pomega1 + j4 * w2 + j5 * Omega1 + j6 * Omega2)
 
     where s1 = sin(I1/2) and s2 = sin(I2/2) as a dictionary of Laplace coefficient 
@@ -430,30 +467,105 @@ def DFCoeff(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
             \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
+    total = defaultdict(float)
     # must be even power in inclination
     if abs(j5 + j6) % 2:
         warnings.warn(
                 "\n DFCoeff called with an argument not symmetric w.r.t. planet inclinations:\n" + 
                 "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
                 )
-        return []
+        return dict(total)
     # Sum of integer coefficients must be 0
     if j1 + j2 + j3 + j4 + j5 + j6:
         warnings.warn(
                 "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" + 
                 "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
                 )
-        return []
-    h = (-j5-j6)//2
-    k = (j6-j5)//2
-    
-    n0 = int(np.ceil(max(h,-j5/2,-j6/2)))
-    
-    total = {}
-    for i in getrange(n0,z1 + z2 + (abs(j5)+abs(j6)//2),1):
-        for p in getrange(h-i,i-h,2):
-            for u in getrange(0,2*z3 + 2*z4 + abs(j3) + abs(j4),1):
-                cf = FX(h, k, i, p, u, j2 + j3, j2, j1 + j4, j1, z1, z2, z3, z4)
-                if not np.isclose(cf,0):
-                    total.update({(i+u,(i+1/2,abs(j1+j4-h+p),u)):cf})
-    return total
+        return dict(total)
+    jvec = np.array([j1,j2,j4,j4,j5,j6])
+    if np.alltrue(jvec==0):
+        for i in getrange(0,z1+z2,1):
+            for p in getrange(i%2,i,2):
+                for u in getrange(0,2*z3+2*z4):
+                    cf = FX(0,0,i,p,u,0,0,0,0,z1,z2,z3,z4) * (1 + (p != 0))
+                    if not np.isclose(cf,0):
+                        total[(i+u,(i+1/2,abs(p),u))]+=cf
+    elif np.alltrue(jvec[2:]==0):
+        j = abs(j1)
+        for i in getrange(0,z1+z2,1):
+            for p in getrange(i%2,i,2):
+                for u in getrange(0,2*z3+2*z4):
+                    cf = FX(0,0,i,p,u,j,j,j,j,z1,z2,z3,z4) 
+                    if not np.isclose(cf,0):
+                        total[(i+u,(i+1/2,abs(j+p),u))]+=cf
+                        if p != 0:
+                            total[(i+u,(i+1/2,abs(j-p),u))]+=cf
+    else:
+        n0 = int(np.ceil(max(h,-j5/2,-j6/2))) 
+        h = (-j5-j6)//2
+        k = (j6-j5)//2
+   
+        for i in getrange(n0,z1 + z2 + (abs(j5)+abs(j6)//2),1):
+            for p in getrange(h-i,i-h,2):
+                for u in getrange(0,2*z3 + 2*z4 + abs(j3) + abs(j4),1):
+                    cf = FX(h, k, i, p, u, j2 + j3, j2, j1 + j4, j1, z1, z2, z3, z4)
+                    if not np.isclose(cf,0):
+                        total[(i+u,(i+1/2,abs(j1+j4-h+p),u))]+=cf
+    return dict(total)
+
+def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
+    r"""
+    Get the coefficient of the disturbing function term:
+
+    Y1^{|j5|+2*N1} * Y2^{|j6|+2*N2} * X1^{|j3|+2*N3} * X2^{|j4|+2*N4}
+     *cos[j1*L2 + j2*L1 + j3 * pomega1 + j4 * w2 + j5 * Omega1 + j6 * Omega2)
+
+    as a dictionary of Laplace coefficient
+    arguemnts and their numerical coefficents.
+
+    Arguments:
+    ----------
+    j1 : int
+        Coefficient of outer planet's mean longitude in cosine argument
+    j2 : int
+        Coefficient of inner planet's mean longitude in cosine argument
+    j3 : int
+        Coefficient of inner planet's mean longitude in cosine argument
+    j4 : int
+        Coefficient of outer planet's mean longitude in cosine argument
+    j5 : int
+        Coefficient of inner planet's longitude of ascending node in cosine argument
+    j6 : int
+        Coefficient of outer planet's longitude of ascending node in cosine argument
+    N1 : int
+        Select specific term where the exponent of Y1 is |j5|+2*N1
+    N2 : int
+        Select specific term where the exponent of Y2 is |j6|+2*N3
+    N3 : int
+        Select specific term where the exponent of X1 is |j3|+2*N3
+    N4 : int
+        Select specific term where the exponent of X2 is |j4|+2*N4
+
+    Returns
+    -------
+    dictionary
+        The coefficient is given by the sum over laplace coefficients
+        contained in the dictionary entries:
+            \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
+        where the dictionary entries are in the form { (p,(s,j,n)) : C }
+    """
+    terms_total = defaultdict(float)
+    for n1 in range(N1+1):
+        for m1 in range(N1-n1+1):
+            for n2 in range(N2+1):
+                for m2 in range(N2-n2+1):
+                    for n3 in range(N3+1):
+                        for m3 in range(N3-n3+1):
+                            for n4 in range(N4+1):
+                                for m4 in range(N4-n4+1):
+                                    term_dict = DFCoeff_C(j1,j2,j3,j4,j5,j6,n1,n2,n3,n4)
+                                    prefactor = Xi(N1,n1,j5,m1) * Xi(N2,n2,j6,m2) * Xi(N3,n3,j3,m3) * Xi(N4,n4,j4,m4)
+                                    if prefactor != 0.:
+                                        for key,val in term_dict.items():
+                                            terms_total[key] += prefactor * val
+    return dict(terms_total)
