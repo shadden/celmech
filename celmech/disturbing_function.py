@@ -383,6 +383,7 @@ def KaulaF(n,q,p,j):
     numerator =  (-1)**j * factorial2(2*n-2*p-1)     
     numerator *= binom(n/2+p+q/2,j) 
     numerator *= threeFtwo([-j,-2*p,-n-q],[1+n-2*p-q,-(n/2)-p-q/2]) 
+    if p<0: return 0.
     denom =  factorial(n -2 * p - q) * factorial2(2 * p)
     return numerator / denom 
 
