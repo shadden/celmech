@@ -1,11 +1,40 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
+
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from celmech.disturbing_function import DFCoeff_Cbar,eval_DFCoeff_dict
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from celmech.resonances import resonance_jk_list
 from itertools import combinations
 import rebound
+import warnings
+
+def partitions_of_length_4(N):
+    answer = set()
+    for j1 in range(N+1):
+        for j2 in range(N+1-j1):
+            for j3 in range(N+1-j1-j2):
+                j4 = N-j1-j2-j3
+                answer.add((j1,j2,j3,j4))
+    return answer
+def get_re_im_components(x,y,k):
+    """
+    Get the real and imaginary components of
+        (x + sgn(k) * i y)^|k|
+    """
+    if k==0:
+        return 1,0
+    absk = abs(k)
+    sgnk = np.sign(k)
+    re,im=0,0
+    for l in range(0,absk+1):
+        b = binomial(absk,l)
+        if l%2==0:
+            re += b * (sgnk * y)**l * x**(absk-l) * (-1)**(l//2)
+        else:
+            im += b * (sgnk * y)**l * x**(absk-l) * (-1)**((l-1)//2)
+    return re,im
 
 def single_true(iterable): # Returns true if only one element in the iterable is set 
     # make generator from iterable setting any zeros as valid entries (otherwise they evaluate to False)
@@ -367,7 +396,56 @@ class PoincareHamiltonian(Hamiltonian):
         #m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
-    
+    def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2):
+        if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
+            warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
+            return
+        G = symbols('G')
+        mIn,MIn,LambdaIn,lambdaIn,XIn,YIn,UIn,VIn = symbols('m{0},M{0},Lambda{0},lambda{0},X{0},Y{0},U{0},V{0}'.format(indexIn)) 
+        mOut,MOut,LambdaOut,lambdaOut,XOut,YOut,UOut,VOut = symbols('m{0},M{0},Lambda{0},lambda{0},X{0},Y{0},U{0},V{0}'.format(indexOut)) 
+        
+        alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
+	
+        # Resonance components
+        #
+        k1,k2,k3,k4,k5,k6 = kvec
+        z1,z2,z3,z4 = zvec
+        Cbar = symbols( "C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9}".format(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4) )
+        Cbar_dict = DFCoeff_Cbar(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
+        Cbar_val = eval_DFCoeff_dict(Cbar_dict,alpha)
+        self.Hparams[Cbar] = Cbar_val
+        rtLIn = sqrt(LambdaIn)
+        rtLOut = sqrt(LambdaOut)
+        xin,yin = get_re_im_components(XIn/rtLIn ,-YIn / rtLIn,k3)
+        xout,yout = get_re_im_components( XOut/rtLOut, -YOut/rtLOut,k4)
+        uin,vin = get_re_im_components(UIn/rtLIn/2, -VIn/rtLIn/2,k5)
+        uout,vout = get_re_im_components(UOut/rtLOut/2, -VOut/rtLOut/2,k6)
+
+        re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
+        im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
+        
+        GammaIn = (XIn*XIn + YIn*YIn)/2
+        GammaOut = (XOut*XOut + YOut*YOut)/2
+        QIn = (UIn*UIn + VIn*VIn)/2
+        QOut = (UOut*UOut + VOut*VOut)/2
+        
+        eIn_sq_term = (2 * GammaIn / LambdaIn )**z3
+        eOut_sq_term = (2 * GammaOut / LambdaOut )**z4
+        incIn_sq_term = ( QIn / LambdaIn / 2 )**z1
+        incOut_sq_term = ( QOut / LambdaOut / 2 )**z2
+        
+        # Update internal Hamiltonian
+        prefactor1 = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
+        prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
+        trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
+        
+        # Keep track of resonances
+        self.resonance_indices.append((indexIn,indexOut,(kvec,zvec)))
+        
+        self.H += prefactor1 * Cbar * prefactor2 * trig_term
+        self._update()
+        
+ 
     def add_secular_terms(self, order=2,fixed_Lambdas=True, indexIn=1, indexOut=2):
         G = symbols('G')
         mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
@@ -405,6 +483,73 @@ class PoincareHamiltonian(Hamiltonian):
             exprn = exprn.subs([(LambdaIn,LambdaIn0),(LambdaOut,LambdaOut0)])
         self.H += exprn
         self._update()
+
+    def add_all_MMR_terms(self,j,k,max_order,indexIn = 1, indexOut = 2):
+        """
+        Add all disturbing function terms associated with a j:j-k mean
+        motion resonance up to a given order.
+
+        Arguments
+        ---------
+        j : int
+            Coefficient of lambdaOut in resonant argument
+                j*lambdaOut - (j-k)*lambdaIn
+        k : int
+            Order of the mean motion resonance.
+
+        """
+        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+        if j<k or k <0:
+            warnings.warn("""
+            MMRs with j<k or k<0 are not supported. 
+            If you really want to include these terms, 
+            they may be added individually with the 
+            'add_monomial_term' method.
+            """)
+        if max_order < k:
+            return
+        if abs(j) % k == 0 and k != 1:
+            warnings.warn("j and k share a common divisor. Some important terms may be omitted!")
+        nmax = max_order // k
+        for n in range(1,nmax+1):
+            j1 = n * j
+            j2 = n * (k-j)
+            N = j1 + j2 + 1
+            for j3 in range(0,N):
+                for j4 in range(0,N - j3):
+                    for j5 in range(0,N - j3 - j4):
+                        j6 = N - j3 - j4 - j5 - 1
+                        if (j5 + j6)%2==0:
+                            jvec = [j1,j2,-j3,-j4,-j5,-j6]
+                            self.add_cos_term_to_max_order(jvec,max_order,indexIn,indexOut)
+
+    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2):
+        """
+        Add disturbing function term 
+           c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
+        approximating c up to order 'max_order' in eccentricity and inclination.
+
+        Arguments
+        ---------
+        jvec : array-like
+            Vector of integers specifying cosine argument.
+        max_order : int
+            Maximum order of terms in include in the expansion of c
+        indexIn : int, optional
+            Integer index of inner planet.
+        indexOut : anit, optional
+            Intgeger index of outer planet.
+        """
+        _,_,j3,j4,j5,j6 = jvec
+        order = max_order - abs(j3) - abs(j4) - abs(j5) - abs(j6)
+        orderBy2 = order // 2
+        N = orderBy2+1
+        for z1 in range(0,N):
+            for z2 in range(0,N - z1):
+                for z3 in range(0,N - z1 - z2):
+                    for z4 in range(0,N - z1 - z2 - z3):
+                        zvec  = [z1,z2,z3,z4]
+                        self.add_monomial_term(jvec,zvec)
 
     def add_all_resonance_subterms(self, j, k, indexIn=1, indexOut=2):
         """
