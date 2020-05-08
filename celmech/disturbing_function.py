@@ -51,7 +51,7 @@ def laplace_b(s,j,n,alpha):
     """    
     assert alpha>=0 and alpha<1, "alpha not in range [0,1): alpha={}".format(alpha)
     if j<0:
-        return laplace_b(s,j,n,alpha)
+        return laplace_b(s,-j,n,alpha)
     if n >= 2:
         return s * (
             laplace_b(s+1,j-1,n-1,alpha) 
@@ -91,7 +91,7 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
         by dictionary entries.
     """
     tot = 0
-    for key,val in Coeffs_dict.items():
+    for key,val in Coeff_dict.items():
         p,arg = key
         tot += val * alpha**p * laplace_b(*arg,alpha)
     return tot
@@ -482,7 +482,7 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
                 "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
                 )
         return dict(total)
-    jvec = np.array([j1,j2,j4,j4,j5,j6])
+    jvec = np.array([j1,j2,j3,j4,j5,j6])
     if np.alltrue(jvec==0):
         for i in getrange(0,z1+z2,1):
             for p in getrange(i%2,i,2):
@@ -501,10 +501,9 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
                         if p != 0:
                             total[(i+u,(i+1/2,abs(j-p),u))]+=cf
     else:
-        n0 = int(np.ceil(max(h,-j5/2,-j6/2))) 
         h = (-j5-j6)//2
         k = (j6-j5)//2
-   
+        n0 = int(np.ceil(max(h,-j5/2,-j6/2))) 
         for i in getrange(n0,z1 + z2 + (abs(j5)+abs(j6)//2),1):
             for p in getrange(h-i,i-h,2):
                 for u in getrange(0,2*z3 + 2*z4 + abs(j3) + abs(j4),1):
