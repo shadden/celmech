@@ -79,11 +79,11 @@ class PoincareParticle(object):
         elif inc:
             sQ = (self.sLambda - self.sGamma) * (1 - np.cos(inc))
 
-        self.sX = np.sqrt(2.*sGamma)*np.cos(gamma) # X per unit sqrt(mass)
-        self.sY = np.sqrt(2.*sGamma)*np.sin(gamma)
+        self.skappa = np.sqrt(2.*sGamma)*np.cos(gamma) # X per unit sqrt(mass)
+        self.seta = np.sqrt(2.*sGamma)*np.sin(gamma)
 
-        self.sU = np.sqrt(2.*sQ)*np.cos(q) # Xinc per unit sqrt(mass)
-        self.sV = np.sqrt(2.*sQ)*np.sin(q)
+        self.ssigma = np.sqrt(2.*sQ)*np.cos(q) # Xinc per unit sqrt(mass)
+        self.srho = np.sqrt(2.*sQ)*np.sin(q)
 
         self.m = m 
         self.M = M
@@ -92,31 +92,31 @@ class PoincareParticle(object):
         
    
     @property
-    def X(self):
-        return np.sqrt(self.m)*self.sX
-    @X.setter
-    def X(self, value):
-        self.sX = value/np.sqrt(self.m)
+    def kappa(self):
+        return np.sqrt(self.m)*self.skappa
+    @kappa.setter
+    def kappa(self, value):
+        self.skappa = value/np.sqrt(self.m)
     @property
-    def Y(self):
-        return np.sqrt(self.m)*self.sY
-    @Y.setter
-    def Y(self, value):
-        self.sY = value/np.sqrt(self.m)
+    def eta(self):
+        return np.sqrt(self.m)*self.seta
+    @eta.setter
+    def eta(self, value):
+        self.seta = value/np.sqrt(self.m)
 
     @property
-    def U(self):
-        return np.sqrt(self.m)*self.sU
-    @U.setter
-    def U(self, value):
-        self.sU = value/np.sqrt(self.m)
+    def sigma(self):
+        return np.sqrt(self.m)*self.ssigma
+    @sigma.setter
+    def sigma(self, value):
+        self.ssigma = value/np.sqrt(self.m)
 
     @property
-    def V(self):
-        return np.sqrt(self.m)*self.sV
-    @V.setter
-    def V(self, value):
-        self.sV = value/np.sqrt(self.m)
+    def rho(self):
+        return np.sqrt(self.m)*self.srho
+    @rho.setter
+    def rho(self, value):
+        self.srho = value/np.sqrt(self.m)
 
     @property
     def Lambda(self):
@@ -127,31 +127,31 @@ class PoincareParticle(object):
 
     @property
     def Gamma(self):
-        return self.m*(self.sX**2+self.sY**2)/2.
+        return self.m*(self.skappa**2+self.seta**2)/2.
     @Gamma.setter
     def Gamma(self, value):
         self.sGamma = value/self.m
 
     @property
     def Q(self):
-        return self.m*(self.sU**2+self.sV**2)/2.
+        return self.m*(self.ssigma**2+self.srho**2)/2.
     @Q.setter
     def Q(self, value):
         self.sQ = value/self.m
 
     @property
     def sGamma(self):
-        return (self.sX**2+self.sY**2)/2.
+        return (self.skappa**2+self.seta**2)/2.
     @property
     def gamma(self):
-        return np.arctan2(self.sY, self.sX)
+        return np.arctan2(self.seta, self.skappa)
 
     @property
     def sQ(self):
-        return (self.sU**2+self.sV**2)/2.
+        return (self.ssigma**2+self.srho**2)/2.
     @property
     def q(self):
-        return np.arctan2(self.sV,self.sU)
+        return np.arctan2(self.srho,self.ssigma)
 
     @property
     def a(self):
@@ -330,9 +330,9 @@ class PoincareHamiltonian(Hamiltonian):
         ps = pvars.particles
         H = S(0) 
         for i in range(1, pvars.N):
-            pqpairs.append(symbols("X{0}, Y{0}".format(i))) 
+            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
-            pqpairs.append(symbols("U{0}, V{0}".format(i))) 
+            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
             H = self.add_Hkep_term(H, i)
@@ -360,12 +360,12 @@ class PoincareHamiltonian(Hamiltonian):
         vpp = 6 # vars per particle
         y = np.zeros(vpp*(state.N-1)) # remove padded 0th element in ps for y
         for i in range(1, state.N):
-            y[vpp*(i-1)] = ps[i].X
-            y[vpp*(i-1)+1] = ps[i].Y
+            y[vpp*(i-1)] = ps[i].kappa
+            y[vpp*(i-1)+1] = ps[i].eta
             y[vpp*(i-1)+2] = ps[i].Lambda
             y[vpp*(i-1)+3] = ps[i].l 
-            y[vpp*(i-1)+4] = ps[i].U
-            y[vpp*(i-1)+5] = ps[i].V
+            y[vpp*(i-1)+4] = ps[i].sigma
+            y[vpp*(i-1)+5] = ps[i].rho
         return y
     def set_secular_mode(self):
         # 
@@ -380,12 +380,12 @@ class PoincareHamiltonian(Hamiltonian):
         ps = state.particles
         vpp = 4 # vars per particle
         for i in range(1, state.N):
-            ps[i].sX = y[vpp*(i-1)]/np.sqrt(ps[i].m)
-            ps[i].sY = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
+            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].m)
+            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
             ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].m
             ps[i].l = y[vpp*(i-1)+3]
-            ps[i].sU = y[vpp*(i-1)+4] / np.sqrt(ps[i].m) 
-            ps[i].sV = y[vpp*(i-1)+5] / np.sqrt(ps[i].m) 
+            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].m) 
+            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].m) 
             
     
     def add_Hkep_term(self, H, index):
@@ -396,13 +396,20 @@ class PoincareHamiltonian(Hamiltonian):
         #m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
-    def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2):
+    def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
+        """
+        Add individual monomial term to Hamiltonian. The term 
+        is specified by 'kvec', which specifies the cosine argument
+        and 'zvec', which specfies the order of inclination and
+        eccentricities in the Taylor expansion of the 
+        cosine coefficient. 
+        """
         if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
             warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
             return
         G = symbols('G')
-        mIn,MIn,LambdaIn,lambdaIn,XIn,YIn,UIn,VIn = symbols('m{0},M{0},Lambda{0},lambda{0},X{0},Y{0},U{0},V{0}'.format(indexIn)) 
-        mOut,MOut,LambdaOut,lambdaOut,XOut,YOut,UOut,VOut = symbols('m{0},M{0},Lambda{0},lambda{0},X{0},Y{0},U{0},V{0}'.format(indexOut)) 
+        mIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
+        mOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
         alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
 	
@@ -416,18 +423,18 @@ class PoincareHamiltonian(Hamiltonian):
         self.Hparams[Cbar] = Cbar_val
         rtLIn = sqrt(LambdaIn)
         rtLOut = sqrt(LambdaOut)
-        xin,yin = get_re_im_components(XIn/rtLIn ,-YIn / rtLIn,k3)
-        xout,yout = get_re_im_components( XOut/rtLOut, -YOut/rtLOut,k4)
-        uin,vin = get_re_im_components(UIn/rtLIn/2, -VIn/rtLIn/2,k5)
-        uout,vout = get_re_im_components(UOut/rtLOut/2, -VOut/rtLOut/2,k6)
+        xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
+        xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
+        uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
+        uout,vout = get_re_im_components(sigmaOut/rtLOut/2, -rhoOut/rtLOut/2,k6)
 
         re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
         im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
         
-        GammaIn = (XIn*XIn + YIn*YIn)/2
-        GammaOut = (XOut*XOut + YOut*YOut)/2
-        QIn = (UIn*UIn + VIn*VIn)/2
-        QOut = (UOut*UOut + VOut*VOut)/2
+        GammaIn = (kappaIn*kappaIn + etaIn*etaIn)/2
+        GammaOut = (kappaOut*kappaOut + etaOut*etaOut)/2
+        QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
+        QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
         
         eIn_sq_term = (2 * GammaIn / LambdaIn )**z3
         eOut_sq_term = (2 * GammaOut / LambdaOut )**z4
@@ -443,9 +450,139 @@ class PoincareHamiltonian(Hamiltonian):
         self.resonance_indices.append((indexIn,indexOut,(kvec,zvec)))
         
         self.H += prefactor1 * Cbar * prefactor2 * trig_term
-        self._update()
+        if update:
+            self._update()
         
- 
+    def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2):
+        """
+        Add all disturbing function terms associated with a p:p-q mean
+        motion resonance along with secular terms up to a given order.
+
+        Arguments
+        ---------
+        p : int
+            Coefficient of lambdaOut in resonant argument
+                j*lambdaOut - (j-k)*lambdaIn
+        q : int
+            Order of the mean motion resonance.
+
+        """
+        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+        if p<q or q<0:
+            warnings.warn("""
+            MMRs with j<k or k<0 are not supported. 
+            If you really want to include these terms, 
+            they may be added individually with the 
+            'add_monomial_term' method.
+            """)
+        if max_order < q:
+            warnings.warn("""Maxmium order is lower than order of the resonance!""")
+        if abs(p) % q == 0 and q != 1:
+            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
+        max_order_by_2 = max_order // 2
+        for h in range(0,max_order_by_2+1):
+            if h==0:
+                k_lo = 0
+            else:
+                k_lo = -2 * max_order_by_2
+            for k in range(k_lo,2 * max_order_by_2 + 1):
+                s_hi = max_order-abs(h+k)-abs(h-k)
+                if h==0 and k==0:
+                    s_lo = 0
+                else:
+                    s_lo = -s_hi
+                for s in range(s_lo,s_hi+1):
+                    s1_hi = max_order - abs(h+k) - abs(h-k) - abs(s)
+                    if h==0 and k==0 and s==0:
+                        s1_lo = 0
+                    else:
+                        s1_lo = -s1_hi
+                    for s1 in range(s1_lo,s1_hi+1):
+                        k3 = -s
+                        k5 = -h-k
+                        k6 = k-h
+                        k4 = -s1
+                        tot = k3+k4+k5+k6
+                        if -p * tot % q is 0:
+                            k1 = -p * tot // (q)
+                            k2 = (p-q) * tot // (q)
+                            kvec = np.array([k1,k2,k3,k4,k5,k6],dtype=int)
+                            if k1 < 0:
+                                kvec *= -1
+                            self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,update=False)
+        # Finish with update
+        self._update()
+
+    def add_all_secular_terms(self,max_order,indexIn = 1, indexOut = 2):
+        """
+        Add all secular disturbing function terms up to a given order.
+
+        Arguments
+        ---------
+        max_order : int
+            Maximum order of terms to include
+        indexIn : int, optional
+            Integer index of inner planet
+        indexOut : int, optional
+            Integer index of outer planet
+        """
+        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+        max_order_by_2 = max_order//2
+        max_order_by_4 = max_order//4
+        for a in range(0,max_order_by_4+1):
+            b_hi = max_order_by_2 - 2 * a
+            if a==0:
+                b_lo = 0
+            else:
+                b_lo = -b_hi
+            for b in range(b_lo,b_hi+1):
+                c_hi = max_order_by_2 - abs(b) - 2 * a
+                if a == 0 and b ==0:
+                    c_lo = 0
+                else:
+                    c_lo = -c_hi
+                for c in range(c_lo,c_hi+1):
+                    k3 = a-b
+                    k4 = a+b
+                    k5 = -c-a
+                    k6 = c-a
+                    self.add_cos_term_to_max_order([0,0,k3,k4,k5,k6],max_order,indexIn,indexOut,update=False)
+
+        # finish with update
+        self._update()
+
+    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,update = True):
+        """
+        Add disturbing function term 
+           c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
+        approximating c up to order 'max_order' in eccentricity and inclination.
+
+        Arguments
+        ---------
+        jvec : array-like
+            Vector of integers specifying cosine argument.
+        max_order : int
+            Maximum order of terms in include in the expansion of c
+        indexIn : int, optional
+            Integer index of inner planet.
+        indexOut : anit, optional
+            Intgeger index of outer planet.
+        """
+        _,_,j3,j4,j5,j6 = jvec
+        order = max_order - abs(j3) - abs(j4) - abs(j5) - abs(j6)
+        orderBy2 = order // 2
+        N = orderBy2+1
+        for z1 in range(0,N):
+            for z2 in range(0,N - z1):
+                for z3 in range(0,N - z1 - z2):
+                    for z4 in range(0,N - z1 - z2 - z3):
+                        zvec  = [z1,z2,z3,z4]
+                        self.add_monomial_term(jvec,zvec,indexIn,indexOut,update=False)
+        if update:
+            self._update() 
+    ###
+    # Old methods
+    ###
     def add_secular_terms(self, order=2,fixed_Lambdas=True, indexIn=1, indexOut=2):
         G = symbols('G')
         mOut,MOut,LambdaOut,lambdaOut,GammaOut,gammaOut,XOut,YOut = symbols('m{0},M{0},Lambda{0},lambda{0},Gamma{0},gamma{0},X{0},Y{0}'.format(indexOut)) 
@@ -483,73 +620,6 @@ class PoincareHamiltonian(Hamiltonian):
             exprn = exprn.subs([(LambdaIn,LambdaIn0),(LambdaOut,LambdaOut0)])
         self.H += exprn
         self._update()
-
-    def add_all_MMR_terms(self,j,k,max_order,indexIn = 1, indexOut = 2):
-        """
-        Add all disturbing function terms associated with a j:j-k mean
-        motion resonance up to a given order.
-
-        Arguments
-        ---------
-        j : int
-            Coefficient of lambdaOut in resonant argument
-                j*lambdaOut - (j-k)*lambdaIn
-        k : int
-            Order of the mean motion resonance.
-
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        if j<k or k <0:
-            warnings.warn("""
-            MMRs with j<k or k<0 are not supported. 
-            If you really want to include these terms, 
-            they may be added individually with the 
-            'add_monomial_term' method.
-            """)
-        if max_order < k:
-            return
-        if abs(j) % k == 0 and k != 1:
-            warnings.warn("j and k share a common divisor. Some important terms may be omitted!")
-        nmax = max_order // k
-        for n in range(1,nmax+1):
-            j1 = n * j
-            j2 = n * (k-j)
-            N = j1 + j2 + 1
-            for j3 in range(0,N):
-                for j4 in range(0,N - j3):
-                    for j5 in range(0,N - j3 - j4):
-                        j6 = N - j3 - j4 - j5 - 1
-                        if (j5 + j6)%2==0:
-                            jvec = [j1,j2,-j3,-j4,-j5,-j6]
-                            self.add_cos_term_to_max_order(jvec,max_order,indexIn,indexOut)
-
-    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2):
-        """
-        Add disturbing function term 
-           c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
-        approximating c up to order 'max_order' in eccentricity and inclination.
-
-        Arguments
-        ---------
-        jvec : array-like
-            Vector of integers specifying cosine argument.
-        max_order : int
-            Maximum order of terms in include in the expansion of c
-        indexIn : int, optional
-            Integer index of inner planet.
-        indexOut : anit, optional
-            Intgeger index of outer planet.
-        """
-        _,_,j3,j4,j5,j6 = jvec
-        order = max_order - abs(j3) - abs(j4) - abs(j5) - abs(j6)
-        orderBy2 = order // 2
-        N = orderBy2+1
-        for z1 in range(0,N):
-            for z2 in range(0,N - z1):
-                for z3 in range(0,N - z1 - z2):
-                    for z4 in range(0,N - z1 - z2 - z3):
-                        zvec  = [z1,z2,z3,z4]
-                        self.add_monomial_term(jvec,zvec)
 
     def add_all_resonance_subterms(self, j, k, indexIn=1, indexOut=2):
         """
