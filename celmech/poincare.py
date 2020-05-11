@@ -417,7 +417,7 @@ class PoincareHamiltonian(Hamiltonian):
         #
         k1,k2,k3,k4,k5,k6 = kvec
         z1,z2,z3,z4 = zvec
-        Cbar = symbols( "C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9}".format(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4) )
+        Cbar = "C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
         Cbar_dict = DFCoeff_Cbar(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
         Cbar_val = eval_DFCoeff_dict(Cbar_dict,alpha)
         self.Hparams[Cbar] = Cbar_val
