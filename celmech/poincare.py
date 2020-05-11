@@ -378,7 +378,7 @@ class PoincareHamiltonian(Hamiltonian):
 
     def update_state_from_list(self, state, y):
         ps = state.particles
-        vpp = 4 # vars per particle
+        vpp = 6 # vars per particle
         for i in range(1, state.N):
             ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].m)
             ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
