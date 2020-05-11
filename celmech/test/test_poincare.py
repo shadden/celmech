@@ -28,7 +28,7 @@ class TestPoincare(unittest.TestCase):
         ps1 = ps1[1:]
         ps2 = ps2[1:] # ignore the dummy particle for primary at index 0
         for p1, p2 in zip(ps1, ps2):
-            for attr in ['sX', 'sY','sU','sV', 'm', 'M', 'sLambda', 'l']:
+            for attr in ['skappa', 'seta','ssigma','srho', 'm', 'M', 'sLambda', 'l']:
                 self.assertAlmostEqual(getattr(p1, attr), getattr(p2, attr), delta=delta)
 
     def compare_simulations(self, sim1, sim2, delta=1.e-15):
