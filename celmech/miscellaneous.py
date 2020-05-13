@@ -1,5 +1,7 @@
 import numpy as np
 from scipy.special import k0,k1,p_roots
+import warnings
+
 
 def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
@@ -44,8 +46,7 @@ def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
         if err<tol or err< rtol*abs(val):
             break
     else:
-        warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err),
-            AccuracyWarning)
+        warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
 def _sk_integral_fixed_quad(k,y,Nquad):
 
@@ -104,8 +105,7 @@ def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
         if err<tol or err< rtol*abs(val):
             break
     else:
-        warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err),
-            AccuracyWarning)
+        warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
 def _Dsk_integral_fixed_quad(k,y,Nquad):
 
