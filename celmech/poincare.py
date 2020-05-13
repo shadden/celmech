@@ -376,6 +376,16 @@ class PoincareHamiltonian(Hamiltonian):
             self.Hparams[Lambda0] = state.particles[i].Lambda
         self._update()
 
+    def set_planar_mode(self):
+        state = self.state
+        ps = state.particles
+        for i in xrange(1,state.N):
+            rho,sigma = symbols("rho{0} sigma{0}".format(i))
+            self.H = self.H.subs({rho:0,sigma:0})
+            ps[i].srho = 0
+            ps[i].ssigma = 0
+        self._update()   
+
     def update_state_from_list(self, state, y):
         ps = state.particles
         vpp = 6 # vars per particle
