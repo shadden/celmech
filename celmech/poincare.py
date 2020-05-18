@@ -3,7 +3,7 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from celmech.hamiltonian import Hamiltonian
 
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
-from celmech.disturbing_function import DFCoeff_Cbar,eval_DFCoeff_dict
+from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from celmech.resonances import resonance_jk_list
 from itertools import combinations
@@ -427,12 +427,12 @@ class PoincareHamiltonian(Hamiltonian):
         #
         k1,k2,k3,k4,k5,k6 = kvec
         z1,z2,z3,z4 = zvec
-        Cbar = symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(
+        C = symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(
             k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
         )
-        Cbar_dict = DFCoeff_Cbar(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
-        Cbar_val = eval_DFCoeff_dict(Cbar_dict,alpha)
-        self.Hparams[Cbar] = Cbar_val
+        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
+        C_val = eval_DFCoeff_dict(C_dict,alpha)
+        self.Hparams[C] = C_val
         rtLIn = sqrt(LambdaIn)
         rtLOut = sqrt(LambdaOut)
         xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
@@ -461,7 +461,7 @@ class PoincareHamiltonian(Hamiltonian):
         # Keep track of resonances
         self.resonance_indices.append((indexIn,indexOut,(kvec,zvec)))
         
-        self.H += prefactor1 * Cbar * prefactor2 * trig_term
+        self.H += prefactor1 * C * prefactor2 * trig_term
         if update:
             self._update()
         
