@@ -100,12 +100,65 @@ def general_order_coefficient(res_j, order, epower, a):
     clibcelmech.GeneralOrderCoefficient.restype = c_double
     return clibcelmech.GeneralOrderCoefficient(c_int(res_j), c_int(order), c_int(epower), c_double(a))
 
+def eccentricity_type_resonance_coefficient(j,k,l,alpha):
+    r"""
+    Get the coefficient of the distrubing function term:
+        e_1^{l}e_2^{k-l}\cos[j \lambda_2 - (j-k) \lambda_1 - l\varpi_1 - (k-l)\varpi_2]
+    that appears as the leading-order term of a kth order eccentricity resonance.
+
+    Arguments
+    ---------
+    j : int
+        Specifies the resonance term
+    k : int
+        Order of the resonance
+    l : int
+        Specify the e_1^{l}e_2^{k-l} sub-resonance
+    alpha : float
+        Semi-major axis ratio a_1/a_2
+
+    Returns
+    -------
+    val : float
+        Coefficient's numerical value
+    """
+    if l >  k:
+        raise ValueError("Integer arguemnt l={} cannot be greater than the resonance order k={}".format(l,k))
+    j1 = j
+    j2 = k - j
+    j3 = -l
+    j4 = l-k
+    j5 = 0
+    j6 = 0
+    z1=z2=z3=z4=0
+    coeff = DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+    ncoeff = eval_DFCoeff_dict(coeff,alpha)
+    return ncoeff
+
 # Vector of resonance coefficients
 def get_res_coeff_vector(j,k,include_indirect_terms = True):
-    """Returns a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance""" 
+    r"""
+    Get a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance.
+
+    Arguments
+    ---------
+    j : int
+        Specify the j:j-k resonance
+    k : int
+        Order of the resonance
+    include_indirect_terms :  boole, optional
+        Whether the contribution of indirect terms should be
+        accounted for when computing the coefficients. Default
+        is True.
+
+    Returns
+    -------
+    vals : ndarray
+        Array of coefficient values from l=0 to l=k
+    """ 
     res_pratio = float(j - k) /float(j)
     alpha = res_pratio**(2./3.)
-    Cjkl = general_order_coefficient
+    Cjkl = eccentricity_type_resonance_coefficient
     vals = np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
     if j==k + 1 and include_indirect_terms:
         correction = Nto1_indirect_term_correction(j)
@@ -423,11 +476,9 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
         
     return (1 + delta) * inc_total * ecc_total
 
-def Xi(N,n,k,m):
-    return (-1)**(N-n) * binom(n, N-n-m) * binom(abs(k)/2,m)
+    
 
-
-def DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
+def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
     r"""
     Get the coefficient of the disturbing function term:
     
@@ -513,7 +564,7 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
                         total[(i+u,(i+1/2,abs(j1+j4-h+p),u))]+=cf
     return dict(total)
 
-def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
+def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
     r"""
     Get the coefficient of the disturbing function term:
 
@@ -555,17 +606,23 @@ def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
     terms_total = defaultdict(float)
-    for n1 in range(N1+1):
-        for m1 in range(N1-n1+1):
-            for n2 in range(N2+1):
-                for m2 in range(N2-n2+1):
-                    for n3 in range(N3+1):
-                        for m3 in range(N3-n3+1):
-                            for n4 in range(N4+1):
-                                for m4 in range(N4-n4+1):
-                                    term_dict = DFCoeff_C(j1,j2,j3,j4,j5,j6,n1,n2,n3,n4)
-                                    prefactor = Xi(N1,n1,j5,m1) * Xi(N2,n2,j6,m2) * Xi(N3,n3,j3,m3) * Xi(N4,n4,j4,m4)
-                                    if prefactor != 0.:
-                                        for key,val in term_dict.items():
-                                            terms_total[key] += prefactor * val
+    for n3 in range(N3+1):
+        for n4 in range(N4+1):
+            term_dict = DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,N1,N2,n3,n4)
+            prefactor = Xi(N3-n3,n3+abs(j3)/2,N1+abs(j5)/2) * Xi(N4-n4,n4+abs(j4)/2,N2+abs(j6)/2)
+            if prefactor != 0.:
+                for key,val in term_dict.items():
+                    terms_total[key] += prefactor * val
     return dict(terms_total)
+
+def Xi(N,p,q):
+    tot = 0
+    for l in range(0,N+1):
+        tot += binom(p,l) * negative_binom(-q,N-l) * (1/2)**l
+    tot *= (-1/2)**N
+    return tot
+def negative_binom(minus_q,l):
+    # scipy.special.binom returns a NaN when called at a
+    # negative integer so I use this alternate formulation
+    # when the argument is potenially a negative integer
+    return (-1)**l * poch(-1 * minus_q,l) / factorial(l)
