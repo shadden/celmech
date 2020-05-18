@@ -59,7 +59,7 @@ def _sk_integral_fixed_quad(k,y,Nquad):
     arg1 = 2 * k * (1 + y * np.cos(nodes)) / 3
     arg2 = k * nodes + 4 * k * y * np.sin(nodes) / 3
     integrand = k0(arg1) * np.cos(arg2)
-    return integrand @ weights
+    return  (2/np.pi) * integrand @ weights
 
 def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
@@ -118,4 +118,27 @@ def _Dsk_integral_fixed_quad(k,y,Nquad):
     arg1 = 2 * k * (1 + y * np.cos(nodes)) / 3
     arg2 = k * nodes + 4 * k * y * np.sin(nodes) / 3
     integrand = -2 * k * k1(arg1) * np.cos(nodes) * np.cos(arg2) / 3 - 4 * k * k0(arg1) * np.sin(nodes) * np.sin(arg2) / 3
-    return integrand @ weights
+    return (2/np.pi) * integrand @ weights
+
+def getOmegaMatrix(n):
+    """
+    Get the 2n x 2n skew-symmetric block matrix:
+          [0 , I_n]
+          [-I_n, 0 ]
+    that appears in Hamilton's equations.
+
+    Arguments
+    ---------
+    n : int
+        Determines matrix dimension
+
+    Returns
+    -------
+    numpy.array
+    """
+    return np.vstack(
+        (
+         np.concatenate([np.zeros((n,n)),np.eye(n)]).T,
+         np.concatenate([-np.eye(n),np.zeros((n,n))]).T
+        )
+    )
