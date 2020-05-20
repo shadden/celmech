@@ -75,7 +75,7 @@ class PoincareParticle(object):
             try:
                 sQ = Q/m
             except:
-                raise AttributeError("Need to pass specific actions (sLambda and sGamma) or a and e for test particles")
+                raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif inc:
             sQ = (self.sLambda - self.sGamma) * (1 - np.cos(inc))
 
@@ -524,6 +524,43 @@ class PoincareHamiltonian(Hamiltonian):
                             self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,update=False)
         # Finish with update
         self._update()
+
+    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2):
+        """
+        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
+        motion resonance up to a given order.
+
+        Arguments
+        ---------
+        p : int
+            Coefficient of lambdaOut in resonant argument
+                j*lambdaOut - (j-k)*lambdaIn
+        q : int
+            Order of the mean motion resonance.
+        """
+        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+        if p<q or q<0:
+            warnings.warn("""
+            MMRs with j<k or k<0 are not supported. 
+            If you really want to include these terms, 
+            they may be added individually with the 
+            'add_monomial_term' method.
+            """)
+        if max_order < q:
+            warnings.warn("""Maxmium order is lower than order of the resonance!""")
+        if abs(p) % q == 0 and q != 1:
+            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
+        for n in range(1,int(max_order//q) + 1):
+            k1 = n * p
+            k2 = n * (q-p)
+            for l in range(0, n * q + 1):
+                k3 = l
+                k4 = n*q-l
+                kvec = [k1,k2,k3,k4,0,0]
+                self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,update=False)
+        # Finish with update
+        self._update()
+
 
     def add_all_secular_terms(self,max_order,indexIn = 1, indexOut = 2):
         """
