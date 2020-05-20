@@ -225,7 +225,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         sigma1 = T.arctan2(y1,x1)
         sigma2 = T.arctan2(y2,x2)
         orbels = [a1,e1,k*sigma1,a2,e2,k*sigma2]
-        dis_timescales = [1/tau_a1_0_inv,1/tau_a2_0_inv,tau_a1,tau_a2,tau_e1,tau_e2,1/tau_Gamma1_inv,1/tau_Gamma2_inv]
+        dis_timescales = [1/tau_a1_0_inv,1/tau_a2_0_inv,tau_e1,tau_e2]
 
         orbels_dict = dict(zip(
                 ['a1','e1','theta1','a2','e2','theta2'],
@@ -242,7 +242,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         )
         
         timescales_dict = dict(zip(
-            ['tau_m1','tau_m2','tau_a1','tau_a2','tau_e1','tau_e2','tau_Gamma1','tau_Gamma2'],
+            ['tau_m1','tau_m2','tau_e1','tau_e2'],
             dis_timescales
             )
         )
@@ -272,8 +272,12 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         }
         compiled_func_dict=dict()
         for key,val in func_dict.items():
+            if key is 'timescales':
+                inputs = extra_ins
+            else:
+                inputs = ins 
             cf = theano.function(
-                inputs=ins,
+                inputs=inputs,
                 outputs=val,
                 givens=givens,
                 on_unused_input='ignore'
@@ -282,7 +286,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         return compiled_func_dict
         
 
-class ResonanceEquations():
+class PlanarResonanceEquations():
     """
     A class for the model describing the dynamics of a pair of planar planets
     in/near a mean motion resonance.
@@ -343,7 +347,9 @@ class ResonanceEquations():
     def alpha(self):
         alpha0 = ((self.j-self.k)/self.j)**(2/3)
         return alpha0 * ((1 + self.m1) / (1+self.m2))**(1/3)
-
+    @property
+    def timescales(self):
+        return self._funcs['timescales'](*self.extra_args)
     def H(self,z):
         """
         Calculate the value of the Hamiltonian.
@@ -686,8 +692,8 @@ class ResonanceEquations():
             rebx.add_operator(mod)
             mod.params["p"] = self.p
             timescales = self.timescales
-            ps[1].params["tau_a"]=-1*timescales['tau_a1'] 
-            ps[2].params["tau_a"]=-1*timescales['tau_a2'] 
+            ps[1].params["tau_a"]=-1*timescales['tau_m1'] 
+            ps[2].params["tau_a"]=-1*timescales['tau_m2'] 
             ps[1].params["tau_e"]=-1*timescales['tau_e1'] 
             ps[2].params["tau_e"]=-1*timescales['tau_e2'] 
             return sim,rebx

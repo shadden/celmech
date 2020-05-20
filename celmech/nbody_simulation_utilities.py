@@ -44,6 +44,14 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
     raise TypeError("{} is not a rebound or reboundx simulation archive!".format(sa))
 
 def _get_rebound_simarchive_integration_results(sa,coordinates):
+    if coordinates is 'jacobi':
+        get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
+    elif coordinates is 'heliocentric':
+        get_orbits = get_canonical_heliocentric_orbits
+    elif coordinates is 'barycentric':
+        get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
+    else: 
+        raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
     N = len(sa)
     sim0 = sa[0]
     Npl= sim0.N_real - 1
@@ -62,14 +70,7 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
     }
     for i,sim in enumerate(sa):
         sim_results['time'][i] = sim.t
-        if coordinates is 'jacobi':
-            orbits= sim.calculate_orbits(jacobi_masses=True)
-        elif coordinates is 'heliocentric':
-            orbits = get_canonical_heliocentric_orbits(sim)
-        elif coordinates is 'barycentric':
-            orbits = sim.calculate_orbits(sim.calculate_com())
-        else: 
-            raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
+        orbits = get_orbits(sim)
         sim_results['Energy'][i] = sim.calculate_energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P
@@ -82,7 +83,15 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
             sim_results['inc'][j,i] = orbit.inc
     return sim_results
 
-def _get_reboundx_simarchive_integration_results(sa):
+def _get_reboundx_simarchive_integration_results(sa,coordinates):
+    if coordinates is 'jacobi':
+        get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
+    elif coordinates is 'heliocentric':
+        get_orbits = get_canonical_heliocentric_orbits
+    elif coordinates is 'barycentric':
+        get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
+    else: 
+       raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
     N = len(sa)
     sim0,_ = sa[0]
     Npl= sim0.N_real - 1
@@ -102,14 +111,7 @@ def _get_reboundx_simarchive_integration_results(sa):
     for i,sim_extra in enumerate(sa):
         sim,extra = sim_extra
         sim_results['time'][i] = sim.t
-        if coordinates is 'jacobi':
-            orbits= sim.calculate_orbits(jacobi_masses=True)
-        elif coordinates is 'heliocentric':
-            orbits = get_canonical_heliocentric_orbits(sim)
-        elif coordinates is 'barycentric':
-            orbits = sim.calculate_orbits(sim.calculate_com())
-        else: 
-            raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
+        orbits = get_orbits(sim)
         sim_results['Energy'][i] = sim.calculate_energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P

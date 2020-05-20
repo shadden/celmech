@@ -37,6 +37,6 @@ except:
 
 from .andoyer import Andoyer, AndoyerHamiltonian
 from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
-from .MeanMotionResonance.PlanarMMR import ResonanceEquations
+from .MeanMotionResonance.PlanarMMR import PlanarResonanceEquations
 
-__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","ResonanceEquations"]
+__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","PlanarResonanceEquations"]
