@@ -195,7 +195,7 @@ class Poincare(object):
 
         sum1 *= prefac
         sum2 *= prefac
-        print(sum1*m2/ps[i1].sLambda, sum2*m1/ps[i2].sLambda)
+        #print(sum1*m2/ps[i1].sLambda, sum2*m1/ps[i2].sLambda)
         if inverse is True:
             sum1 *= -1
             sum2 *= -1
