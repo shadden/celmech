@@ -15,19 +15,20 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-
+from datetime import datetime
 
 # -- Project information -----------------------------------------------------
-
 project = 'celmech'
-copyright = '2020, Sam Hadden, Daniel Tamayo, David Hernandez'
-author = 'Sam Hadden, Daniel Tamayo, David Hernandez'
+year = datetime.now().year
+author = 'Sam Hadden, Dan Tamayo, David Hernandez'
+copyright = u"{0} {1}".format(year, author)
 
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
+#)sys.path.append('../')
 
 # -- General configuration ---------------------------------------------------
 
@@ -88,7 +89,11 @@ html_theme = 'alabaster'
 # further.  For a list of options available for each theme, see the
 # documentation.
 #
-# html_theme_options = {}
+html_theme_options = {
+    "description": "Sandbox for celestical mechanics",
+    "github_user": "shadden",
+    "github_repo": "celmech",
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -103,8 +108,9 @@ html_static_path = ['_static']
 # default: ``['localtoc.html', 'relations.html', 'sourcelink.html',
 # 'searchbox.html']``.
 #
-# html_sidebars = {}
-
+html_sidebars = {
+                '**': ['about.html', 'navigation.html', 'relations.html', 'searchbox.html']
+                }
 
 # -- Options for HTMLHelp output ---------------------------------------------
 

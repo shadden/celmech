@@ -7,14 +7,8 @@ Welcome to celmech's documentation!
 ===================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :numbered:
+    :hidden:
 
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+    disturbing_function
+    miscellaneous 
