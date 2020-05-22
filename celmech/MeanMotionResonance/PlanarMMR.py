@@ -6,71 +6,11 @@ import theano.tensor as T
 from exoplanet.theano_ops.kepler import KeplerOp
 from warnings import warn
 from scipy.optimize import lsq_linear
-from celmech.miscellaneous import getOmegaMatrix
 from scipy.integrate import odeint
-from celmech.nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle
 
-def planar_els2xv(a,lmbda,h,k,GMstar):
-    ko = KeplerOp()
-    e_sq = h*h+k*k
-    e = T.sqrt(e_sq)
-    sin_f,cos_f =  ko( lmbda - T.arctan2(h,k), e + T.zeros_like(lmbda))
-    cos_theta = cos_f * (k/e) - sin_f * (h/e)
-    sin_theta = sin_f * (k/e) + cos_f * (h/e)
-    n = T.sqrt(GMstar) * a**(-3/2)
-    ecosf = k * cos_theta + h * sin_theta
-    r = a * (1-e_sq) /(1 + ecosf)
-    x = r * cos_theta
-    y = r * sin_theta
-    vel = n * a / T.sqrt(1-e_sq)
-    u = -1 * vel * (h + sin_theta)
-    v = vel * (k + cos_theta)
-    return x,y,u,v
-
-def calc_Hint_components(a1,a2,l1,l2,h1,k1,h2,k2,GMstar1,GMstar2):
-    r"""
-    Compute the value of the disturbing function components
-    .. math::
-        H_{dir} = -\frac{1}{|r-r'|}
-        H_{ind} = v.v'  
-    from a set of input orbital elements for coplanar planets.
-
-    Arguments
-    ---------
-    a1 : float
-        inner planet semi-major axis
-    a2 : float
-        outer planet semi-major axis
-    l1 : float
-        inner planet mean longitude
-    l2 : float
-        outer planet mean longitude
-    h1 :
-        e1 * sin(pomega1)
-    k1 : 
-        e1 * cos(pomega1)
-    h2 :
-        e2 * sin(pomega2)
-    k2 : 
-        e2 * cos(pomega2)
-
-    Returns
-    -------
-    float :
-        Disturbing function value
-    """
-    x1,y1,u1,v1 = planar_els2xv(a1,l1,h1,k1,GMstar1)
-    x2,y2,u2,v2 = planar_els2xv(a2,l2,h2,k2,GMstar2)
-
-    # direct term
-    dx = (x2 - x1)
-    dy = (y2 - y1)
-    dr2 = dx*dx + dy*dy
-    direct = -1 / T.sqrt(dr2)
-
-    # indirect term
-    indirect = u1*u2 + v1*v2
-    return direct,indirect
+from .utils import planar_els2xv,calc_Hint_components_planar
+from ..nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle
+from ..miscellaneous import getOmegaMatrix
 
 def get_compiled_theano_functions(N_QUAD_PTS):
         # Planet masses: m1,m2
@@ -86,18 +26,20 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         s = (j-k) / k
         
         # Angle variable for averaging over
-        Q = T.dvector('Q')
+        psi = T.dvector()
 
         # Dynamical variables:
+        Ndof = 2
+        Nconst = 1
         dyvars = T.vector()
-        y1, y2, x1, x2, amd = [dyvars[i] for i in range(5)]
+        y1, y2, x1, x2, amd = [dyvars[i] for i in range(2*Ndof + Nconst)]
 
         # Quadrature weights
         quad_weights = T.dvector('w')
         
         # Set lambda2=0
         l2 = T.constant(0.)
-        l1 = -1 * k * Q 
+        l1 = -1 * k * psi 
         theta_res = (1+s) * l2 - s * l1
         cos_theta_res = T.cos(theta_res)
         sin_theta_res = T.sin(theta_res)
@@ -111,10 +53,17 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         Gamma2 = (x2 * x2 + y2 * y2) / 2
         
         # Resonant semi-major axis ratio
-        alpha_res = ((j-k)/j)**(2/3) * ((mstar + m1) / (mstar+m2))**(1/3)
-        P0 =  k * ( beta2 - beta1 * T.sqrt(alpha_res) ) / 2
-        P = P0 - k * (s+1/2) * amd
-        Ltot = beta1 * T.sqrt(alpha_res) + beta2 - amd
+        alpha_res = ((j-k)/j)**(2/3) * (Mstar1 / Mstar2)**(1/3)
+        #P0 =  k * ( beta2 - beta1 * T.sqrt(alpha_res) ) / 2
+        #P = P0 - k * (s+1/2) * amd
+        #Ltot = beta1 * T.sqrt(alpha_res) + beta2 - amd
+        a20 = 1
+        a10 = alpha_res * a20
+        Ltot = beta1 * T.sqrt(a10) + beta2 * np.sqrt(a20)
+        L1byL2res = beta1 * T.sqrt(a10) / beta2 * np.sqrt(a20)
+        L2res = (amd + Ltot) / (1 + L1byL2res)
+        P = 0.5 * L2res * (1 - L1byL2res) - (s+1/2) * amd 
+
         L1 = Ltot/2 - P / k - s * (Gamma1 + Gamma2)
         L2 = Ltot/2 + P / k + (1 + s) * (Gamma1 + Gamma2)
 
@@ -143,7 +92,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         beta2p = T.sqrt(Mstar2) * beta2
         Hkep = -0.5 * beta1p / a1 - 0.5 * beta2p / a2
         
-        Hdir,Hind = calc_Hint_components(
+        Hdir,Hind = calc_Hint_components_planar(
                 a1,a2,l1,l2,h1,k1,h2,k2,Mstar1/mstar,Mstar2/mstar
         )
         eps = m1*m2/ (mu1 + mu2) / T.sqrt(mstar)
@@ -189,7 +138,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         weights = weights * 0.5
         
         # 'givens' will fix some parameters of Theano functions compiled below
-        givens = [(Q,nodes),(quad_weights,weights)]
+        givens = [(psi,nodes),(quad_weights,weights)]
 
         # 'ins' will set the inputs of Theano functions compiled below
         #   Note: 'extra_ins' will be passed as values of object attributes
@@ -208,7 +157,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         hessHpert = theano.gradient.hessian(Hpert_av,wrt=dyvars)
         hessHkep = theano.gradient.hessian(Hkep,wrt=dyvars)
 
-        Jtens = T.as_tensor(np.pad(getOmegaMatrix(2),(0,1),'constant'))
+        Jtens = T.as_tensor(np.pad(getOmegaMatrix(Ndof),(0,Nconst),'constant'))
         H_flow_vec = Jtens.dot(gradHtot)
         Hpert_flow_vec = Jtens.dot(gradHpert)
         Hkep_flow_vec = Jtens.dot(gradHkep)
@@ -501,7 +450,7 @@ class PlanarResonanceEquations():
         m2 = self.m2
         k = self.k
         j = self.j
-        alpha_res = ((j-k)/j)**(2/3) * ((Mstar + m1) / (Mstar+m2))**(1/3)
+        alpha_res = self.alpha
     
         s = (j - k) / k
         
@@ -515,28 +464,28 @@ class PlanarResonanceEquations():
         I1 = Gamma1
         I2 = Gamma2
         
-        P = k * (L2-L1) / 2 - k * (s+1/2)*(I1+I2)
         Ltot = L1 + L2 - I1 - I2
-        
-        Lcirc = self.beta1 * np.sqrt(alpha_res) + self.beta2 
-        P0 = k * (self.beta2 - self.beta1 * np.sqrt(alpha_res)) / 2
-        # Now solve for re-scaling factor 'scale' and AMD value that satisfy
-        #  scale * P = P0 - k*(s+1/2)*amd  
-        #  scale * Ltot = Lcirc - amd
-        # Solution is given by:
-        #  scale = (2 k Lcirc s-k Lcirc+2 P0)/(k Ltot-2 P+2 k Ltot s)
-        # (2 (Lcirc P-Ltot P0))/(k Ltot-2 P+2 k Ltot s)
-    
-        scale = (k * (1 + 2 * s) * Lcirc - 2 * P0) / (k * (1 + 2 * s) * Ltot - 2 * P)
-        amd = Lcirc - scale * Ltot
-        I1 *= scale
-        I2 *= scale
+        Psi = -k * ( s * L2 + (1+s) * L1) 
+        rt_a20 = Ltot / (self.beta2 + self.beta1 * np.sqrt(alpha_res)) 
+
+        I1 /= rt_a20
+        I2 /= rt_a20
+        Psi  /= rt_a20
+        Ltot /= rt_a20
+        L1byL2res = self.beta1 * np.sqrt(alpha_res) / self.beta2 
+        denom = L1byL2res + s * (1 + L1byL2res)
+        amd = (-Psi/k)  * (1+L1byL2res) / denom - Ltot 
         sigma1 = theta1 / k
         sigma2 = theta2 / k
         x1 = np.sqrt(2 * I1) * np.cos(sigma1)
-        x2 = np.sqrt(2 * I2) * np.cos(sigma2)
         y1 = np.sqrt(2 * I1) * np.sin(sigma1)
+        x2 = np.sqrt(2 * I2) * np.cos(sigma2) 
         y2 = np.sqrt(2 * I2) * np.sin(sigma2)
+
+        #dscale = 1 / action_scale**2
+        #tscale = dscale**(1.5)
+        #scales = {'action':action_scale,'distance':dscale, 'time':tscale}
+
         return np.array((y1,y2,x1,x2,amd))
     
     from scipy.optimize import lsq_linear
@@ -743,6 +692,8 @@ class PlanarResonanceEquations():
             warnings.warn("Osculating corrections are currently not implemented.")
         return self.orbital_elements_to_dyvars(els)
 
+    def dyvars_to_Poincare_actions(self,dyvars):
+        return self._funcs['actions'](dyvars,*self.extra_args)
     def integrate_initial_conditions(self,dyvars0,times,dissipation=False):
         """
         Integrate initial conditions and calculate dynamical
