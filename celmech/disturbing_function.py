@@ -615,6 +615,34 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
                     terms_total[key] += prefactor * val
     return dict(terms_total)
 
+def deriv_DFCoeff(coeff):
+    r"""
+    Derivative of a disturbing function coefficient with repsect to 
+    alpha.
+
+    Argument
+    --------
+    coeff : dict
+        The coefficient is given by the sum over laplace coefficients
+        contained in the dictionary entries:
+            .. math::
+            \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
+        where the dictionary entries are in the form { (p,(s,j,n)) : C }
+    
+    Returns
+    -------
+    dict 
+        A new dictionary in the same form as the input 'coeff' representing
+        the derivative of coeff with respect to alpha.
+    """
+    dcoeff = defaultdict(float)
+    for key,val in coeff.items():
+        p,sjn= key
+        s,j,n = sjn
+        dcoeff[(p-1,sjn)] += p * val
+        dcoeff[(p,(s,j,n+1))] += val
+    return dict(dcoeff)
+
 def Xi(N,p,q):
     tot = 0
     for l in range(0,N+1):
