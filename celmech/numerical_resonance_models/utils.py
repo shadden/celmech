@@ -1,5 +1,5 @@
 import theano.tensor as T
-from exoplanet.theano_ops.kepler import KeplerOp
+from celmech.theano_ops.kepler import KeplerOp
 def planar_els2xv(a,lmbda,h,k,GMstar):
     ko = KeplerOp()
     e_sq = h*h+k*k

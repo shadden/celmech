@@ -439,14 +439,14 @@ class SpatialResonanceEquations():
             warnings.warn("Osculating corrections are currently not implemented.")
         align_simulation(sim)
         star = sim.particles[0]
-        p1 = sim.particles[i1]
-        p2 = sim.particles[i2]
+        p1 = sim.particles[iIn]
+        p2 = sim.particles[iOut]
         
         self.m1 = p1.m/star.m
         self.m2 = p2.m/star.m
         orbits = get_canonical_heliocentric_orbits(sim)
-        o1 = orbits[i1-1]
-        o2 = orbits[i2-1]
+        o1 = orbits[iIn-1]
+        o2 = orbits[iOut-1]
         
         L1 = self.beta1 * np.sqrt(o1.a)
         L2 = self.beta2 * np.sqrt(o2.a)
