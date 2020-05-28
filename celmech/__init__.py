@@ -36,6 +36,6 @@ except:
     pass
 
 from .andoyer import Andoyer, AndoyerHamiltonian
-from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
+from .poincare import PoincareParticle, Poincare, PoincareHamiltonian,LaplaceLagrangeSystem
 
-__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian"]
+__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","LaplaceLagrangeSystem"]
