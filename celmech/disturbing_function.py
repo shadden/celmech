@@ -10,7 +10,10 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
-
+def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut):
+    return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(
+        k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
+    )
 
 def laplace_coefficient(s,j,n,a):
     """
@@ -654,3 +657,4 @@ def negative_binom(minus_q,l):
     # negative integer so I use this alternate formulation
     # when the argument is potenially a negative integer
     return (-1)**l * poch(-1 * minus_q,l) / factorial(l)
+
