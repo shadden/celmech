@@ -2,16 +2,12 @@ import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
-from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict
+from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from celmech.resonances import resonance_jk_list
 from itertools import combinations
 import rebound
 import warnings
-def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut):
-    return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(
-        k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
-    )
 def partitions_of_length_4(N):
     answer = set()
     for j1 in range(N+1):
@@ -556,10 +552,10 @@ class PoincareHamiltonian(Hamiltonian):
             k1 = n * p
             k2 = n * (q-p)
             for l in range(0, n * q + 1):
-                k3 = l
-                k4 = n*q-l
+                k3 = -l
+                k4 = l - n*q
                 kvec = [k1,k2,k3,k4,0,0]
-                self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,update=False)
+                self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,update=False)
         # Finish with update
         self._update()
 
