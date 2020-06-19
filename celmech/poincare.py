@@ -182,6 +182,7 @@ class PoincareParticle(object):
 class Poincare(object):
     def __init__(self, G, poincareparticles=[]):
         self.G = G
+        self.t = 0
         self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:

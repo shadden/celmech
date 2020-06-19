@@ -479,7 +479,7 @@ def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MO
     js = [j,1-j,0,-1,0,0]
     b[1] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0)
     # scale X --> x
-    scaleMtrx = np.array([[np.sqrt(2/Lambda0In),0],[0,np.sqrt(2/Lambda0Out)]])
+    scaleMtrx = np.diag([np.sqrt(2/Lambda0In),np.sqrt(2/Lambda0Out)])
     b = scaleMtrx @ b
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return  A, prefactor * b
@@ -502,7 +502,7 @@ def get_second_order_eccentricity_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0
     A[1,0] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0) / 2
     A[0,1] = A[1,0]
     # scale X --> x
-    scaleMtrx = np.array([[np.sqrt(2/Lambda0In),0],[0,np.sqrt(2/Lambda0Out)]])
+    scaleMtrx = np.diag([np.sqrt(2/Lambda0In),np.sqrt(2/Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
@@ -525,7 +525,45 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     A[1,0] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0) / 2
     A[0,1] = A[1,0]
     # scale X --> x
-    scaleMtrx = np.array([[np.sqrt(0.5 / Lambda0In),0],[0,np.sqrt(0.5 / Lambda0Out)]])
+    scaleMtrx = np.diag([np.sqrt(0.5 / Lambda0In),np.sqrt(0.5 / Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
+
+def get_first_order_resonance_third_order_terms_array(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+    """
+    (z @ Psi3[i] @ zbar ) @ zbar + c.c. 
+    """
+    aIn0 = (Lambda0In / mIn)**2 / MIn
+    aOut0 = (Lambda0Out / mOut)**2 / MOut
+    alpha0 = aIn0 / aOut0
+    Phi3 = np.zeros((2,2,2))
+
+    # Diagonal term
+    js1 = [j,1-j,-1,0,0,0]
+    js2 = [j,1-j,0,-1,0,0]
+    for i,zi in zip([0,1],[2,3]):
+        zs = [0,0,0,0]
+        zs[zi] = 1
+        Phi3[0,i,i] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
+        Phi3[1,i,i] = eval_DFCoeff_dict(DFCoeff_C(*js2,*zs),alpha0) 
+
+    zs = [0,0,0,0]
+    js1 = [j,1-j,-2,1,0,0]
+    Phi3[0,1,0] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
+    
+    zs = [0,0,0,0]
+    js1 = [j,1-j,1,-2,0,0]
+    Phi3[1,0,1] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
+
+
+    # scale X --> x
+    scaleMtrx = np.diag([np.sqrt(2/Lambda0In), np.sqrt(2/Lambda0Out)]) # , np.sqrt(0.5 / Lambda0In),np.sqrt(0.5 / Lambda0Out)])
+    for i in range(2):
+        Phi3[i] = scaleMtrx @ Phi3[i] @ scaleMtrx
+    Phi3[0] *= scaleMtrx[0,0]
+    Phi3[1] *= scaleMtrx[1,1]
+    prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+
+    # return prefactor , Phi3 , scaleMtrx
+    return prefactor * Phi3
