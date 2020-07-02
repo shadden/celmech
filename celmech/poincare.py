@@ -88,7 +88,32 @@ class PoincareParticle(object):
         self.G = G
         self.l = l
         
-   
+    @property
+    def x(self):
+        return (self.kappa - 1j * self.eta) / np.sqrt(2)
+    @property
+    def X(self):
+        return self.x * np.sqrt(2 / self.Lambda)
+    @property
+    def y(self):
+        return (self.sigma - 1j * self.rho) / np.sqrt(2)
+    @property
+    def Y(self):
+        return self.y * np.sqrt(0.5 / self.Lambda)
+
+    @property
+    def xbar(self):
+        return np.conj(self.x)
+    @property
+    def Xbar(self):
+        return np.conj(self.X)
+    @property
+    def ybar(self):
+        return np.conj(self.y)
+    @property
+    def Ybar(self):
+        return np.conj(self.Y)
+
     @property
     def kappa(self):
         return np.sqrt(self.m)*self.skappa
