@@ -6,6 +6,7 @@ from .disturbing_function import get_fg_coeffs, general_order_coefficient, secul
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
+from .miscellaneous import getOmegaMatrix
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
         self._dt = dt
@@ -530,40 +531,131 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
 
-def get_first_order_resonance_third_order_terms_array(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+from scipy.special import binom
+def complex_power(x,y,n):
     """
-    (z @ Psi3[i] @ zbar ) @ zbar + c.c. 
+    get the real and imaginary part
+    of (x+I*y)**n
     """
-    aIn0 = (Lambda0In / mIn)**2 / MIn
-    aOut0 = (Lambda0Out / mOut)**2 / MOut
-    alpha0 = aIn0 / aOut0
-    Phi3 = np.zeros((2,2,2))
+    if n==0:
+        return 1,0
+    re,im=0,0
+    n_by_2 = n // 2
+    for l in range(0,n_by_2+1):
+        sign = (-1) ** (l)
+        re += sign * binom(n,2 * l) * y**(2 * l) * x**(n-2 * l)
+        im += sign * binom(n,2 * l + 1) * y**(2 * l + 1) * x**(n-2 * l-1)
+    return re,im
 
-    # Diagonal term
-    js1 = [j,1-j,-1,0,0,0]
-    js2 = [j,1-j,0,-1,0,0]
-    for i,zi in zip([0,1],[2,3]):
-        zs = [0,0,0,0]
-        zs[zi] = 1
-        Phi3[0,i,i] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
-        Phi3[1,i,i] = eval_DFCoeff_dict(DFCoeff_C(*js2,*zs),alpha0) 
+import theano
+import theano.tensor as T
+from sympy import S
+def get_compiled_Hflow_functions(pvars,res_term_data_dictionary,a0):
+    z = T.vector()
+    lambdas = T.vector()
+    H = 0
+    Npl = pvars.N - 1
+    pars = dict()
+    for indices,terms in res_term_data_dictionary.items():
+        indexIn,indexOut = indices
+        assert indexIn < indexOut
 
-    zs = [0,0,0,0]
-    js1 = [j,1-j,-2,1,0,0]
-    Phi3[0,1,0] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
-    
-    zs = [0,0,0,0]
-    js1 = [j,1-j,1,-2,0,0]
-    Phi3[1,0,1] = eval_DFCoeff_dict(DFCoeff_C(*js1,*zs),alpha0) 
+        pIn = pvars.particles[indexIn]
+        pOut = pvars.particles[indexOut]
+        mIn = pIn.m
+        MIn = pIn.M
+        aIn = a0[indexIn-1]
+        mOut = pOut.m
+        MOut = pOut.M
+        aOut = a0[indexOut-1]
 
+        Lambda0In  = mIn * np.sqrt( MIn * aIn )
+        Lambda0Out = mOut * np.sqrt( MOut * aOut )
+        Lambda0In_inv  = 1 / Lambda0In 
+        Lambda0Out_inv = 1 / Lambda0Out
+        rtLambda0In_inv  = np.sqrt(Lambda0In_inv)
+        rtLambda0Out_inv = np.sqrt(Lambda0Out_inv)
+        
+        pars[S('Lambda{}0'.format(indexIn))] = Lambda0In
+        pars[S('Lambda{}0'.format(indexOut))] = Lambda0Out
+       
+        alpha = aIn / aOut
+        prefactor = -pvars.G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+        
+        etaIn = z[indexIn-1]
+        rhoIn = z[Npl + indexIn - 1]
+        kappaIn = z[2 * Npl + indexIn - 1]
+        sigmaIn = z[3 * Npl + indexIn - 1]
 
-    # scale X --> x
-    scaleMtrx = np.diag([np.sqrt(2/Lambda0In), np.sqrt(2/Lambda0Out)]) # , np.sqrt(0.5 / Lambda0In),np.sqrt(0.5 / Lambda0Out)])
-    for i in range(2):
-        Phi3[i] = scaleMtrx @ Phi3[i] @ scaleMtrx
-    Phi3[0] *= scaleMtrx[0,0]
-    Phi3[1] *= scaleMtrx[1,1]
-    prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+        etaOut = z[indexOut-1]
+        rhoOut = z[Npl + indexOut - 1]
+        kappaOut = z[2 * Npl + indexOut - 1]
+        sigmaOut = z[3 * Npl + indexOut - 1]
 
-    # return prefactor , Phi3 , scaleMtrx
-    return prefactor * Phi3
+        XIn_re = kappaIn * rtLambda0In_inv
+        XIn_im = -1 * etaIn * rtLambda0In_inv
+        YIn_re = 0.5 * sigmaIn * rtLambda0In_inv
+        YIn_im = -0.5 * rhoIn * rtLambda0In_inv
+        XOut_re = kappaOut * rtLambda0Out_inv
+        XOut_im = -1 * etaOut * rtLambda0Out_inv
+        YOut_re = 0.5 * sigmaOut * rtLambda0Out_inv
+        YOut_im = -0.5 * rhoOut * rtLambda0Out_inv
+
+        XsqIn = XIn_re*XIn_re + XIn_im*XIn_im
+        XsqOut = XOut_re*XOut_re + XOut_im*XOut_im
+        YsqIn = YIn_re*YIn_re + YIn_im*YIn_im
+        YsqOut = YOut_re*YOut_re + YOut_im*YOut_im
+        
+        lambdaIn  = lambdas[indexIn - 1]
+        lambdaOut  = lambdas[indexOut - 1]
+        for js,zs in terms:
+            C = DFCoeff_C(*js,*zs)
+            nC = eval_DFCoeff_dict(C,alpha)
+            Csym = get_DFCoeff_symbol(*js,*zs,indexIn,indexOut)
+            pars[Csym] = nC
+            theta = js[0] * lambdaOut + js[1] * lambdaIn
+            s,c  = T.sin(theta),T.cos(theta)
+            X1_n_re,X1_n_im = complex_power(XIn_re , XIn_im * np.sign(js[2]) , abs(js[2]) )
+            X2_n_re,X2_n_im = complex_power(XOut_re , XOut_im * np.sign(js[3]) , abs(js[3]) )
+            Y1_n_re,Y1_n_im = complex_power(YIn_re , YIn_im * np.sign(js[4]) , abs(js[4]) )
+            Y2_n_re,Y2_n_im = complex_power(YOut_re , YOut_im * np.sign(js[5]) , abs(js[5]) )
+            re = 1
+            im = 0
+            for x,y in zip([X1_n_re,X2_n_re,Y1_n_re,Y2_n_re] ,[X1_n_im,X2_n_im,Y1_n_im,Y2_n_im]):
+                re1 = re * x - im * y 
+                im1 = im * x + re * y 
+                re = re1
+                im = im1
+            term = nC * (YsqIn)**(zs[0]) * (YsqOut)**(zs[1]) * (XsqIn)**(zs[2]) * (XsqOut)**(zs[3]) * (re * c - im * s)
+            H += prefactor * term
+    gradH = T.grad(H,wrt = z)
+    hessH = theano.gradient.hessian(H,wrt = z)
+    Ndof = 2 * (pvars.N - 1)
+    Jtens = T.as_tensor(getOmegaMatrix(Ndof))
+    H_flow_vec = Jtens.dot(gradH)
+    H_flow_jac = Jtens.dot(hessH)
+    ##########################
+    # Compile Theano functions
+    ##########################
+    func_dict={
+     # Hamiltonians
+     'H':H,
+     ## Hamiltonian flows
+     'H_flow':H_flow_vec,
+     #'Hpert_flow':Hpert_flow_vec,
+     #'Hkep_flow':Hkep_flow_vec,
+     ## Hamiltonian flow Jacobians
+     'H_flow_jac':H_flow_jac
+    }
+    givens=[]
+    inputs=[z,lambdas]
+    compiled_func_dict=dict()
+    for key,val in func_dict.items():
+        cf = theano.function(
+            inputs=inputs,
+            outputs=val,
+            givens=givens,
+            on_unused_input='ignore'
+        )
+        compiled_func_dict[key]=cf
+    return compiled_func_dict,pars
