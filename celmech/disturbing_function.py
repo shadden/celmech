@@ -15,6 +15,71 @@ def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut):
         k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
     )
 
+def _delta(*args):
+    intarr  = np.array([args],dtype=np.int64)
+    if np.alltrue(intarr == 0):
+        return 0
+    else:
+        return 1
+    
+def DFArguments_dictionary(Nmax):
+    """
+    Get the arguments appearing in the disturbing function
+    up to order Nmax.  
+    
+    Arguments are returned as a nested dictionary. 
+    The outer level keys are orders. The inner level
+    keys are dj = |j1-j2|, denoting the order of MMR
+    for which the argument appears.The values of the 
+    inner level dictionaries are lists of 
+    tuples containing (j3,j4,j5,j6). 
+    
+    {
+        0:{0:[(0,0,0,0)],
+        1:{1:[(-1,0,0,0),(0,-1,0,0)]},
+        ...
+        Nmax:{
+            0:[(j3,j4,j5,j6)],
+            ...
+            Nmax:[(j3,j4,j5,j6),...]
+        }
+    }
+    
+    Arguments
+    ---------
+    Nmax: int
+        Maximum order of dictionary arguments.
+
+    Returns
+    -------
+    arguments : defaultdict
+        Nested defaultdicts containing the cosine
+        arguments appearing in the disurbing function.
+    """
+    args_dict = defaultdict(lambda: defaultdict(list))
+    Nmax_by_2 = Nmax // 2
+    for h in range(Nmax_by_2 + 1):
+        khi = 2 * Nmax_by_2 
+        klo = -khi * _delta(h) 
+        for k in range(klo,khi + 1):
+            j5 = -1 * (h+k)
+            j6 = -1 * (h-k)
+            s_hi = Nmax - abs(j5) - abs(j6)
+            s_lo = -s_hi * _delta(h,k)
+            for s in range(s_lo,s_hi + 1):
+                s1_hi = Nmax - abs(j5) - abs(j6) - abs(s)
+                s1_lo = -1 * s1_hi * _delta(h,k,s)
+                for s1 in range(s1_lo,s1_hi + 1):
+                    dj = 2 * h + s + s1
+                    sgn = 1 if dj is 0 else np.sign(dj)
+                    j3=-sgn*s
+                    j4=-sgn*s1
+                    j5*=sgn
+                    j6*=sgn
+                    N = abs(j3) + abs(j4) + abs(j5) + abs(j6)
+                    args_dict[N][dj*sgn].append((j3,j4,j5,j6))
+    return args_dict
+
 def laplace_coefficient(s,j,n,a):
     """
     Calculates alpha^n times the nth derivative with respect to a (alpha) of 
@@ -465,7 +530,7 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
         mlim1 = max(n-i,p-n+h,p-k-n+hplusk_mod2)
         mlim2 = min(i-n,p+n-h,n+p-k-hplusk_mod2)
         for m in getrange(mlim1,mlim2,2):
-            term = (-1)**(k+m+n-p) * KK(i,n,m)
+            term = (-1)**abs(k+m+n-p) * KK(i,n,m)
             term *= KaulaF(n,-k-m+p,(-h + m + n - p)//2,z1)
             term *= KaulaF(n, k+m-p,(-h - m + n + p)//2,z2)
             inc_total += term
@@ -657,4 +722,5 @@ def negative_binom(minus_q,l):
     # negative integer so I use this alternate formulation
     # when the argument is potenially a negative integer
     return (-1)**l * poch(-1 * minus_q,l) / factorial(l)
+
 
