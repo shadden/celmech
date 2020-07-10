@@ -234,10 +234,39 @@ void evaluate_series_and_jacobian
 		re_deriv_xybar[i] = creal(dxybar_tot[i]);
 		im_deriv_xy[i] = cimag(dxy_tot[i]);
 		im_deriv_xybar[i] = cimag(dxybar_tot[i]);
-	}
-	for(int i=0; i<64;i++){
-		re_jacobian[i] = creal(jac_tot[i]);
-		im_jacobian[i] = cimag(jac_tot[i]);
+
+		re_jacobian[INDEX(i,i)] = creal(jac_tot[INDEX(i,i)]);
+		im_jacobian[INDEX(i,i)] = cimag(jac_tot[INDEX(i,i)]);
+		re_jacobian[INDEX(i+4,i)] = creal(jac_tot[INDEX(i+4,i)]);
+		im_jacobian[INDEX(i+4,i)] = cimag(jac_tot[INDEX(i+4,i)]);
+		re_jacobian[INDEX(i,i+4)] =  re_jacobian[INDEX(i+4,i)] ;
+		im_jacobian[INDEX(i,i+4)] =  im_jacobian[INDEX(i+4,i)] ;
+		re_jacobian[INDEX(i+4,i+4)] = creal(jac_tot[INDEX(i+4,i+4)]);
+		im_jacobian[INDEX(i+4,i+4)] = cimag(jac_tot[INDEX(i+4,i+4)]);
+
+		for(int j=0; j<i; j++){
+
+			re_jacobian[INDEX(i,j)] = creal(jac_tot[INDEX(i,j)]);
+			im_jacobian[INDEX(i,j)] = cimag(jac_tot[INDEX(i,j)]);
+
+			re_jacobian[INDEX(j,i)] = creal(jac_tot[INDEX(i,j)]);
+			im_jacobian[INDEX(j,i)] = cimag(jac_tot[INDEX(i,j)]);
+
+			re_jacobian[INDEX(i+4,j)] = creal(jac_tot[INDEX(i+4,j)]);
+			im_jacobian[INDEX(i+4,j)] = cimag(jac_tot[INDEX(i+4,j)]);
+			re_jacobian[INDEX(j,i+4)] = creal(jac_tot[INDEX(i+4,j)]);
+			im_jacobian[INDEX(j,i+4)] = cimag(jac_tot[INDEX(i+4,j)]);
+
+			re_jacobian[INDEX(i,j+4)] = creal(jac_tot[INDEX(i,j+4)]);
+			im_jacobian[INDEX(i,j+4)] = cimag(jac_tot[INDEX(i,j+4)]);
+			re_jacobian[INDEX(j+4,i)] = creal(jac_tot[INDEX(i,j+4)]);
+			im_jacobian[INDEX(j+4,i)] = cimag(jac_tot[INDEX(i,j+4)]);
+
+			re_jacobian[INDEX(i+4,j+4)] = creal(jac_tot[INDEX(i+4,j+4)]);
+			im_jacobian[INDEX(i+4,j+4)] = cimag(jac_tot[INDEX(i+4,j+4)]);
+			re_jacobian[INDEX(j+4,i+4)] = creal(jac_tot[INDEX(i+4,j+4)]);
+			im_jacobian[INDEX(j+4,i+4)] = cimag(jac_tot[INDEX(i+4,j+4)]);
+		}
 	}
 	free_complex_variables_arr(xy_arr);
 	free_complex_variables_arr(exp_Il_arr);
