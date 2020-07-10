@@ -30,7 +30,7 @@ def DFArguments_dictionary(Nmax):
     Arguments are returned as a nested dictionary. 
     The outer level keys are orders. The inner level
     keys are dj = |j1-j2|, denoting the order of MMR
-    for which the argument appears.The values of the 
+    for which the argument appears. The values of the 
     inner level dictionaries are lists of 
     tuples containing (j3,j4,j5,j6). 
     
@@ -59,23 +59,23 @@ def DFArguments_dictionary(Nmax):
     args_dict = defaultdict(lambda: defaultdict(list))
     Nmax_by_2 = Nmax // 2
     for h in range(Nmax_by_2 + 1):
-        khi = 2 * Nmax_by_2 
-        klo = -khi * _delta(h) 
+        khi = 2 * Nmax_by_2
+        klo = -khi * _delta(h)
         for k in range(klo,khi + 1):
-            j5 = -1 * (h+k)
-            j6 = -1 * (h-k)
-            s_hi = Nmax - abs(j5) - abs(j6)
+            hplusk = (h+k)
+            hminusk = (h-k)
+            s_hi = Nmax - abs(hplusk) - abs(hminusk)
             s_lo = -s_hi * _delta(h,k)
             for s in range(s_lo,s_hi + 1):
-                s1_hi = Nmax - abs(j5) - abs(j6) - abs(s)
+                s1_hi = Nmax - abs(hplusk) - abs(hminusk) - abs(s)
                 s1_lo = -1 * s1_hi * _delta(h,k,s)
                 for s1 in range(s1_lo,s1_hi + 1):
                     dj = 2 * h + s + s1
                     sgn = 1 if dj is 0 else np.sign(dj)
                     j3=-sgn*s
                     j4=-sgn*s1
-                    j5*=sgn
-                    j6*=sgn
+                    j5=-sgn*(hplusk)
+                    j6=-sgn*(hminusk)
                     N = abs(j3) + abs(j4) + abs(j5) + abs(j6)
                     args_dict[N][dj*sgn].append((j3,j4,j5,j6))
     return args_dict
