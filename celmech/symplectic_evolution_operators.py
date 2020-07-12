@@ -7,14 +7,23 @@ from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
+
+_rt2 = np.sqrt(2)
+_rt2_inv = 1 / _rt2 
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
         self._dt = dt
         self.state = initial_state
         self.particles = initial_state.particles
+    def _state_vector_to_individual_vectors(self,state_vec):
+        return np.reshape(state_vec,(-1,6))
 
     @abstractmethod
     def apply(self):
+        pass
+    
+    @abstractmethod
+    def apply_to_state_vector(self,state_vec):
         pass
 
     @property
@@ -32,13 +41,23 @@ class KeplerianEvolutionOperator(EvolutionOperator):
         self.m = np.array([p.m for p in self.state.particles[1:]]) 
         self.M = np.array([p.M for p in self.state.particles[1:]]) 
         self.GGMMmmm = (self.G*self.M)**2 * self.m**3
+
     def apply(self):
         lambda_dot = self.get_lambda_dot()
         dlambda = self.dt * lambda_dot
         ps = self.particles
         for p,dl in zip(ps[1:],dlambda):
             p.l += dl
-        
+
+    def apply_to_state_vector(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        L = vecs[:,2]
+        lambda_dot = self.GGMMmmm/ L / L /L
+        dlambda = self.dt * lambda_dot
+        vecs[:,3] += dlambda
+        return vecs.reshape(-1)
+
+    
     def get_lambda_dot(self):
         ps = self.particles
         L = np.array([p.Lambda for p in ps[1:]])
@@ -75,24 +94,24 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
     def _get_x_vector(self):
         eta = np.array([p.eta for p in self.particles[1:]])
         kappa = np.array([p.kappa for p in self.particles[1:]])
-        x =  (kappa - 1j * eta) / np.sqrt(2)
+        x =  (kappa - 1j * eta) * _rt2_inv
         return x
 
     def _get_y_vector(self):
         rho = np.array([p.rho for p in self.particles[1:]])
         sigma = np.array([p.sigma for p in self.particles[1:]])
-        y =  (sigma - 1j * rho) / np.sqrt(2)
+        y =  (sigma - 1j * rho) * _rt2_inv
         return y
 
     def _set_x_vector(self,x):
         for p,xi in zip(self.particles[1:],x):
-            p.kappa = np.sqrt(2) * np.real(xi)
-            p.eta =  np.sqrt(2) * np.real(1j * xi)
+            p.kappa = _rt2 * np.real(xi)
+            p.eta =  _rt2 * np.real(1j * xi)
 
     def _set_y_vector(self,y):
         for p,yi in zip(self.particles[1:],y):
-            p.sigma = np.sqrt(2) * np.real(yi)
-            p.rho =  np.sqrt(2) * np.real(1j * yi)
+            p.sigma = _rt2 * np.real(yi)
+            p.rho =  _rt2 * np.real(1j * yi)
 
     def apply(self):
         x = self._get_x_vector()
@@ -102,6 +121,17 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
         self._set_x_vector(xnew)
         self._set_y_vector(ynew)
         
+    def apply_to_state_vector(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        xnew = self.ecc_operator_matrix @ x
+        ynew = self.inc_operator_matrix @ y
+        vecs[:,0] = _rt2 * np.real(xnew)
+        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
+        vecs[:,4] = _rt2 * np.real(ynew)
+        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
+        return vecs.reshape(-1)
 
 class LinearInclinationResonancOperator(EvolutionOperator):
     r"""
@@ -141,6 +171,9 @@ class LinearInclinationResonancOperator(EvolutionOperator):
         self.Lambdas_vec = np.array([-1 * res_vec[1] , res_vec[0]])
         self.Lambdas_Mtrx = np.linalg.inv([ self.Lambdas_vec , [1,1]])
     @property
+    def indices(self):
+        return self.indexIn-1,self.indexOut-1
+    @property
     def dt(self):
         return super().dt
     @dt.setter
@@ -173,7 +206,7 @@ class LinearInclinationResonancOperator(EvolutionOperator):
         R = self.Ttr @ rho 
         S = self.Ttr @ sigma 
         return R,S
-    def _RS_to_rhosigma(self,R,S,s,c):
+    def _RS_to_rhosigma(self,R,S):
         r = self.T @ R 
         s = self.T @ S
         return r,s
@@ -188,12 +221,14 @@ class LinearInclinationResonancOperator(EvolutionOperator):
         s,c = np.sin(theta),np.cos(theta)
         R,S = self._get_RS_vecs(s,c)
         R1,S1  = self._RSmap(R,S,s,c)
-        rho1,sigma1 = self._RS_to_rhosigma(R1,S1,s,c)
+        rho1,sigma1 = self._RS_to_rhosigma(R1,S1)
         self._set_rho_vec(rho1)
         self._set_sigma_vec(sigma1)
+
     def _set_Lambdas(self,Lambdas):
         self.particleIn.Lambda = Lambdas[0]
         self.particleOut.Lambda = Lambdas[1]
+
     def apply(self):
         Lambdas = self._get_Lambdas()
         Qs0  = self._get_Qs()
@@ -204,6 +239,27 @@ class LinearInclinationResonancOperator(EvolutionOperator):
         Lambdas1 = self.Lambdas_Mtrx @ np.array([ C1, C2 + np.sum(Qs1) ])
         self._set_Lambdas(Lambdas1)
 
+    def apply_to_state_vector(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        Lambdas = vecs[self.indices,2]
+        lambdas = vecs[self.indices,3]
+        sigma,rho = vecs[self.indices,4],vecs[self.indices,5]
+        Qs0 = 0.5 *  (rho**2 + sigma**2)
+        C1 = self.Lambdas_vec @ Lambdas
+        C2 = np.sum(Lambdas) - np.sum(Qs0)
+        theta = self.res_vec @ lambdas
+        s,c = np.sin(theta),np.cos(theta)
+        R = self.Ttr @ rho
+        S = self.Ttr @ sigma
+        R1,S1 = self._RSmap(R,S,s,c)
+        rho1,sigma1=self._RS_to_rhosigma(R1,S1)
+        vecs[self.indices,4] = sigma1
+        vecs[self.indices,5] = rho1
+        Qs1 = 0.5 * (rho1**2 + sigma1**2)
+        Lambdas1 = self.Lambdas_Mtrx @ np.array([ C1, C2 + np.sum(Qs1) ])
+        vecs[self.indices,2] = Lambdas1
+        return vecs.reshape(-1)
+        
 class LinearEccentricityResonancOperator(EvolutionOperator):
     r"""
     Evolution operator for linear equation of the form:
@@ -252,6 +308,9 @@ class LinearEccentricityResonancOperator(EvolutionOperator):
     @property
     def dt(self):
         return super().dt
+    @property
+    def indices(self):
+        return self.indexIn-1,self.indexOut-1
 
     @dt.setter
     def dt(self,val):
@@ -287,13 +346,13 @@ class LinearEccentricityResonancOperator(EvolutionOperator):
     def _get_HK_vecs(self,s,c):
         eta = self._get_eta_vec()
         kappa = self._get_kappa_vec()
-        H = self.Ttr @ (eta - 0.5 * np.sqrt(2) * self.Ainv_dot_b * s)
-        K = self.Ttr @ (kappa + 0.5 * np.sqrt(2) * self.Ainv_dot_b * c)
+        H = self.Ttr @ (eta - 0.5 * _rt2 * self.Ainv_dot_b * s)
+        K = self.Ttr @ (kappa + 0.5 * _rt2 * self.Ainv_dot_b * c)
         return H,K
 
     def _HK_to_etakappa(self,H,K,s,c):
-        h = self.T @ H + 0.5 * np.sqrt(2) * self.Ainv_dot_b * s
-        k = self.T @ K - 0.5 * np.sqrt(2) * self.Ainv_dot_b * c
+        h = self.T @ H + 0.5 * _rt2 * self.Ainv_dot_b * s
+        k = self.T @ K - 0.5 * _rt2 * self.Ainv_dot_b * c
         return h,k
 
     def _HKmap(self,Hvec,Kvec,s,c):
@@ -324,6 +383,27 @@ class LinearEccentricityResonancOperator(EvolutionOperator):
         Gammas1 = self._get_Gammas()
         Lambdas1 = self.Lambdas_Mtrx @ np.array([ C1, C2 + np.sum(Gammas1) ])
         self._set_Lambdas(Lambdas1)
+
+    def apply_to_state_vector(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        Lambdas = vecs[self.indices,2]
+        lambdas = vecs[self.indices,3]
+        theta = self.res_vec @ lambdas
+        kappa,eta = vecs[self.indices,0],vecs[self.indices,1]
+        Gammas0 = 0.5 *  (kappa**2 + eta**2)
+        C1 = self.Lambdas_vec @ Lambdas
+        C2 = np.sum(Lambdas) - np.sum(Gammas0)
+        s,c = np.sin(theta),np.cos(theta)
+        H = self.Ttr @ (eta - 0.5 * _rt2 * self.Ainv_dot_b * s)
+        K = self.Ttr @ (kappa + 0.5 * _rt2 * self.Ainv_dot_b * c)
+        H1,K1  = self._HKmap(H,K,s,c)
+        eta1,kappa1 = self._HK_to_etakappa(H1,K1,s,c)
+        vecs[self.indices,0] = kappa1
+        vecs[self.indices,1] = eta1
+        Gammas1 = 0.5 * (kappa1**2 + eta1**2)
+        Lambdas1 = self.Lambdas_Mtrx @ np.array([ C1, C2 + np.sum(Gammas1) ])
+        vecs[self.indices,2] = Lambdas1
+        return vecs.reshape(-1)
 
 class FirstOrderEccentricityResonanceOperator(LinearEccentricityResonancOperator):
     def __init__(self,initial_state,dt,j,indexIn=1,indexOut=2,Lambda0=None):
@@ -530,132 +610,3 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
-
-from scipy.special import binom
-def complex_power(x,y,n):
-    """
-    get the real and imaginary part
-    of (x+I*y)**n
-    """
-    if n==0:
-        return 1,0
-    re,im=0,0
-    n_by_2 = n // 2
-    for l in range(0,n_by_2+1):
-        sign = (-1) ** (l)
-        re += sign * binom(n,2 * l) * y**(2 * l) * x**(n-2 * l)
-        im += sign * binom(n,2 * l + 1) * y**(2 * l + 1) * x**(n-2 * l-1)
-    return re,im
-
-import theano
-import theano.tensor as T
-from sympy import S
-def get_compiled_Hflow_functions(pvars,res_term_data_dictionary,a0):
-    z = T.vector()
-    lambdas = T.vector()
-    H = 0
-    Npl = pvars.N - 1
-    pars = dict()
-    for indices,terms in res_term_data_dictionary.items():
-        indexIn,indexOut = indices
-        assert indexIn < indexOut
-
-        pIn = pvars.particles[indexIn]
-        pOut = pvars.particles[indexOut]
-        mIn = pIn.m
-        MIn = pIn.M
-        aIn = a0[indexIn-1]
-        mOut = pOut.m
-        MOut = pOut.M
-        aOut = a0[indexOut-1]
-
-        Lambda0In  = mIn * np.sqrt( MIn * aIn )
-        Lambda0Out = mOut * np.sqrt( MOut * aOut )
-        Lambda0In_inv  = 1 / Lambda0In 
-        Lambda0Out_inv = 1 / Lambda0Out
-        rtLambda0In_inv  = np.sqrt(Lambda0In_inv)
-        rtLambda0Out_inv = np.sqrt(Lambda0Out_inv)
-        
-        pars[S('Lambda{}0'.format(indexIn))] = Lambda0In
-        pars[S('Lambda{}0'.format(indexOut))] = Lambda0Out
-       
-        alpha = aIn / aOut
-        prefactor = -pvars.G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
-        
-        etaIn = z[indexIn-1]
-        rhoIn = z[Npl + indexIn - 1]
-        kappaIn = z[2 * Npl + indexIn - 1]
-        sigmaIn = z[3 * Npl + indexIn - 1]
-
-        etaOut = z[indexOut-1]
-        rhoOut = z[Npl + indexOut - 1]
-        kappaOut = z[2 * Npl + indexOut - 1]
-        sigmaOut = z[3 * Npl + indexOut - 1]
-
-        XIn_re = kappaIn * rtLambda0In_inv
-        XIn_im = -1 * etaIn * rtLambda0In_inv
-        YIn_re = 0.5 * sigmaIn * rtLambda0In_inv
-        YIn_im = -0.5 * rhoIn * rtLambda0In_inv
-        XOut_re = kappaOut * rtLambda0Out_inv
-        XOut_im = -1 * etaOut * rtLambda0Out_inv
-        YOut_re = 0.5 * sigmaOut * rtLambda0Out_inv
-        YOut_im = -0.5 * rhoOut * rtLambda0Out_inv
-
-        XsqIn = XIn_re*XIn_re + XIn_im*XIn_im
-        XsqOut = XOut_re*XOut_re + XOut_im*XOut_im
-        YsqIn = YIn_re*YIn_re + YIn_im*YIn_im
-        YsqOut = YOut_re*YOut_re + YOut_im*YOut_im
-        
-        lambdaIn  = lambdas[indexIn - 1]
-        lambdaOut  = lambdas[indexOut - 1]
-        for js,zs in terms:
-            C = DFCoeff_C(*js,*zs)
-            nC = eval_DFCoeff_dict(C,alpha)
-            Csym = get_DFCoeff_symbol(*js,*zs,indexIn,indexOut)
-            pars[Csym] = nC
-            theta = js[0] * lambdaOut + js[1] * lambdaIn
-            s,c  = T.sin(theta),T.cos(theta)
-            X1_n_re,X1_n_im = complex_power(XIn_re , XIn_im * np.sign(js[2]) , abs(js[2]) )
-            X2_n_re,X2_n_im = complex_power(XOut_re , XOut_im * np.sign(js[3]) , abs(js[3]) )
-            Y1_n_re,Y1_n_im = complex_power(YIn_re , YIn_im * np.sign(js[4]) , abs(js[4]) )
-            Y2_n_re,Y2_n_im = complex_power(YOut_re , YOut_im * np.sign(js[5]) , abs(js[5]) )
-            re = 1
-            im = 0
-            for x,y in zip([X1_n_re,X2_n_re,Y1_n_re,Y2_n_re] ,[X1_n_im,X2_n_im,Y1_n_im,Y2_n_im]):
-                re1 = re * x - im * y 
-                im1 = im * x + re * y 
-                re = re1
-                im = im1
-            term = nC * (YsqIn)**(zs[0]) * (YsqOut)**(zs[1]) * (XsqIn)**(zs[2]) * (XsqOut)**(zs[3]) * (re * c - im * s)
-            H += prefactor * term
-    gradH = T.grad(H,wrt = z)
-    hessH = theano.gradient.hessian(H,wrt = z)
-    Ndof = 2 * (pvars.N - 1)
-    Jtens = T.as_tensor(getOmegaMatrix(Ndof))
-    H_flow_vec = Jtens.dot(gradH)
-    H_flow_jac = Jtens.dot(hessH)
-    ##########################
-    # Compile Theano functions
-    ##########################
-    func_dict={
-     # Hamiltonians
-     'H':H,
-     ## Hamiltonian flows
-     'H_flow':H_flow_vec,
-     #'Hpert_flow':Hpert_flow_vec,
-     #'Hkep_flow':Hkep_flow_vec,
-     ## Hamiltonian flow Jacobians
-     'H_flow_jac':H_flow_jac
-    }
-    givens=[]
-    inputs=[z,lambdas]
-    compiled_func_dict=dict()
-    for key,val in func_dict.items():
-        cf = theano.function(
-            inputs=inputs,
-            outputs=val,
-            givens=givens,
-            on_unused_input='ignore'
-        )
-        compiled_func_dict[key]=cf
-    return compiled_func_dict,pars
