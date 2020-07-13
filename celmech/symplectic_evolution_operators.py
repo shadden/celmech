@@ -70,6 +70,7 @@ class KeplerianEvolutionOperator(EvolutionOperator):
     @dt.setter
     def dt(self,val):
         self._dt = val
+
 from .poincare import LaplaceLagrangeSystem
 from scipy.linalg import expm
 
@@ -494,6 +495,176 @@ class SecondOrderInclinationResonanceOperator(LinearInclinationResonancOperator)
         bvec = np.zeros(2)
         super(SecondOrderInclinationResonanceOperator,self).__init__(initial_state,indexIn,indexOut,res_vec,Amtrx,dt)
 
+
+from .poisson_series import DFTermSeries
+from scipy.optimize import root
+from .disturbing_function import ResonanceTermsList, SecularTermsList
+
+class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
+    """
+    Evolution operator for a collection of disturbing function
+    terms associated with a specific mean motion resonance between
+    a pair of planets. 
+    
+    The evolution of inclination/eccentricity variables are
+    computed by the implicit midpoint method. This is a second order
+    symplectic method. The evolution of semi-major axes are computed
+    so that both the planet pair's angular momentum and the conserved
+    quantity associated with the mean motion resonance are conserved.
+    The planets' mean longtiudes do not evolve.
+
+    Arguments
+    ---------
+    initial state : celmech.Poincare
+        Poincare variables state from which the operator is initialized.
+    dt : float
+        Time-step of the operator.
+    j : int
+        Integer determining the resonance as the j:j-k resonance.
+    k : int
+        The order of the resonance.
+    terms_list : list
+        List of distrubing function terms to include.
+        List items are tuples of the form (kvec, zvec).
+    indexIn : int
+        Index of the inner planet particle in the resonance.
+    indexOut : int
+        Index of the outer planet particle in the resonance.
+    Lambda0 : array-like
+        The Poincare momenta Lambda are treated as constant
+        in the disturing function. Lambda0 sets the values
+        of these constant momenta and should be an array
+        with an entry for each particle in the system.
+        If no value is supplied, initial values are chosen
+        at the center of exact resonance using conservation of
+        angular momentum and (j-k) * LambdaOut + j * LambdaIn
+        presuming only two planets are in the system.
+    """
+
+    def __init__(self, initial_state, dt, j, k, terms_list, indexIn=1, indexOut=2, Lambda0=None):
+
+        pIn = initial_state.particles[indexIn]
+        pOut = initial_state.particles[indexOut]
+        self.indexIn = indexIn
+        self.indexOut = indexOut
+        self.mIn = pIn.m
+        self.MIn = pIn.M
+        self.mOut = pOut.m
+        self.MOut = pOut.M
+        self.G = initial_state.G
+        
+        if Lambda0 is None:
+            _pvars = Poincare(initial_state.G,[pIn,pOut])
+            _,Lambda0 = get_res_chain_reference_Lambdas_and_semimajor_axes(_pvars,[(j-k)/k])
+            _,self.Lambda0In,self.Lambda0Out = Lambda0
+        else:
+            self.Lambda0In = Lambda0[indexIn]
+            self.Lambda0Out = Lambda0[indexOut]
+
+        self.rtLambda0_inv = 1 / np.sqrt([self.Lambda0In,self.Lambda0Out])
+        self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
+        self.DF_prefactor = -self.G**2*self.MOut**2*self.mOut**3 * ( self.mIn / self.MIn) / (self.Lambda0Out**2)
+        self._dt = dt
+        self._h = self.DF_prefactor * self._dt
+        self.alpha = ((j-k)/j)**(2/3)
+        self.terms_list = terms_list 
+        self.DFSeries = DFTermSeries(
+                self.terms_list,
+                self.alpha,
+                [self.Lambda0In,self.Lambda0Out]
+        )
+        self.res_vec = np.array([k - j , j])
+        self.Lambdas_vec = np.array([-1 * self.res_vec[1] , self.res_vec[0]])
+        self.Lambdas_Mtrx = np.linalg.inv([ self.Lambdas_vec , [1,1]])
+    
+    @classmethod
+    def from_Order_Range(cls, initial_state, dt, j, k, Nmin, Nmax, indexIn=1, indexOut=2, Lambda0=None, include_secular_terms = False):
+        terms = ResonanceTermsList(j,k,Nmin,Nmax)
+        if include_secular_terms:
+            terms += SecularTermsList(Nmin,Nmax)
+        return cls(initial_state, dt, j, k, terms, indexIn, indexOut, Lambda0)
+
+    @property
+    def dt(self):
+        return super().dt
+
+    @dt.setter
+    def dt(self,value):
+        self._dt = value
+        self._h = self.DF_prefactor * self._dt 
+
+    @property
+    def indices(self):
+        return self.indexIn-1,self.indexOut-1
+
+    def state_vec_to_qp_vec_and_lambdaLambda(self,state_vec):
+        vecs = self._state_vector_to_individual_vectors(state_vec)
+        kappa = vecs[self.indices,0] 
+        eta = vecs[self.indices,1] 
+        sigma = vecs[self.indices,4] 
+        rho = vecs[self.indices,5] 
+        lambdas = vecs[self.indices,3]
+        Lambdas = vecs[self.indices,2]
+        
+        return np.concatenate((eta,rho,kappa,sigma)),lambdas,Lambdas
+
+    def deriv_and_jacobian_from_qp_vec(self,qp_vec,lambda_arr):  
+        XYvec = (qp_vec[4:] - 1j * qp_vec[:4]) * self.qp_to_XY_factors
+        _,qp_dot,qp_dotJac,_ = self.DFSeries._evaluate_with_jacobian(lambda_arr,XYvec)
+        return qp_dot, qp_dotJac
+
+    def implicit_midpoint_f_and_Df(self,qp_vec1,qp_vec0,lambda_arr):
+        h = self._h
+        qp_vec_mid = 0.5 * (qp_vec1+qp_vec0)
+        qp_dot,qp_dotJac = self.deriv_and_jacobian_from_qp_vec(qp_vec_mid,lambda_arr)
+        f = qp_vec1 - qp_vec0 - h * qp_dot
+        Df = np.eye(8) - 0.5 * h * qp_dotJac
+        return f,Df
+
+    def implicit_midpoint_step(self,qp_vec,lambda_arr):
+        rt = root(
+                self.implicit_midpoint_f_and_Df,
+                qp_vec,
+                args = (qp_vec,lambda_arr),
+                jac=True
+            )
+        return rt.x
+
+    def apply(self):
+        pass
+
+    def apply_to_state_vector(self,state_vec):
+        vecs = self._state_vector_to_individual_vectors(state_vec)
+        kappa = vecs[self.indices,0] 
+        eta = vecs[self.indices,1] 
+        sigma = vecs[self.indices,4] 
+        rho = vecs[self.indices,5] 
+        lambdas = vecs[self.indices,3]
+        Lambdas = vecs[self.indices,2]
+        qp_vec =  np.concatenate((eta,rho,kappa,sigma))
+        AMD0 = 0.5 * np.sum(qp_vec**2)
+        C1 = self.Lambdas_vec @ Lambdas
+        C2 = np.sum(Lambdas) - AMD0
+        qp_vec_new = self.implicit_midpoint_step(qp_vec,lambdas)
+        AMD1 = 0.5 * np.sum(qp_vec_new**2)
+        Lambdas_new = self.Lambdas_Mtrx @ np.array([C1, C2 + np.sum(AMD1)])
+        
+        vecs[self.indices,2] = Lambdas_new
+
+        # eta
+        vecs[self.indices,1] = qp_vec_new[0:2]  
+
+        # kappa
+        vecs[self.indices,0] = qp_vec_new[4:6]  
+        
+        # rho
+        vecs[self.indices,5] = qp_vec_new[2:4]  
+        
+        # sigma
+        vecs[self.indices,4] = qp_vec_new[6:8]  
+        
+        return vecs.reshape(-1)
+    
 def get_res_chain_reference_Lambdas_and_semimajor_axes(pvars,slist):
     coeffs = np.zeros(pvars.N)
     alpha_inv = np.zeros(pvars.N)
@@ -610,3 +781,4 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
+
