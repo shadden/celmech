@@ -80,6 +80,90 @@ def DFArguments_dictionary(Nmax):
                     args_dict[N][dj*sgn].append((j3,j4,j5,j6))
     return args_dict
 
+def _zcombos_iter(ztot):
+    for z1 in range(ztot+1):
+        for z2 in range(ztot+1-z1):
+            for z3 in range(ztot+1-z1-z2):
+                z4 = ztot - z1 - z2 - z3
+                yield (z1,z2,z3,z4)
+                
+def ResonanceTermsList(j,k,Nmin,Nmax):
+    """
+    Generate the list of disturbing function terms for a 
+    j:j-k resonance with eccentricity/inclination order
+    between Nmin and Nmax.
+
+    Arguments
+    ---------
+    j : int
+     Determines resonance
+    k : int
+     Order of the resonance
+    Nmin : int
+     Minimum order of terms to include
+    Nmax : int
+     Maximum order of terms to include
+
+    Returns
+    -------
+    term : list
+        A list of disturbing function terms. 
+        Each entry in the list is of the form
+        (kvec, zvc)
+    """
+    args_dict = DFArguments_dictionary(Nmax)
+    args = []
+    for N in range(Nmin,Nmax+1):
+        for k1 in range(k,N+1,k):
+            if (N-k1) % 2:
+                continue
+            j1 = (k1//k) * j
+            for N1 in range(k1,N+1,2):
+                ztot = (N-N1)//2
+                for arg in args_dict[N1][k1]:
+                    for zc in _zcombos_iter(ztot):
+                        js = (j1,k1 - j1,*arg)
+                        args.append((js,zc))
+    return args
+
+def SecularTermsList(Nmin,Nmax):
+    """
+    Generate the list of secular disturbing function terms 
+    with eccentricity/inclination order between Nmin and Nmax.
+
+    Arguments
+    ---------
+    j : int
+     Determines resonance
+    k : int
+     Order of the resonance
+    Nmin : int
+     Minimum order of terms to include
+    Nmax : int
+     Maximum order of terms to include
+
+    Returns
+    -------
+    term : list
+        A list of disturbing function terms. 
+        Each entry in the list is of the form
+        (kvec, zvc)
+    """
+    args_dict = DFArguments_dictionary(Nmax)
+    args = []
+    Nmax1 = (Nmax//2) * 2 
+    Nmin1 = (Nmin//2) * 2 
+    for N in range(0,Nmax1 + 1,2):
+        argsN = args_dict[N][0]
+        ztot_min = max( (Nmin1 - N)//2 , 0)
+        ztot_max = (Nmax1 - N)//2 
+        for ztot in range(ztot_min,ztot_max + 1):
+            for zc in _zcombos_iter(ztot):
+                for arg in argsN:
+                    js = (0,0,*arg)
+                    args.append((js,zc))
+    return args
+
 def laplace_coefficient(s,j,n,a):
     """
     Calculates alpha^n times the nth derivative with respect to a (alpha) of 
