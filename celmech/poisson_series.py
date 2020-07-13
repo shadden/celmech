@@ -1,10 +1,12 @@
 import numpy as np
 from ctypes import *
-from .disturbing_function import  DFCoeff_C,eval_DFCoeff_dict
+from .disturbing_function import  DFCoeff_C,eval_DFCoeff_dict,ResonanceTermsList
 #from . import clibcelmech
 from celmech.disturbing_function import DFArguments_dictionary
 libname = "/Users/shadden/Projects/celmech/src/libcelmech.so"
 clibcelmech = CDLL(libname)
+_rt2 = np.sqrt(2)
+_rt2_inv = 1  / _rt2
 
 class SeriesTerm(Structure):
     pass
@@ -51,28 +53,6 @@ _evaluate_series_and_jacobian.argtypes = [
 ] + [(4 * c_double) for _ in range(4)] + [(64 * c_double) for _ in range(2)]
 _evaluate_series_and_jacobian.restype = None
 
-def zcombos_iter(ztot):
-    for z1 in range(ztot+1):
-        for z2 in range(ztot+1-z1):
-            for z3 in range(ztot+1-z1-z2):
-                z4 = ztot - z1 - z2 - z3
-                yield (z1,z2,z3,z4)
-                
-def generate_resonance_terms(j,k,Nmin,Nmax):
-    args_dict = DFArguments_dictionary(Nmax)
-    args = []
-    for N in range(Nmin,Nmax+1):
-        for k1 in range(k,N+1,k):
-            if (N-k1) % 2:
-                continue
-            j1 = (k1//k) * j
-            for N1 in range(k1,N+1,2):
-                ztot = (N-N1)//2
-                for arg in args_dict[N1][k1]:
-                    for zc in zcombos_iter(ztot):
-                        js = (j1,k1 - j1,*arg)
-                        args.append((js,zc))
-    return args
 def get_generic_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9}".format(
         k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
@@ -95,7 +75,7 @@ def get_term_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return term
 
 class DFTermSeries(object):
-    def __init__(self,resterm_list,alpha):
+    def __init__(self,resterm_list,alpha,Lambda0s):
         self.expression = 0 
         self.alpha = alpha
         kmax = 0
@@ -121,16 +101,18 @@ class DFTermSeries(object):
         self.s0 = s
         self.Nmax = Nmax
         self.kmax = kmax
+        rtLmbdaInv = 1 / np.sqrt(Lambda0s)
+        mtrx = np.diag( np.concatenate((rtLmbdaInv, 0.5 * rtLmbdaInv )) )
         self.dXY_dQP  = np.block([
-            [-1j * np.eye(4), +1j * np.eye(4)],
-            [np.eye(4),np.eye(4)]
+            [-1j * mtrx, +1j * mtrx],
+            [mtrx, mtrx]
             ])
         Zeros = np.zeros((4,4))
         Id = np.eye(4)
         self.Omega = np.block([[Zeros,Id],[-Id,Zeros]])
     @classmethod
     def from_resonance_range(cls,j,k,Nmin,Nmax):
-        terms = generate_resonance_terms(j,k,Nmin,Nmax)
+        terms = ResonanceTermsList(j,k,Nmin,Nmax)
         alpha = ((j-k)/j)**(2/3)
         return cls(terms,alpha)
 
@@ -199,4 +181,4 @@ class DFTermSeries(object):
         xy = np.array(xy)
         lambdas = np.array([p.l for p in ps])
         H,vardot,jac_qp,jac_xy = self._evaluate_with_jacobian(lambdas,xy)
-        return {'series':H,'derivs':vardot,'jacobian':jac_qp,'jac_xy':jac_xy}
+        return {'Hamiltonain':H,'derivatives':vardot,'Jacobian':jac_qp}
