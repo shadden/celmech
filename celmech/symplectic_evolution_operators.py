@@ -134,6 +134,7 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
         vecs[:,5] = -1 * _rt2 * np.imag(ynew)
         return vecs.reshape(-1)
 
+
 class LinearInclinationResonancOperator(EvolutionOperator):
     r"""
     Evolution operator for linear equation of the form:
@@ -664,7 +665,187 @@ class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
         vecs[self.indices,4] = qp_vec_new[6:8]  
         
         return vecs.reshape(-1)
-    
+def array_print(arr):
+    Nrow,Ncol = arr.shape
+    print("" +  " ".join(map(lambda x: "{:10d}".format(x) , np.arange(Ncol))))
+    for i,row in enumerate(arr):
+        print("{:5d}\t".format(i)  +  " ".join(map(lambda x: "{:+0.3e}".format(x) ,row)))
+
+class SecularDFTermsEvolutionOperator(EvolutionOperator):
+    """
+    Evolution operator for a collection of secular disturbing function
+    terms.  
+    The evolution of inclination/eccentricity variables are
+    computed by the implicit midpoint method. This is a second order
+    symplectic method. 
+
+    Arguments
+    ---------
+    initial state : celmech.Poincare
+        Poincare variables state from which the operator is initialized.
+    dt : float
+        Time-step of the operator.
+    terms_dict : dictionary
+        Dictionary keys are given in the form (iIn,iOut) where 
+        iIn and iIout are the indices of the inner and outer planet.
+        Each dictionary entry contains a list of distrubing function terms 
+        to include for a given pair. List items are tuples of the form 
+        (kvec, zvec).
+    Lambda0 : array-like
+        The Poincare momenta Lambda are treated as constant
+        in the disturing function. Lambda0 sets the values
+        of these constant momenta and should be an array
+        with an entry for each particle in the system.
+        If no value is supplied, initial values are chosen.
+    """
+    def __init__(self, initial_state, dt, terms_dict, Lambda0=None):
+        if Lambda0 is None:
+            Lambda0 = [p.Lambda for p in initial_state.particles]
+        self.rtLambda0_inv = 1 / np.sqrt(Lambda0[1:])
+        self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
+        self._dt = dt
+        self.DFSeries_dict = dict()       
+        self.N = initial_state.N
+        self.Npl = self.N - 1
+        self.Ndim = 4 * self.Npl
+        G = initial_state.G
+        ps = initial_state.particles
+        for iPair, term_list in terms_dict.items():
+            iIn,iOut = iPair
+            assert iIn < iOut, "Dictionary keys must have iIn < iOut."
+            all_secular = np.alltrue( [x[0][0] == 0 and x[0][1] == 0 for x in term_list] )
+            assert all_secular, "Only secular terms may be inlcuded in the DF term lists."
+            pIn = ps[iIn]
+            pOut = ps[iOut]
+            Lambda0Out = Lambda0[iOut] 
+            Lambda0In = Lambda0[iIn] 
+            MOut = pOut.M
+            MIn = pIn.M
+            mOut = pOut.m
+            mIn = pIn.m
+            aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
+            aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
+            alpha = aIn0/aOut0
+            assert alpha < 1, "Particles are not in order by semi-major axis."
+            dfseries = DFTermSeries(term_list,alpha, [Lambda0[iIn],Lambda0[iOut]])
+            self.DFSeries_dict[iPair] = dfseries,-G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+
+    @classmethod
+    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,Lambda0=None):
+        terms = SecularTermsList(Nmin,Nmax)
+        N = initial_state.N
+        terms_dict = {}
+        for iOut in range(1,N):
+            for iIn in range(1,iOut):
+                terms_dict[(iIn,iOut)] = terms
+        return cls(initial_state, dt, terms_dict, Lambda0=Lambda0) 
+
+    @property
+    def dt(self):
+        return super().dt
+
+    @dt.setter
+    def dt(self,value):
+        self._dt = value
+        self._h = self.DF_prefactor * self._dt 
+
+    def state_vec_to_qp_vec(self,state_vec):
+        vecs = self._state_vector_to_individual_vectors(state_vec)
+        kappa = vecs[:,0] 
+        eta = vecs[:,1] 
+        sigma = vecs[:,4] 
+        rho = vecs[:,5] 
+        return np.concatenate((eta,rho,kappa,sigma))
+
+    def deriv_from_qp_vec(self,qp_vec):  
+        derivs = np.zeros(self.Ndim) 
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
+            series,DFfactor = series_and_DFfactor
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            _, _deriv= series._evaluate_with_derivs(l,XYvec)
+            _deriv *= DFfactor
+            index_list = np.array([
+                iIn,iOut,
+                iIn + self.Npl,iOut + self.Npl,
+                iIn + 2*self.Npl,iOut + 2*self.Npl,
+                iIn + 3*self.Npl,iOut + 3*self.Npl
+                ]) - 1
+            for i,I in enumerate(index_list):
+                derivs[I] += _deriv[i]
+        return derivs
+
+    def deriv_and_jacobian_from_qp_vec(self,qp_vec):  
+        derivs = np.zeros(self.Ndim) 
+        jac = np.zeros((self.Ndim,self.Ndim)) 
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
+            series,DFfactor = series_and_DFfactor
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            _, _deriv, _jac, _ = series._evaluate_with_jacobian(l,XYvec)
+            _deriv *= DFfactor
+            _jac *= DFfactor
+            index_list = np.array([
+                iIn,iOut,
+                iIn + self.Npl,iOut + self.Npl,
+                iIn + 2*self.Npl,iOut + 2*self.Npl,
+                iIn + 3*self.Npl,iOut + 3*self.Npl
+                ]) - 1
+            for i,I in enumerate(index_list):
+                derivs[I] += _deriv[i]
+                for j,J in enumerate(index_list):
+                    jac[I,J] += _jac[i,j]
+        return derivs, jac
+
+    def implicit_midpoint_f_and_Df(self,qp_vec1,qp_vec0):
+        h = self._dt
+        qp_vec_mid = 0.5 * (qp_vec1+qp_vec0)
+        qp_dot,qp_dotJac = self.deriv_and_jacobian_from_qp_vec(qp_vec_mid)
+        f = qp_vec1 - qp_vec0 - h * qp_dot
+        Df = np.eye(self.Npl * 4 ) - 0.5 * h * qp_dotJac
+        return f,Df
+
+    def implicit_midpoint_step(self,qp_vec):
+        guess = qp_vec + self._dt * self.deriv_from_qp_vec(qp_vec)
+        rt = root(
+                self.implicit_midpoint_f_and_Df,
+                qp_vec,
+                args = (qp_vec),
+                jac=True
+            )
+        return rt.x
+
+    def apply(self):
+        pass
+
+    def apply_to_state_vector(self,state_vec):
+        qp_vec = self.state_vec_to_qp_vec(state_vec)
+        qp_vec_new = self.implicit_midpoint_step(qp_vec)
+        for i in xrange(self.Npl):
+            state_vec[6*i+1] = qp_vec_new[i]
+            state_vec[6*i] = qp_vec_new[i + 2 * self.Npl]
+            state_vec[6*i+5] = qp_vec_new[i + self.Npl]
+            state_vec[6*i+4] = qp_vec_new[i + 3 * self.Npl]
+        return state_vec
+
 def get_res_chain_reference_Lambdas_and_semimajor_axes(pvars,slist):
     coeffs = np.zeros(pvars.N)
     alpha_inv = np.zeros(pvars.N)
