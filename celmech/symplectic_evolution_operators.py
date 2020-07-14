@@ -665,11 +665,6 @@ class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
         vecs[self.indices,4] = qp_vec_new[6:8]  
         
         return vecs.reshape(-1)
-def array_print(arr):
-    Nrow,Ncol = arr.shape
-    print("" +  " ".join(map(lambda x: "{:10d}".format(x) , np.arange(Ncol))))
-    for i,row in enumerate(arr):
-        print("{:5d}\t".format(i)  +  " ".join(map(lambda x: "{:+0.3e}".format(x) ,row)))
 
 class SecularDFTermsEvolutionOperator(EvolutionOperator):
     """
@@ -732,6 +727,32 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
 
     @classmethod
     def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,Lambda0=None):
+        """
+        Initialize operator that includes all eccentricity and
+        inclination terms with orders ranging from Nmin to Nmax.
+        Interactions for all planet pairs are included.
+
+        Arguments
+        ---------
+        initial_state : celmech.Poincare
+          System to intialize operator for.
+        dt : float
+          Operator timestep.
+        Nmin : int
+          Minimum order of secular terms to include.
+        Nmax : int
+          Maximum order of secular terms to include.
+        Lambda0 : array-like
+            The Poincare momenta Lambda are treated as constant
+            in the disturing function. Lambda0 sets the values
+            of these constant momenta and should be an array
+            with an entry for each particle in the system.
+            If no value is supplied, initial values are chosen.
+
+        Returns
+        -------
+        operator : SecularDFTermsEvolutionOperator
+        """
         terms = SecularTermsList(Nmin,Nmax)
         N = initial_state.N
         terms_dict = {}
@@ -750,6 +771,24 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self._h = self.DF_prefactor * self._dt 
 
     def state_vec_to_qp_vec(self,state_vec):
+        """
+        Convert full state vector to vector of variables
+        that enter in the secular equations.
+
+        Arguments
+        ---------
+        state_vec :  array-like
+          Full state vector of the system in Poincare 
+          variables.   
+
+        Returns
+        -------
+        qp_vec : ndarray
+         Vector containing eccentricity and inclination
+         variables eta,rho,kappa,sigma. The variables 
+         are returned in the order:
+          [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+        """
         vecs = self._state_vector_to_individual_vectors(state_vec)
         kappa = vecs[:,0] 
         eta = vecs[:,1] 
@@ -758,6 +797,22 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         return np.concatenate((eta,rho,kappa,sigma))
 
     def deriv_from_qp_vec(self,qp_vec):  
+        """
+        Compute the time derivatives from the 
+        equations of motion for the 'qp_vec' 
+        variables returned by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        qp_vec_dot : ndarray
+          Time derivative of qp_vec.
+        """
         derivs = np.zeros(self.Ndim) 
         l = np.zeros(2)
         eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
@@ -785,6 +840,26 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         return derivs
 
     def deriv_and_jacobian_from_qp_vec(self,qp_vec):  
+        """
+        Compute the time derivatives and Jacobian from the 
+        equations of motion for the 'qp_vec' variables returned 
+        by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray shape (4 * Nplanet,)
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        qp_vec_dot : ndarray, shape (4 * Nplanet,)
+          Time derivative of qp_vec.
+
+        qp_vec_dot_jac : ndarray, shape (4 * Nplanet, 4 * Nplanet)
+          Jacobian matrix of the equations of motion for the
+          variables contained in qp_vec.
+        """
         derivs = np.zeros(self.Ndim) 
         jac = np.zeros((self.Ndim,self.Ndim)) 
         l = np.zeros(2)
@@ -816,6 +891,42 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         return derivs, jac
 
     def implicit_midpoint_f_and_Df(self,qp_vec1,qp_vec0):
+        """
+        Returns the objective function that must be solved via
+        root-finding for an implicit midpoint step along its Jacobian.
+
+        An implicit midpoint method approximates equations of motion:
+        
+          d(qp_vec)/dt = F(qp_vec)
+
+        such that a single step satisfies:
+
+          qp_vec1 = qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
+
+        for the updated variables qp_vec1.
+
+        This is an implicit equation for qp_vec1 and requires
+        finding the root of the equation:
+
+          f(qp_vec1;qp_vec0) = qp_vec1 - qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
+
+        This method returns the value of f along with the Jacobian df/d(qp_vec1).
+
+        Arguments
+        ---------
+        qp_vec1 : ndarray shape (4 * Nplanet,)
+          Updated variable vector. 
+        qp_vec0 : ndarray shape (4 * Nplanet,)
+          Initial variable vector. 
+
+        Returns
+        -------
+        f : ndarray, shape (4 * Nplanet,)
+          Value of vector function f(qp_vec1;qp_vec0).
+
+        Df : ndarray, shape (4 * Nplanet,)
+          Jacobian of vector function, df/d(qp_vec1)
+        """
         h = self._dt
         qp_vec_mid = 0.5 * (qp_vec1+qp_vec0)
         qp_dot,qp_dotJac = self.deriv_and_jacobian_from_qp_vec(qp_vec_mid)
@@ -824,6 +935,22 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         return f,Df
 
     def implicit_midpoint_step(self,qp_vec):
+        """
+        Update input varaibles qp_vec using the implicit
+        midpoint method.  This is a symplectic second-order 
+        method [Harrier et. al. 2006]. 
+
+        An implicit midpoint step of step-size h approximates 
+        equations of motion:
+        
+          d(qp_vec)/dt = F(qp_vec)
+
+        by the equation:
+
+          qp_vec1 = qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
+
+        for the updated variables qp_vec1.
+        """
         guess = qp_vec + self._dt * self.deriv_from_qp_vec(qp_vec)
         rt = root(
                 self.implicit_midpoint_f_and_Df,
@@ -834,9 +961,27 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         return rt.x
 
     def apply(self):
+        warnings.warn("'SecularDFTermsEvolutionOperator.apply' method not implemented.")
         pass
 
     def apply_to_state_vector(self,state_vec):
+        """
+        Apply evolution operator to state vector.
+
+        Arguments
+        ---------
+        state_vec : ndarray
+          State vector of system in Poincare variables
+           [ 
+            kappa1,eta1,Lambda1,lambda1,sigma1,rho1,
+            ...,
+            kappaN,etaN,LambdaN,lambdaN,sigmaN,rhoN
+           ]
+        Returns
+        -------
+        state_vec : ndarray
+          Updated state vector of the system.
+        """
         qp_vec = self.state_vec_to_qp_vec(state_vec)
         qp_vec_new = self.implicit_midpoint_step(qp_vec)
         for i in xrange(self.Npl):
