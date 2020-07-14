@@ -600,6 +600,7 @@ class PoincareHamiltonian(Hamiltonian):
             Integer index of outer planet
         """
         assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+        raise RuntimeError("THIS METHOD NEEDS TO BE FIXED!!!")
         max_order_by_2 = max_order//2
         max_order_by_4 = max_order//4
         for a in range(0,max_order_by_4+1):
