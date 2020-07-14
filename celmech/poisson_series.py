@@ -144,9 +144,12 @@ class DFTermSeries(object):
                 pointer(sum_im),
                 dS_dxy_re,dS_dxy_im,dS_dxybar_re,dS_dxybar_im
             )
-        dH_dq = np.array(dS_dxy_im) - np.array(dS_dxybar_im)
-        dH_dp = np.array(dS_dxybar_re) + np.array(dS_dxy_re)
-        return np.float64(sum_re),np.hstack((dH_dp,-dH_dq))
+        dSdxy = np.concatenate((
+            np.array(dS_dxy_re) + 1j * np.array(dS_dxy_im),
+            np.array(dS_dxybar_re) + 1j * np.array(dS_dxybar_im)
+            ))
+        derivs = np.real(self.Omega @ self.dXY_dQP @ dSdxy)
+        return np.float64(sum_re),derivs
 
     def _evaluate_with_jacobian(self,lambda_arr,xy_arr):
         expIL = np.exp( 1j * lambda_arr)
