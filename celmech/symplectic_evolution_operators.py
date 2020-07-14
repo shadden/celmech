@@ -768,7 +768,6 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
     @dt.setter
     def dt(self,value):
         self._dt = value
-        self._h = self.DF_prefactor * self._dt 
 
     def state_vec_to_qp_vec(self,state_vec):
         """
