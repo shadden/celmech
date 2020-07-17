@@ -7,9 +7,11 @@ from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
+from scipy.linalg import solve as lin_solve
 
 _rt2 = np.sqrt(2)
 _rt2_inv = 1 / _rt2 
+_machine_eps = np.finfo(np.float64).eps
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
         self._dt = dt
@@ -133,8 +135,14 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
         vecs[:,4] = _rt2 * np.real(ynew)
         vecs[:,5] = -1 * _rt2 * np.imag(ynew)
         return vecs.reshape(-1)
-
-
+    
+    def caluclate_Hamiltonian(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        H = np.conj(x) @ self.ecc_matrix @ x + np.conj(y) @ self.inc_matrix @ y
+        return np.real(H)
+    
 class LinearInclinationResonancOperator(EvolutionOperator):
     r"""
     Evolution operator for linear equation of the form:
@@ -693,7 +701,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         with an entry for each particle in the system.
         If no value is supplied, initial values are chosen.
     """
-    def __init__(self, initial_state, dt, terms_dict, Lambda0=None):
+    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10):
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
         self.rtLambda0_inv = 1 / np.sqrt(Lambda0[1:])
@@ -705,6 +713,12 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.Ndim = 4 * self.Npl
         G = initial_state.G
         ps = initial_state.particles
+        tols_allowed = atol >=0 and rtol >=0
+        tols_allowed = tols_allowed and (atol > 0 or rtol > 0)
+        assert tols_allowed, "Tolerances must be non-negative and at least one tolerance must be positive." 
+        self.rtol = rtol
+        self.atol = atol
+        self.max_iter = max_iter
         for iPair, term_list in terms_dict.items():
             iIn,iOut = iPair
             assert iIn < iOut, "Dictionary keys must have iIn < iOut."
@@ -794,6 +808,43 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         sigma = vecs[:,4] 
         rho = vecs[:,5] 
         return np.concatenate((eta,rho,kappa,sigma))
+
+    def Hamiltonian_from_qp_vec(self,qp_vec):  
+        """
+        Compute Hamiltonian of the operator from the 
+        equations of motion for the 'qp_vec' variables 
+        returned by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        Hamiltonian : float
+          The value of the Hamiltonian (i.e., the sum of the disturbing
+          function terms modeled by the operator)
+        """
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        Hamiltonian = 0.
+        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
+            series,DFfactor = series_and_DFfactor
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            dH = series._evaluate(l,XYvec)
+            dH *= DFfactor
+            Hamiltonian += dH
+        return Hamiltonian
 
     def deriv_from_qp_vec(self,qp_vec):  
         """
@@ -950,18 +1001,24 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
 
         for the updated variables qp_vec1.
         """
-        guess = qp_vec + self._dt * self.deriv_from_qp_vec(qp_vec)
-        rt = root(
-                self.implicit_midpoint_f_and_Df,
-                qp_vec,
-                args = (qp_vec),
-                jac=True
-            )
-        return rt.x
+        y = qp_vec + self._dt * self.deriv_from_qp_vec(qp_vec)
+        f,Df = self.implicit_midpoint_f_and_Df(y,qp_vec)
+        for _ in xrange(self.max_iter):
+            dy = lin_solve(Df,-f)
+            y+= dy
+            converged = np.alltrue(np.abs(dy) < self.rtol * np.abs(y) + self.atol)
+            if converged:
+                break
+            f,Df = self.implicit_midpoint_f_and_Df(y,qp_vec)
+        else:
+            warnings.warn("Implicit step failed to converge.")
+
+        return y
 
     def apply(self):
         warnings.warn("'SecularDFTermsEvolutionOperator.apply' method not implemented.")
         pass
+
 
     def apply_to_state_vector(self,state_vec):
         """
@@ -984,11 +1041,40 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         qp_vec = self.state_vec_to_qp_vec(state_vec)
         qp_vec_new = self.implicit_midpoint_step(qp_vec)
         for i in xrange(self.Npl):
+            # eta
             state_vec[6*i+1] = qp_vec_new[i]
+            
+            # kappa
             state_vec[6*i] = qp_vec_new[i + 2 * self.Npl]
+            
+            # rho
             state_vec[6*i+5] = qp_vec_new[i + self.Npl]
+
+            # sigma
             state_vec[6*i+4] = qp_vec_new[i + 3 * self.Npl]
         return state_vec
+    
+    def calculate_Hamiltonian(self,state_vec):
+        """
+        Compute the value of the Hamiltonian components
+        of this operator for an input state vector.
+
+        Arguments
+        ---------
+        state_vec : ndarray
+          State vector of system in Poincare variables
+           [ 
+            kappa1,eta1,Lambda1,lambda1,sigma1,rho1,
+            ...,
+            kappaN,etaN,LambdaN,lambdaN,sigmaN,rhoN
+           ]
+        Returns
+        -------
+        Hamiltonian : float
+          Value of the Hamiltonian.
+        """
+        qp_vec = self.state_vec_to_qp_vec(state_vec)
+        return self.Hamiltonian_from_qp_vec(qp_vec)
 
 def get_res_chain_reference_Lambdas_and_semimajor_axes(pvars,slist):
     coeffs = np.zeros(pvars.N)
