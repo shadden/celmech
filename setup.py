@@ -27,8 +27,10 @@ if sys.platform == 'darwin':
     extra_link_args=['-Wl,-install_name,@rpath/libcelmech'+suffix]
     
 libcelmechmodule = Extension('libcelmech',
-                    sources = [ 'src/disturbing_function.c',
-                                ],
+                    sources = [ 
+                        'src/disturbing_function.c',
+                        'src/poisson_series.c'
+                    ],
                     include_dirs = ['src'],
                     define_macros=[ ('LIBCELMECH', None) ],
                     # Removed '-march=native' for now.

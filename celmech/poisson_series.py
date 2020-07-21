@@ -3,8 +3,9 @@ from ctypes import *
 from .disturbing_function import  DFCoeff_C,eval_DFCoeff_dict,ResonanceTermsList
 #from . import clibcelmech
 from celmech.disturbing_function import DFArguments_dictionary
-libname = "/Users/shadden/Projects/celmech/src/libcelmech.so"
-clibcelmech = CDLL(libname)
+#libname = "/Users/shadden/Projects/celmech/src/libcelmech.so"
+#clibcelmech = CDLL(libname)
+from . import clibcelmech
 _rt2 = np.sqrt(2)
 _rt2_inv = 1  / _rt2
 
