@@ -2,8 +2,6 @@ from celmech import disturbing_function
 import numpy as np
 from collections import OrderedDict
 from sympy import S
-from celmech.disturbing_function import laplace_coefficient 
-from celmech.disturbing_function import get_fg_coeffs
 from itertools import combinations
 import rebound
 

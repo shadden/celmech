@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from celmech.disturbing_function import get_fg_coeffs , laplace_b
 from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from celmech.resonances import resonance_jk_list
@@ -266,56 +266,6 @@ class Poincare(object):
     def copy(self):
         return Poincare(self.G, self.particles[1:self.N])
 
-    def average_resonant_terms(self, i1=1, i2=2, deltaP=0.03, exclude=[], order=2, inverse=False):
-        """
-        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
-        averaged over all the resonant terms we do not include in the Hamiltonian.
-        """
-        ps = self.particles
-        m1 = ps[i1].m
-        m2 = ps[i2].m
-        n1 = ps[i1].n
-        n2 = ps[i2].n
-        Pratio = n2/n1 # P1/P2
-        alpha = ps[i1].a/ps[i2].a
-        e1 = ps[1].e
-        e2 = ps[2].e
-        l1 = ps[i1].l
-        l2 = ps[i2].l
-        gamma1 = ps[i1].gamma
-        gamma2 = ps[i2].gamma
-        G = self.G
-        prefac = G/ps[i2].a
-
-        sum1 = 0.
-        sum2 = 0.
-        prevsum=0.
-        jklist = resonance_jk_list(Pratio-deltaP, min(Pratio+deltaP, 0.995), order)
-        for j,k in jklist:
-            if [j,k] in exclude:
-                continue
-            prefac1 = (j-k)/(j*n2 - (j-k)*n1)
-            prefac2 = j/(j*n2 - (j-k)*n1)
-            theta = j*l2 - (j-k)*l1
-            for l in range(k+1): # 0 to k inclusive
-                Cjkl = general_order_coefficient(j,k,l,alpha)
-                Bjkl = Cjkl*e1**l*e2**(k-l) 
-                cosine = np.cos(theta + l*gamma1 - (l-k)*gamma2)
-                sum1 += prefac1*Bjkl*cosine
-                sum2 += prefac2*Bjkl*cosine
-                denom = 1.-float(j-k)/j*n1/n2
-                #print(j,k,(sum1-prevsum)*prefac*m2/ps[i1].sLambda, denom, 1./j*m2/ps[i2].M/denom)
-            prevsum=sum1
-
-        sum1 *= prefac
-        sum2 *= prefac
-        print(sum1*m2/ps[i1].sLambda, sum2*m1/ps[i2].sLambda)
-        if inverse is True:
-            sum1 *= -1
-            sum2 *= -1
-        ps[i1].sLambda += m2*sum1
-        ps[i2].sLambda -= m1*sum2
-
     def average_synodic_terms(self, inverse=False):
         """
         Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
@@ -334,7 +284,7 @@ class Poincare(object):
             prefac = G/ps[i2].a/(ps[i1].n-ps[i2].n) 
             alpha = ps[i1].a/ps[i2].a
             summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
-            s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_coefficient(0.5, 0, 0, alpha)/2.)
+            s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_b(0.5, 0, 0, alpha)/2.)
             if inverse is True:
                 s *= -1
             corrpvars.particles[i1].sLambda += m2*s # prefac*m1*m2*s/m1 (sLambda=Lambda/m)

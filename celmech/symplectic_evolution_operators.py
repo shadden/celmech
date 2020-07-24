@@ -2,7 +2,6 @@ import numpy as np
 import warnings
 from abc import ABC, abstractmethod
 from .hamiltonian import Hamiltonian
-from .disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
