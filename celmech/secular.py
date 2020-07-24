@@ -2,8 +2,11 @@ import numpy as np
 import warnings
 from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
-from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .symplectic_evolution_operators import LinearSecularEvolutionOperator
+from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
+from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from scipy.linalg import expm
+from .poincare import single_true
 _rt2 = np.sqrt(2)
 _rt2_inv = 1 / _rt2 
 _machine_eps = np.finfo(np.float64).eps
@@ -218,13 +221,9 @@ class LaplaceLagrangeSystem(Poincare):
                 self.inc_entries[(i,i)] += 2 * prefactor * Cinc_diag / LmbdaI / 4
 
 
-from .symplectic_evolution_operators import LinearSecularEvolutionOperator
-from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
-from scipy.linalg import expm
-from .poincare import single_true
 
 class SecularSystemSimulation():
-    def __init__(self, state, max_order = 4, dt = None,dtFraction = None ,DFOp_kwargs = {}):
+    def __init__(self, state, dt = None,dtFraction = None, max_order = 4, DFOp_kwargs = {}):
         """
         A class for integrating the secular equations of motion governing a planetary system.
 
@@ -252,19 +251,19 @@ class SecularSystemSimulation():
             See celmech.symplectic_evolution_operators.SecularDFTermsEvolutionOperator for list of
             keyword arguments.
         """
+        assert max_order > 3, "'max_order' must be greater than or equal to 4."
         if not single_true([dt,dtFraction]):
             raise AttributeError("Can only pass one of dt or dtFraction")
         if dt:
             self._dt = dt
         elif dtFraction:
-            llsys = LaplaceLagrangeSystem( state.G, state.particles)
+            llsys = LaplaceLagrangeSystem.from_Poincare(state)
             Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
             Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
             Tsec = min(Tsec_e,Tsec_inc)
             self._dt = dtFraction * Tsec
         self.linearSecOp = LinearSecularEvolutionOperator(state,self._dt)
-        assert max_order > 3, "'max_order' must be greater than or equal to 4."
-        self.nonlinearSecOp = DFOp.fromOrderRange(state,dt,4,max_order, **DFOp_kwargs)
+        self.nonlinearSecOp = DFOp.fromOrderRange(state,self._dt,4,max_order, **DFOp_kwargs)
         self.state = state
         self._half_step_forward_e_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
         self._half_step_backward_e_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
@@ -273,9 +272,9 @@ class SecularSystemSimulation():
         self.t = 0
 
     @classmethod
-    def from_Simulation(cls,sim,dt,max_order,DFOp_kwargs = {}):
+    def from_Simulation(cls,sim, dt = None, dtFraction = None, max_order = 4, DFOp_kwargs = {}):
         pvars = Poincare.from_Simulation(sim)
-        return cls(pvars,dt,max_orderr,DFOp_kwargs = DFOp_kwargs)
+        return cls(pvars, max_order = max_order, dt = dt, dtFraction = dtFraction, DFOp_kwargs = DFOp_kwargs)
 
     @property
     def state_vector(self):
