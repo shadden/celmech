@@ -136,7 +136,7 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
         vecs[:,5] = -1 * _rt2 * np.imag(ynew)
         return vecs.reshape(-1)
     
-    def caluclate_Hamiltonian(self,state_vector):
+    def calculate_Hamiltonian(self,state_vector):
         vecs = self._state_vector_to_individual_vectors(state_vector)
         x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
         y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
@@ -740,7 +740,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             self.DFSeries_dict[iPair] = dfseries,-G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
 
     @classmethod
-    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,Lambda0=None):
+    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,**kwargs):
         """
         Initialize operator that includes all eccentricity and
         inclination terms with orders ranging from Nmin to Nmax.
@@ -773,7 +773,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         for iOut in range(1,N):
             for iIn in range(1,iOut):
                 terms_dict[(iIn,iOut)] = terms
-        return cls(initial_state, dt, terms_dict, Lambda0=Lambda0) 
+        return cls(initial_state, dt, terms_dict,**kwargs) 
 
     @property
     def dt(self):

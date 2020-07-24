@@ -1,8 +1,12 @@
 import numpy as np
+import warnings
 from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
 from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
 from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+_rt2 = np.sqrt(2)
+_rt2_inv = 1 / _rt2 
+_machine_eps = np.finfo(np.float64).eps
 class LaplaceLagrangeSystem(Poincare):
     def __init__(self,G,poincareparticles=[]):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
@@ -212,3 +216,142 @@ class LaplaceLagrangeSystem(Poincare):
                 LmbdaI = S('Lambda{}'.format(i))
                 self.ecc_entries[(i,i)] += 2 * prefactor * Cecc_diag / LmbdaI
                 self.inc_entries[(i,i)] += 2 * prefactor * Cinc_diag / LmbdaI / 4
+
+
+from .symplectic_evolution_operators import LinearSecularEvolutionOperator
+from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
+from scipy.linalg import expm
+from .poincare import single_true
+
+class SecularSystemSimulation():
+    def __init__(self, state, max_order = 4, dt = None,dtFraction = None ,DFOp_kwargs = {}):
+        """
+        A class for integrating the secular equations of motion governing a planetary system.
+
+        The integrations are carried out using a symplectic splitting scheme. The scheme
+        separates the equations of motion into an (integrable) linear component equivalent
+        to the Laplace-Largange equations of motion, and a component containing all 
+        higher-order terms. The linear components are solved exactly while the higher-order
+        terms are solved using the symplectic implicit midpoint method.
+        
+        Arguments
+        ----------
+        state : celmech.Poincare
+            The initial dynamical state of the system.
+        max_order : int, optional
+            The maximum order of disturbing function terms to include in the integration. 
+            By default, the equations of motion include terms up to 4th order.
+        dt : float, optional
+            The timestep to use for the integration. Either dt or dtFraction must be
+            specified.
+        dtFraction : float, optional
+            Set the timestep to a constant fraction the period of shortest-period linear 
+            secular eigenmode.
+        DFOp_kwargs : dict, optional
+            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
+            See celmech.symplectic_evolution_operators.SecularDFTermsEvolutionOperator for list of
+            keyword arguments.
+        """
+        if not single_true([dt,dtFraction]):
+            raise AttributeError("Can only pass one of dt or dtFraction")
+        if dt:
+            self._dt = dt
+        elif dtFraction:
+            llsys = LaplaceLagrangeSystem( state.G, state.particles)
+            Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
+            Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
+            Tsec = min(Tsec_e,Tsec_inc)
+            self._dt = dtFraction * Tsec
+        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dt)
+        assert max_order > 3, "'max_order' must be greater than or equal to 4."
+        self.nonlinearSecOp = DFOp.fromOrderRange(state,dt,4,max_order, **DFOp_kwargs)
+        self.state = state
+        self._half_step_forward_e_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
+        self._half_step_backward_e_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
+        self._half_step_forward_inc_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.inc_matrix)
+        self._half_step_backward_inc_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.inc_matrix)
+        self.t = 0
+
+    @classmethod
+    def from_Simulation(cls,sim,dt,max_order,DFOp_kwargs = {}):
+        pvars = Poincare.from_Simulation(sim)
+        return cls(pvars,dt,max_orderr,DFOp_kwargs = DFOp_kwargs)
+
+    @property
+    def state_vector(self):
+        state_vec = []
+        for p in self.state.particles[1:]:
+            state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
+        return np.array(state_vec)
+    @property
+    def dt(self):
+        return self._dt
+    @dt.setter
+    def dt(self,value):
+        self._dt = value
+        self.linearSecOp.dt = value
+        self.nonlinearSecOp.dt = value
+        self._half_step_forward_e_matrix = expm(-1j * 0.5 * value * self.linearSecOp.ecc_matrix)
+        self._half_step_backward_e_matrix = expm(+1j * 0.5 * value * self.linearSecOp.ecc_matrix)
+        self._half_step_forward_inc_matrix = expm(-1j * 0.5 * value * self.linearSecOp.inc_matrix)
+        self._half_step_backward_inc_matrix = expm(+1j * 0.5 * value *  self.linearSecOp.inc_matrix)
+
+    def linearOp_half_step_forward(self,state_vec):
+        """
+        Advance state vector a half timestep forward with the 
+        linear secular evolution operator.
+        """
+        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        xnew = self._half_step_forward_e_matrix @ x
+        ynew = self._half_step_forward_inc_matrix @ y
+        vecs[:,0] = _rt2 * np.real(xnew)
+        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
+        vecs[:,4] = _rt2 * np.real(ynew)
+        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
+        return vecs.reshape(-1)
+        
+    def linearOp_half_step_backward(self,state_vec):
+        """
+        Advance state vector a half timestep backward with the 
+        linear secular evolution operator.
+        """
+        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        xnew = self._half_step_backward_e_matrix @ x
+        ynew = self._half_step_backward_inc_matrix @ y
+        vecs[:,0] = _rt2 * np.real(xnew)
+        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
+        vecs[:,4] = _rt2 * np.real(ynew)
+        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
+        return vecs.reshape(-1)
+    
+    def update_state_from_vector(self,state_vec):
+        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
+        for vals,p in zip(vecs,self.state.particles[1:]):
+            p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho = vals
+
+    def integrate(self,time,exact_finish_time = False):
+        assert time >= self.t, "Backward integration is currently not implemented."
+        Nstep = int( np.ceil( (time-self.t) / self.dt) )
+        state_vec = self.state_vector
+        state_vec = self.linearOp_half_step_forward(state_vec)
+        for _ in xrange(Nstep):
+            state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
+            state_vec = self.linearSecOp.apply_to_state_vector(state_vec)
+        if exact_finish_time:
+           warnings.warn("Exact finish time is not currently implemented.")
+        state_vec = self.linearOp_half_step_backward(state_vec)
+        self.update_state_from_vector(state_vec)
+        self.t += Nstep * self.dt
+
+    def calculate_energy(self):
+        sv = self.state_vector
+        E = self.linearSecOp.calculate_Hamiltonian(sv)
+        E += self.nonlinearSecOp.calculate_Hamiltonian(sv)
+        return E
+    
+    def apply_symplectic_corrector(self,state_vec,order):
+        pass
