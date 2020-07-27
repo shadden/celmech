@@ -358,7 +358,22 @@ class SecularSystemSimulation():
         return E
     
     def apply_A_step_for_dt(self,state_vec,dt):
+        """
+        Apply the linear secular evolution operator for a time
+        'dt' to a state vector.
 
+        Argruments
+        ----------
+        state_vec : ndarray
+          State vector of planetary system.
+        dt : float
+          Timestep to apply operator for.
+
+        Returns
+        -------
+        state_vec : ndarray
+          Updated state vector after application of operator.
+        """
         opMtrx_ecc = expm(-1j * 0.5 * dt * self.linearSecOp.ecc_matrix)
         opMtrx_inc = expm(-1j * 0.5 * dt * self.linearSecOp.inc_matrix)
         vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
@@ -373,6 +388,22 @@ class SecularSystemSimulation():
         return vecs.reshape(-1)
 
     def apply_B_step_for_dt(self,state_vec,dt):
+        """
+        Apply the secular evolution operator for the non-linear (4th and higher order)
+        secular terms for a time 'dt' to a state vector.
+
+        Argruments
+        ----------
+        state_vec : ndarray
+          State vector of planetary system.
+        dt : float
+          Timestep to apply operator for.
+
+        Returns
+        -------
+        state_vec : ndarray
+          Updated state vector after application of operator.
+        """
 
         # change time-step
         self.nonlinearSecOp.dt = dt
