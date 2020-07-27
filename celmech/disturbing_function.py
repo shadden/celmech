@@ -403,7 +403,7 @@ def HansenCoefficient_term(a,b,c,sigma):
     The Hansen coefficient is given by:
 
         X^{a,b}_c(e) = e^{|c-b|} \times
-        \sum_{\sigma=0}^\infty HansenCoefficient_term(a,b,c)e^{2\sigma}
+        \sum_{\sigma=0}^\infty HansenCoefficient_term(a,b,c,sigma)e^{2\sigma}
 
     Arguments
     ---------
@@ -419,6 +419,31 @@ def HansenCoefficient_term(a,b,c,sigma):
     alpha = max(c-b,0)
     beta  = max(b-c,0)
     return NewcombOperator(a,b,alpha+sigma,beta+sigma)
+
+def calX_term(a,b,c,d):
+    r"""
+    Series coefficient in Taylor series of the expession 
+    calX^{a,b}_c(e) = (1-e^2)^{-1/2} * X^{a,b}_c(e) where
+    X^{a,b}_c is a traditional Hansen coefficient 
+    math::
+        calX^{a,b}_c(e) = e^{|c-b|} \times
+        \sum_{\sigma=0}^\infty calX_term(a,b,c,sigma)e^{2\sigma}
+
+    Arguments
+    ---------
+    a : int
+    b : int
+    c : int
+    d : int
+
+    Returns
+    -------
+    float
+    """
+    tot = 0
+    for n in xrange(d+1):
+        tot += binom(-0.5,n) * (-1)**n * HansenCoefficient_term(a,b,c,d - n)
+    return tot
 
 def threeFtwo(a,b):
     """
@@ -706,4 +731,67 @@ def negative_binom(minus_q,l):
     # when the argument is potenially a negative integer
     return (-1)**l * poch(-1 * minus_q,l) / factorial(l)
 
+
+def _Cindirect_type1(k1,k2,m,z1,z2,z3,z4):
+    """
+    Indirect term cosine coefficient for argument:
+         \theta = k_1\lambda_j + k_2\lambda_i
+                    - (k_1-1)\varpi_j - (k_2+1) \varpi_i
+                    + m(\Omega_i-\Omega_j)
+    """
+    if m > 2:
+        return 0
+    base_case = -1 * calX_term(0,1,k1,z4) * calX_term(0,1,-k2,z3)
+    if m == 0:
+        if z1 > 1 or z2 > 1:
+            return 0
+        return (-1)**(z1) * (-1)**(z2) * base_case
+    elif m == 1:
+        binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
+        base_case
+    else:
+        # m == 2
+        if z1 > 1 or z2 > 1:
+            return 0
+        return base_case
+
+def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
+    """
+    Indirect term cosine coefficient for argument:
+        \theta = k_1\lambda_j + k_2\lambda_i
+                    - (k_1-1)\varpi_j - (k_2-1) \varpi_i
+                    - \Omega_i - \Omega_j + m(\Omega_j-\Omega_i)
+    """
+    if abs(m) > 1:
+        return 0
+    base_case = -1 * calX_term(0,1,k1,z4) * calX_term(0,1,k2,z3)
+    if m == 0:
+        return binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
+        base_case
+
+    if m == -1:
+        return binom(1 ,z1) * _delta(z2) * (-1)**(z1) * base_case
+    if m == +1:
+        return binom(1 ,z2) * _delta(z1) * (-1)**(z2) * base_case
+
+
+def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
+    """
+    Get the indirect contribution to disturbing function coefficient
+        \bar{C}_{\pmb{k}}^{(z_1,z_2,z_3,z_4)}
+    """
+    if np.sum([k1,k2,k3,k4,k5,k6]) !=0:
+        warnings.warn(
+        "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" +
+        "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
+        )
+        return 0
+    if k1 + k4 != 1:
+        return 0
+    if k2 + k3 == -1:
+        return _Cindirect_type1(k1,k2,k5,z1,z2,z3,z4)
+    elif k2 + k3 == 1:
+        return _Cindirect_type1(k1,k2,k6-1,z1,z2,z3,z4)
+    else:
+        return 0
 
