@@ -338,8 +338,13 @@ class SecularSystemSimulation():
         state_vec = self.state_vector
         state_vec = self.linearOp_half_step_forward(state_vec)
         for _ in xrange(Nstep):
+
+            # B step
             state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
+            
+            # A step
             state_vec = self.linearSecOp.apply_to_state_vector(state_vec)
+
         if exact_finish_time:
            warnings.warn("Exact finish time is not currently implemented.")
         state_vec = self.linearOp_half_step_backward(state_vec)
@@ -352,5 +357,34 @@ class SecularSystemSimulation():
         E += self.nonlinearSecOp.calculate_Hamiltonian(sv)
         return E
     
+    def apply_A_step_for_dt(self,state_vec,dt):
+
+        opMtrx_ecc = expm(-1j * 0.5 * dt * self.linearSecOp.ecc_matrix)
+        opMtrx_inc = expm(-1j * 0.5 * dt * self.linearSecOp.inc_matrix)
+        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        xnew = opMtrx_ecc @ x
+        ynew = opMtrx_inc @ y
+        vecs[:,0] = _rt2 * np.real(xnew)
+        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
+        vecs[:,4] = _rt2 * np.real(ynew)
+        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
+        return vecs.reshape(-1)
+
+    def apply_B_step_for_dt(self,state_vec,dt):
+
+        # change time-step
+        self.nonlinearSecOp.dt = dt
+
+        # apply
+        state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
+        
+        # set time-step back to default
+        self.nonlinearSecOp.dt = self.dt
+        
+        # return result
+        return state_vec
+
     def apply_symplectic_corrector(self,state_vec,order):
         pass
