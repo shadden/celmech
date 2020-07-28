@@ -223,8 +223,11 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
     """
     tot = 0
     for key,val in Coeff_dict.items():
-        p,arg = key
-        tot += val * alpha**p * laplace_b(*arg,alpha)
+        if key is 'indirect':
+            tot += val / np.sqrt(alpha)
+        else:
+            p,arg = key
+            tot += val * alpha**p * laplace_b(*arg,alpha)
     return tot
 
 def eccentricity_type_resonance_coefficient(j,k,l,alpha):
@@ -543,7 +546,7 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
 
     
 
-def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
+def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
     r"""
     Get the coefficient of the disturbing function term:
     
@@ -575,6 +578,9 @@ def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
         Select specific term where the exponent of e1 is |j3|+2*z3
     z4 : int
         Select specific term where the exponent of e1 is |j4|+2*z4
+    include_indirect : booole, optional
+        Whether to include the indirect contribution to the disturibing function
+        coefficient.
         
     Returns
     -------
@@ -627,6 +633,10 @@ def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4):
                     cf = FX(h, k, i, p, u, j2 + j3, j2, j1 + j4, j1, z1, z2, z3, z4)
                     if not np.isclose(cf,0):
                         total[(i+u,(i+1/2,abs(j1+j4-h+p),u))]+=cf
+
+    # add indirect term
+    if include_indirect:
+        total['indirect'] = DFCoeff_Cbar_indirect_piece(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
     return dict(total)
 
 def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
@@ -754,6 +764,7 @@ def _Cindirect_type1(k1,k2,m,z1,z2,z3,z4):
         if z1 > 1 or z2 > 1:
             return 0
         return base_case
+    return 0
 
 def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
     """
@@ -768,11 +779,11 @@ def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
     if m == 0:
         return binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
         base_case
-
     if m == -1:
         return binom(1 ,z1) * _delta(z2) * (-1)**(z1) * base_case
     if m == +1:
         return binom(1 ,z2) * _delta(z1) * (-1)**(z2) * base_case
+    return 0
 
 
 def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
