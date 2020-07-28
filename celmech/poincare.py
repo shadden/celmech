@@ -8,14 +8,6 @@ from celmech.resonances import resonance_jk_list
 from itertools import combinations
 import rebound
 import warnings
-def partitions_of_length_4(N):
-    answer = set()
-    for j1 in range(N+1):
-        for j2 in range(N+1-j1):
-            for j3 in range(N+1-j1-j2):
-                j4 = N-j1-j2-j3
-                answer.add((j1,j2,j3,j4))
-    return answer
 def get_re_im_components(x,y,k):
     """
     Get the real and imaginary components of
