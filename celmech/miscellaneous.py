@@ -1,6 +1,8 @@
 import numpy as np
 from scipy.special import k0,k1,p_roots
 import warnings
+from . import clibcelmech
+from ctypes import POINTER,c_int,c_double,c_long
 
 
 def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
@@ -142,3 +144,67 @@ def getOmegaMatrix(n):
          np.concatenate([-np.eye(n),np.zeros((n,n))]).T
         )
     )
+
+######################################################
+######################## FMFT ########################
+######################################################
+p2d = np.ctypeslib.ndpointer(dtype = np.float,ndim = 2,flags = 'C')
+_fmft = clibcelmech.fmft_wrapper
+_fmft.argtypes =[p2d, c_int, c_double, c_double, c_int, p2d, c_long]
+_fmft.restype = c_int
+def _check_errors(ret, func, args):
+    if ret<=0:
+        raise RuntimeError("FMFT returned error code %d for the given arguments"%ret)
+    return ret
+_fmft.errcheck = _check_errors
+def _nearest_pow2(x):
+	return int(2**np.floor(np.log2(x)))
+def frequency_modified_fourier_transform(inpt, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
+    """
+    Apply the frequency-modified Fourier transfrorm algorithm (Šidlichovský & Nesvorný 1996) [#]_
+    to a time series to determine the series' principle Fourier modes. This function simply
+    proivdes a wrapper to to C implementation written by D. Nesvorný available at 
+    https://www-n.oca.eu/nesvorny/programs.html.
+
+    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1996CeMDA..65..137S/abstract>`
+
+    Arguments
+    ---------
+    inpt : ndarray, shape (N,3)
+      Input data time series in the form 
+        [
+         [time[0],Re(z[0]),Im(z[0])],
+         ...,
+         [time[i],Re(z[i]),Im(z[i])],
+         ...,
+         [time[N-1],Re(z[N-1]),Im(z[N-1])]
+        ]
+    
+    Nfreq : int
+        Number of Fourier modes to determine.
+
+    method_flag : int
+        The FMFT algorithm 
+		Basic Fourier Transform algorithm           if   flag = 0;   not implemented   
+		Modified Fourier Transform                  if   flag = 1;
+		Frequency Modified Fourier Transform        if   flag = 2;
+		FMFT with additional non-linear correction  if   flag = 3
+         
+    """
+    output_arr = np.empty((Nfreq,3),order='C',dtype=np.float64)
+    input_arr = np.array(inpt,order='C',dtype=np.float64)
+    Ndata = _nearest_pow2(len(inpt))
+    _Nyq = 2 * np.pi * 0.5
+    if not min_freq:
+        min_freq = -1 * _Nyq
+    if not max_freq:
+        max_freq = _Nyq
+    _fmft( output_arr,
+            Nfreq,
+            min_freq,
+            max_freq,
+            c_int(method_flag),
+            input_arr,
+            c_long(Ndata)
+    )
+    return {x[0]:x[1]*np.exp(1j*x[2]) for x in output_arr}
