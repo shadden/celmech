@@ -159,7 +159,7 @@ def _check_errors(ret, func, args):
 _fmft.errcheck = _check_errors
 def _nearest_pow2(x):
 	return int(2**np.floor(np.log2(x)))
-def frequency_modified_fourier_transform(inpt, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
+def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
     """
     Apply the frequency-modified Fourier transfrorm algorithm (Šidlichovský & Nesvorný 1996) [#]_
     to a time series to determine the series' principle Fourier modes. This function simply
@@ -170,30 +170,22 @@ def frequency_modified_fourier_transform(inpt, Nfreq, method_flag = 3, min_freq 
 
     Arguments
     ---------
-    inpt : ndarray, shape (N,3)
-      Input data time series in the form 
-        [
-         [time[0],Re(z[0]),Im(z[0])],
-         ...,
-         [time[i],Re(z[i]),Im(z[i])],
-         ...,
-         [time[N-1],Re(z[N-1]),Im(z[N-1])]
-        ]
-    
+    time : ndarray, shape (N,)
+        Times of input data values.
+    z : complex ndarray, shape (N,) 
+      Input data time series in the form.
     Nfreq : int
         Number of Fourier modes to determine.
-
     method_flag : int
         The FMFT algorithm 
 		Basic Fourier Transform algorithm           if   flag = 0;   not implemented   
 		Modified Fourier Transform                  if   flag = 1;
 		Frequency Modified Fourier Transform        if   flag = 2;
 		FMFT with additional non-linear correction  if   flag = 3
-         
     """
     output_arr = np.empty((Nfreq,3),order='C',dtype=np.float64)
-    input_arr = np.array(inpt,order='C',dtype=np.float64)
-    Ndata = _nearest_pow2(len(inpt))
+    input_arr = np.array(np.vstack((time,np.real(z),np.imag(z))).T,order='C',dtype=np.float64)
+    Ndata = _nearest_pow2(len(input_arr))
     _Nyq = 2 * np.pi * 0.5
     if not min_freq:
         min_freq = -1 * _Nyq

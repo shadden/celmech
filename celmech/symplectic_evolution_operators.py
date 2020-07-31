@@ -7,6 +7,8 @@ from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
 from scipy.linalg import solve as lin_solve
+from .secular import LaplaceLagrangeSystem
+from scipy.linalg import expm
 
 _rt2 = np.sqrt(2)
 _rt2_inv = 1 / _rt2 
@@ -72,8 +74,6 @@ class KeplerianEvolutionOperator(EvolutionOperator):
     def dt(self,val):
         self._dt = val
 
-from .poincare import LaplaceLagrangeSystem
-from scipy.linalg import expm
 
 class LinearSecularEvolutionOperator(EvolutionOperator):
     def __init__(self,initial_state,dt):

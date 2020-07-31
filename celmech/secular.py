@@ -2,14 +2,13 @@ import numpy as np
 import warnings
 from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
-from .symplectic_evolution_operators import LinearSecularEvolutionOperator
-from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
 from .poincare import single_true
 _rt2 = np.sqrt(2)
 _rt2_inv = 1 / _rt2 
 _machine_eps = np.finfo(np.float64).eps
+
 class LaplaceLagrangeSystem(Poincare):
     def __init__(self,G,poincareparticles=[]):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
@@ -260,6 +259,8 @@ class LaplaceLagrangeSystem(Poincare):
         self.ecc_entries[(indexOut,indexIn)] += InOut
         self.ecc_entries[(indexOut,indexOut)] += OutOut
         
+from .symplectic_evolution_operators import LinearSecularEvolutionOperator
+from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
 class SecularSystemSimulation():
     def __init__(self, state, dt = None,dtFraction = None, max_order = 4, DFOp_kwargs = {}):
         """

@@ -29,7 +29,10 @@ if sys.platform == 'darwin':
 libcelmechmodule = Extension('libcelmech',
                     sources = [ 
                         'src/disturbing_function.c',
-                        'src/poisson_series.c'
+                        'src/poisson_series.c',
+                        'src/fmft.c',
+                        'src/fmftPy.c',
+                        'src/nrutil.c'
                     ],
                     include_dirs = ['src'],
                     define_macros=[ ('LIBCELMECH', None) ],
