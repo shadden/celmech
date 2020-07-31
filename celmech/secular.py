@@ -220,8 +220,46 @@ class LaplaceLagrangeSystem(Poincare):
                 self.ecc_entries[(i,i)] += 2 * prefactor * Cecc_diag / LmbdaI
                 self.inc_entries[(i,i)] += 2 * prefactor * Cinc_diag / LmbdaI / 4
 
+    def add_first_order_resonance_terms(self,resonances_dictionary):
+        for indices,resonance_k in resonances_dictionary.items():
+            self.add_first_order_resonance_term(*indices,resonance_k) 
 
+    def add_first_order_resonance_term(self,indexIn, indexOut,kres):
+        assert indexIn < indexOut, "Input 'indexIn' must be less than 'indexOut'."
+        particleIn = self.particles[indexIn]
+        particleOut = self.particles[indexOut]
+        alpha = particleIn.a / particleOut.a
+        G = symbols('G')
+        mIn,MIn,LambdaIn = symbols('m{0},M{0},Lambda{0}'.format(indexIn)) 
+        mOut,MOut,LambdaOut = symbols('m{0},M{0},Lambda{0}'.format(indexOut)) 
+        
+        CIn = get_DFCoeff_symbol(*[kres,1-kres,-1,0,0,0],0,0,0,0,indexIn,indexOut)
+        COut = get_DFCoeff_symbol(*[kres,1-kres,0,-1,0,0],0,0,0,0,indexIn,indexOut)
+        self.params[CIn] = eval_DFCoeff_dict(DFCoeff_C(*[kres,1-kres,-1,0,0,0],0,0,0,0),alpha)
+        self.params[COut] = eval_DFCoeff_dict(DFCoeff_C(*[kres,1-kres,0,-1,0,0],0,0,0,0),alpha)
+        eps = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
+        omegaIn = G * G * MIn * MIn * mIn**3 / (LambdaIn**3)
+        omegaOut = G * G * MOut * MOut * mOut **3 / (LambdaOut**3)
+        domegaIn = -3 * G * G * MIn * MIn * mIn**3 / (LambdaIn**4)
+        domegaOut = -3 * G * G * MOut * MOut * mOut**3 / (LambdaOut**4)
+        kIn = 1 - kres
+        kOut = kres
+        k_Domega_k = kIn**2 * domegaIn + kOut**2 * domegaOut
+        prefactor = (k_Domega_k / (kIn * omegaIn + kOut * omegaOut)**2) 
+        xToXIn = sqrt(2/LambdaIn)
+        xToXOut = sqrt(2/LambdaOut)
 
+        InIn = eps**2 * prefactor * CIn * CIn * xToXIn * xToXIn / 4
+        InOut = eps**2 * prefactor * COut * CIn * xToXOut * xToXIn / 4
+        OutOut = eps**2 * prefactor * COut * COut * xToXOut * xToXOut / 4
+        
+        self.ecc_entries[(indexIn,indexIn)] += InIn
+        # Note-- only upper entries are stored so 
+        # changing (indexOut,indexIn) also implicitly 
+        # changes (indexIn,indexOut)
+        self.ecc_entries[(indexOut,indexIn)] += InOut
+        self.ecc_entries[(indexOut,indexOut)] += OutOut
+        
 class SecularSystemSimulation():
     def __init__(self, state, dt = None,dtFraction = None, max_order = 4, DFOp_kwargs = {}):
         """
@@ -254,14 +292,14 @@ class SecularSystemSimulation():
         assert max_order > 3, "'max_order' must be greater than or equal to 4."
         if not single_true([dt,dtFraction]):
             raise AttributeError("Can only pass one of dt or dtFraction")
+        llsys = LaplaceLagrangeSystem.from_Poincare(state)
+        Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
+        Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
+        self.Tsec = min(Tsec_e,Tsec_inc)
         if dt:
             self._dt = dt
         elif dtFraction:
-            llsys = LaplaceLagrangeSystem.from_Poincare(state)
-            Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
-            Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
-            Tsec = min(Tsec_e,Tsec_inc)
-            self._dt = dtFraction * Tsec
+            self._dt = dtFraction * self.Tsec
         self.linearSecOp = LinearSecularEvolutionOperator(state,self._dt)
         self.nonlinearSecOp = DFOp.fromOrderRange(state,self._dt,4,max_order, **DFOp_kwargs)
         self.state = state
