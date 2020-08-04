@@ -1013,6 +1013,21 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             warnings.warn("Implicit step failed to converge.")
 
         return y
+    
+    def LobattoIIIB_step(self,qp_vec):
+        a = np.array([[1/6, -1/6, 0], [1/6, 1/3, 0], [1/6, 5/6, 0]])
+        c = np.array([0, 1/2, 1])
+        b = np.array([1/6, 2/3, 1/6])
+        delk = 1
+        # solve for y(t+h) from 
+        # differntial equation dy/dt = f(y)
+        h = self._dt # time step
+        f = self.deriv_from_qp_vec # function f
+        y = np.copy(qp_vec) # intial data y(t)
+        rtol = self.rtol # relative tolerance
+        atol = self.atol # absolute tolerance
+        for _ in xrange(self.max_iter):
+            ### Do iterative solution here ###
 
     def apply(self):
         warnings.warn("'SecularDFTermsEvolutionOperator.apply' method not implemented.")
