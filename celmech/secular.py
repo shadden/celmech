@@ -259,8 +259,74 @@ class LaplaceLagrangeSystem(Poincare):
         self.ecc_entries[(indexOut,indexIn)] += InOut
         self.ecc_entries[(indexOut,indexOut)] += OutOut
         
-from .symplectic_evolution_operators import LinearSecularEvolutionOperator
+from .symplectic_evolution_operators import EvolutionOperator
 from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
+class LinearSecularEvolutionOperator(EvolutionOperator):
+    def __init__(self,initial_state,dt):
+        super(LinearSecularEvolutionOperator,self).__init__(initial_state,dt)
+        LL_system = LaplaceLagrangeSystem.from_Poincare(self.state)
+        self.ecc_matrix = LL_system.Neccentricity_matrix
+        self.inc_matrix = LL_system.Ninclination_matrix
+        self.ecc_operator_matrix = expm(-1j * self.dt * self.ecc_matrix)
+        self.inc_operator_matrix = expm(-1j * self.dt * self.inc_matrix)
+
+    @property
+    def dt(self):
+        return super().dt
+    @dt.setter
+    def dt(self,val):
+        self._dt = val
+        self.ecc_operator_matrix = expm(-1j * self.dt * self.ecc_matrix)
+        self.inc_operator_matrix = expm(-1j * self.dt * self.inc_matrix)
+
+    def _get_x_vector(self):
+        eta = np.array([p.eta for p in self.particles[1:]])
+        kappa = np.array([p.kappa for p in self.particles[1:]])
+        x =  (kappa - 1j * eta) * _rt2_inv
+        return x
+
+    def _get_y_vector(self):
+        rho = np.array([p.rho for p in self.particles[1:]])
+        sigma = np.array([p.sigma for p in self.particles[1:]])
+        y =  (sigma - 1j * rho) * _rt2_inv
+        return y
+
+    def _set_x_vector(self,x):
+        for p,xi in zip(self.particles[1:],x):
+            p.kappa = _rt2 * np.real(xi)
+            p.eta =  _rt2 * np.real(1j * xi)
+
+    def _set_y_vector(self,y):
+        for p,yi in zip(self.particles[1:],y):
+            p.sigma = _rt2 * np.real(yi)
+            p.rho =  _rt2 * np.real(1j * yi)
+
+    def apply(self):
+        x = self._get_x_vector()
+        y = self._get_y_vector()
+        xnew = self.ecc_operator_matrix @ x
+        ynew = self.inc_operator_matrix @ y
+        self._set_x_vector(xnew)
+        self._set_y_vector(ynew)
+        
+    def apply_to_state_vector(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        xnew = self.ecc_operator_matrix @ x
+        ynew = self.inc_operator_matrix @ y
+        vecs[:,0] = _rt2 * np.real(xnew)
+        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
+        vecs[:,4] = _rt2 * np.real(ynew)
+        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
+        return vecs.reshape(-1)
+    
+    def calculate_Hamiltonian(self,state_vector):
+        vecs = self._state_vector_to_individual_vectors(state_vector)
+        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
+        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
+        H = np.conj(x) @ self.ecc_matrix @ x + np.conj(y) @ self.inc_matrix @ y
+        return np.real(H)
 class SecularSystemSimulation():
     def __init__(self, state, dt = None,dtFraction = None, max_order = 4, DFOp_kwargs = {}):
         """
@@ -395,7 +461,10 @@ class SecularSystemSimulation():
         E = self.linearSecOp.calculate_Hamiltonian(sv)
         E += self.nonlinearSecOp.calculate_Hamiltonian(sv)
         return E
-    
+
+    def calculate_AMD(self):
+        return np.sum([p.Q + p.Gamma for p in self.state.particles[1:]])
+
     def apply_A_step_for_dt(self,state_vec,dt):
         """
         Apply the linear secular evolution operator for a time
