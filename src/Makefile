@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS= -std=c99 -O3 -fPIC
 
-SOURCES= disturbing_function.c poisson_series.c
+SOURCES= disturbing_function.c poisson_series.c nrutil.c fmft.c fmftPy.c
 OBJECTS=$(SOURCES:.c=.o)
 
 all: $(SOURCES) libcelmech.so

@@ -76,7 +76,13 @@ def get_term_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return term
 
 class DFTermSeries(object):
-    def __init__(self,resterm_list,alpha,Lambda0s):
+    def __init__(self,resterm_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+        aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
+        aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
+        alpha = aIn0/aOut0
+        assert alpha < 1, "Particles are not in order by semi-major axis."
+        prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+
         self.expression = 0 
         self.alpha = alpha
         kmax = 0
@@ -96,13 +102,13 @@ class DFTermSeries(object):
             s = SeriesTerm()
             s.k = (6 * c_int)(*ks)
             s.z = (4 * c_int)(*zs)
-            s.coeff = eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),self.alpha)
+            s.coeff = prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),self.alpha)
             s.next = self.slast_pointer
             self.slast_pointer = pointer(s)
         self.s0 = s
         self.Nmax = Nmax
         self.kmax = kmax
-        rtLmbdaInv = 1 / np.sqrt(Lambda0s)
+        rtLmbdaInv = 1 / np.sqrt([Lambda0In,Lambda0Out])
         mtrx = np.diag( np.concatenate((rtLmbdaInv, 0.5 * rtLmbdaInv )) )
         self.dXY_dQP  = np.block([
             [-1j * mtrx, +1j * mtrx],
@@ -112,10 +118,9 @@ class DFTermSeries(object):
         Id = np.eye(4)
         self.Omega = np.block([[Zeros,Id],[-Id,Zeros]])
     @classmethod
-    def from_resonance_range(cls,j,k,Nmin,Nmax):
+    def from_resonance_range(cls,j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out):
         terms = ResonanceTermsList(j,k,Nmin,Nmax)
-        alpha = ((j-k)/j)**(2/3)
-        return cls(terms,alpha)
+        return cls(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out)
 
     def _evaluate(self,lambda_arr, xy_arr):
         expIL = np.exp( 1j * lambda_arr)

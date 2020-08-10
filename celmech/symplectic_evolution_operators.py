@@ -731,12 +731,8 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             MIn = pIn.M
             mOut = pOut.m
             mIn = pIn.m
-            aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
-            aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
-            alpha = aIn0/aOut0
-            assert alpha < 1, "Particles are not in order by semi-major axis."
-            dfseries = DFTermSeries(term_list,alpha, [Lambda0[iIn],Lambda0[iOut]])
-            self.DFSeries_dict[iPair] = dfseries,-G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+            dfseries = DFTermSeries(term_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+            self.DFSeries_dict[iPair] = dfseries
 
     @classmethod
     def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,**kwargs):
@@ -833,15 +829,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         R = 0.5 * rho * self.rtLambda0_inv
         S = 0.5 * sigma * self.rtLambda0_inv
         Hamiltonian = 0.
-        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
-            series,DFfactor = series_and_DFfactor
+        for iPair,series in self.DFSeries_dict.items():
             iIn, iOut = iPair
             indices = np.array(iPair) - 1
             X = K[indices] - 1j * H[indices]
             Y = S[indices] - 1j * R[indices]
             XYvec = np.concatenate((X,Y))
             dH = series._evaluate(l,XYvec)
-            dH *= DFfactor
             Hamiltonian += dH
         return Hamiltonian
 
@@ -869,15 +863,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         K = kappa * self.rtLambda0_inv
         R = 0.5 * rho * self.rtLambda0_inv
         S = 0.5 * sigma * self.rtLambda0_inv
-        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
-            series,DFfactor = series_and_DFfactor
+        for iPair,series in self.DFSeries_dict.items():
             iIn, iOut = iPair
             indices = np.array(iPair) - 1
             X = K[indices] - 1j * H[indices]
             Y = S[indices] - 1j * R[indices]
             XYvec = np.concatenate((X,Y))
             _, _deriv= series._evaluate_with_derivs(l,XYvec)
-            _deriv *= DFfactor
             index_list = np.array([
                 iIn,iOut,
                 iIn + self.Npl,iOut + self.Npl,
@@ -917,16 +909,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         K = kappa * self.rtLambda0_inv
         R = 0.5 * rho * self.rtLambda0_inv
         S = 0.5 * sigma * self.rtLambda0_inv
-        for iPair,series_and_DFfactor in self.DFSeries_dict.items():
-            series,DFfactor = series_and_DFfactor
+        for iPair,series in self.DFSeries_dict.items():
             iIn, iOut = iPair
             indices = np.array(iPair) - 1
             X = K[indices] - 1j * H[indices]
             Y = S[indices] - 1j * R[indices]
             XYvec = np.concatenate((X,Y))
             _, _deriv, _jac, _ = series._evaluate_with_jacobian(l,XYvec)
-            _deriv *= DFfactor
-            _jac *= DFfactor
             index_list = np.array([
                 iIn,iOut,
                 iIn + self.Npl,iOut + self.Npl,
