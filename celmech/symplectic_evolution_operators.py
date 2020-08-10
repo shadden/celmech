@@ -1027,6 +1027,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         rtol = self.rtol # relative tolerance
         atol = self.atol # absolute tolerance
         for _ in xrange(self.max_iter):
+            pass
             ### Do iterative solution here ###
 
     def apply(self):
