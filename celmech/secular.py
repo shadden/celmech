@@ -51,6 +51,11 @@ class LaplaceLagrangeSystem(Poincare):
     @property 
     def Ninclination_matrix(self):
         return np.array(self.inclination_matrix.subs(self.params)).astype(np.float64)
+    @property
+    def Tsec(self):
+        Omega_e = np.max( np.abs(self.eccentricity_eigenvalues()) )
+        Omega_i = np.max( np.abs(self.inclination_eigenvalues()) )
+        return 2 * np.pi / max(Omega_e,Omega_i)
     def _chop(self,arr):
         arr[np.abs(arr)<self.tol] = 0
         return arr
