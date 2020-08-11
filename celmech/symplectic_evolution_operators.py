@@ -7,12 +7,43 @@ from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
 from scipy.linalg import solve as lin_solve
-
 from scipy.linalg import expm
+from numpy import sqrt
 
-_rt2 = np.sqrt(2)
+_rt2 = sqrt(2)
 _rt2_inv = 1 / _rt2 
 _machine_eps = np.finfo(np.float64).eps
+# Runge-Kutte Butcher tableaus
+_LobattoIIIB = {
+    'a':np.array([
+        [1/6, -1/6, 0],
+        [1/6, 1/3, 0],
+        [1/6, 5/6, 0]
+    ]),
+    'c':np.array([0, 1/2, 1]),
+    'b':np.array([1/6, 2/3, 1/6])
+}
+
+_GL4 = {
+    'a':np.array([
+        [1/4, 1/4-1/6*sqrt(3)],
+        [ 1/4+1/6*sqrt(3), 1/4]
+    ]),
+    'c':np.array([1/2 - 1/6*sqrt(3),1/2 + 1/6*sqrt(3)]),
+    'b':np.array([1/2,1/2])
+}
+
+_GL6 = {
+    'a':np.array([
+        [5/36,2/9-1/15*sqrt(15),5/36-1/30*sqrt(15)],
+        [5/36 + 1/24*sqrt(15),2/9,5/36 - 1/24*sqrt(15)],
+        [5/36 + 1/30*sqrt(15),   2/9 + 1/15*sqrt(15),5/36]
+    ]),
+    'c':np.array([1/2 - 1/10*sqrt(15), 1/2, 1/2 + 1/10*sqrt(15)]),
+    'b':np.array([5/18,  4/9,  5/18])
+}
+_rk_methods = {'LobattoIIIB':_LobattoIIIB,'GL4':_GL4,'GL6':_GL6}
+
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
         self._dt = dt
@@ -501,7 +532,7 @@ class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
             self.Lambda0In = Lambda0[indexIn]
             self.Lambda0Out = Lambda0[indexOut]
 
-        self.rtLambda0_inv = 1 / np.sqrt([self.Lambda0In,self.Lambda0Out])
+        self.rtLambda0_inv = 1 / sqrt([self.Lambda0In,self.Lambda0Out])
         self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
         self.DF_prefactor = -self.G**2*self.MOut**2*self.mOut**3 * ( self.mIn / self.MIn) / (self.Lambda0Out**2)
         self._dt = dt
@@ -632,10 +663,10 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         with an entry for each particle in the system.
         If no value is supplied, initial values are chosen.
     """
-    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10):
+    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10,rkmethod='LobattoIIIB'):
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
-        self.rtLambda0_inv = 1 / np.sqrt(Lambda0[1:])
+        self.rtLambda0_inv = 1 / sqrt(Lambda0[1:])
         self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
         self._dt = dt
         self.DFSeries_dict = dict()       
@@ -665,6 +696,26 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             mIn = pIn.m
             dfseries = DFTermSeries(term_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
             self.DFSeries_dict[iPair] = dfseries
+
+        self._rkmethod = rkmethod
+        self._rk_tableau=_rk_methods[rkmethod]
+        self.rk_a= self._rk_tableau['a']
+        self.rk_b= self._rk_tableau['b']
+        self.rk_c= self._rk_tableau['c']
+        self.rk_s = len(self.rk_c)
+    
+    @property
+    def rkmethod(self):
+        return self._rkmethod
+
+    @rkmethod.setter
+    def rkmethod(self,rkmethod):
+        self._rkmethod = rkmethod
+        self._rk_tableau=_rk_methods[rkmethod]
+        self.rk_a= self._rk_tableau['a']
+        self.rk_b= self._rk_tableau['b']
+        self.rk_c= self._rk_tableau['c']
+        self.rk_s = len(self.rk_c)
 
     @classmethod
     def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,**kwargs):
@@ -935,21 +986,59 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
 
         return y
     
-    def LobattoIIIB_step(self,qp_vec):
-        a = np.array([[1/6, -1/6, 0], [1/6, 1/3, 0], [1/6, 5/6, 0]])
-        c = np.array([0, 1/2, 1])
-        b = np.array([1/6, 2/3, 1/6])
-        delk = 1
-        # solve for y(t+h) from 
-        # differntial equation dy/dt = f(y)
-        h = self._dt # time step
-        f = self.deriv_from_qp_vec # function f
-        y = np.copy(qp_vec) # intial data y(t)
-        rtol = self.rtol # relative tolerance
-        atol = self.atol # absolute tolerance
-        for _ in xrange(self.max_iter):
-            pass
-            ### Do iterative solution here ###
+    def _rk4_step(self,y,ydot,h):
+        f = self.deriv_from_qp_vec
+        h_by_2 = 0.5 * h
+        k1 = ydot
+        y2 = y + h_by_2 * k1
+        k2 = f(y2)
+        y3 = y + h_by_2 * k2
+        k3 = f(y3)
+        y4 = y + h * k3
+        k4 = f(y4)
+        yout = y + h * (k1 + 2*k2 + 2*k3 + k4) / 6.
+        return yout,f(yout)
+
+    def implicit_rk_step(self,qp_vec):
+        """
+        Advance ODE for input qpve for a timestep h
+        using an implicit Runge-Kutta method defined by the
+        Butcher tableau [a,b,c].
+
+        Arguments
+        ---------
+        qp_vec
+        """
+        h = self._dt
+        a = self.rk_a
+        b = self.rk_b
+        c = self.rk_c
+        f = self.deriv_from_qp_vec
+        y = qp_vec
+        ktemp = f(qp_vec)
+        max_iter = self.max_iter
+        k = np.zeros((self.rk_s,self.Ndim))
+        rtol = self.rtol
+        atol = self.atol
+
+        for i,ci in enumerate(c):
+            if ci == 0:
+                k[i,:] = ktemp 
+            else:
+                _,k[i,:] = self._rk4_step(y,ktemp,ci*h)
+        for itr in xrange(max_iter):
+            k_old = k.copy()
+            ytemps = y + h * a @ k 
+            k = np.array([f(ytemp) for ytemp in ytemps])
+            delta_ks = np.abs(k-k_old)
+            if np.alltrue( delta_ks < rtol * np.abs(k_old) + atol ):
+                break
+        else:
+            warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
+        ynew = y + h * b @ k
+        return ynew
+
+
 
     def apply(self):
         warnings.warn("'SecularDFTermsEvolutionOperator.apply' method not implemented.")
@@ -1020,16 +1109,16 @@ def get_res_chain_reference_Lambdas_and_semimajor_axes(pvars,slist):
     ps = pvars.particles
     m = np.array([p.m for p in ps])
     M = np.array([p.M for p in ps])
-    tot = coeffs[1] * m[1] * np.sqrt(M[1])
+    tot = coeffs[1] * m[1] * sqrt(M[1])
     for i in range(2,len(coeffs)):
         coeffs[i] = coeffs[i-1] * slist[i-2] / (1 + slist[i-2])
         alpha_inv[i] = alpha_inv[i-1]  * ((1 + slist[i-2]) / slist[i-2])**(2/3)
-        tot += coeffs[i] * m[i] * np.sqrt(M[i] * alpha_inv[i])        
+        tot += coeffs[i] * m[i] * sqrt(M[i] * alpha_inv[i])        
     Lvals = np.append([0],[p.Lambda for p in ps[1:]])
     C = coeffs @ Lvals
     a10 = (C / tot)**2
     a0 = a10 * alpha_inv 
-    L0 = m * np.sqrt(M * a0)
+    L0 = m * sqrt(M * a0)
     return a0,L0
 
 def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
@@ -1078,7 +1167,7 @@ def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MO
     js = [j,1-j,0,-1,0,0]
     b[1] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0)
     # scale X --> x
-    scaleMtrx = np.diag([np.sqrt(2/Lambda0In),np.sqrt(2/Lambda0Out)])
+    scaleMtrx = np.diag([sqrt(2/Lambda0In),sqrt(2/Lambda0Out)])
     b = scaleMtrx @ b
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return  A, prefactor * b
@@ -1101,7 +1190,7 @@ def get_second_order_eccentricity_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0
     A[1,0] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0) / 2
     A[0,1] = A[1,0]
     # scale X --> x
-    scaleMtrx = np.diag([np.sqrt(2/Lambda0In),np.sqrt(2/Lambda0Out)])
+    scaleMtrx = np.diag([sqrt(2/Lambda0In),sqrt(2/Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
@@ -1124,7 +1213,7 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     A[1,0] = eval_DFCoeff_dict(DFCoeff_C(*js,*zs),alpha0) / 2
     A[0,1] = A[1,0]
     # scale X --> x
-    scaleMtrx = np.diag([np.sqrt(0.5 / Lambda0In),np.sqrt(0.5 / Lambda0Out)])
+    scaleMtrx = np.diag([sqrt(0.5 / Lambda0In),sqrt(0.5 / Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
     prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
