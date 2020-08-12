@@ -797,6 +797,8 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
         "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
         )
         return 0
+    if k1 == 0 and k2 == 0:
+        return 0
     if k1 + k4 != 1:
         return 0
     if k2 + k3 == -1:
