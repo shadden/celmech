@@ -539,7 +539,7 @@ class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
         self._h = self.DF_prefactor * self._dt
         self.alpha = ((j-k)/j)**(2/3)
         self.terms_list = terms_list 
-        self.DFSeries = DFTermSeries(
+        self.DFSeries = DFTermSeries.from_resonance_list(
                 self.terms_list,
                 self.alpha,
                 [self.Lambda0In,self.Lambda0Out]
@@ -694,7 +694,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             MIn = pIn.M
             mOut = pOut.m
             mIn = pIn.m
-            dfseries = DFTermSeries(term_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+            dfseries = DFTermSeries.from_resonance_list(term_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
             self.DFSeries_dict[iPair] = dfseries
 
         self._rkmethod = rkmethod

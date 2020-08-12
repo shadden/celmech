@@ -76,21 +76,13 @@ def get_term_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return term
 
 class DFTermSeries(object):
-    def __init__(self,resterm_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
-        aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
-        aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
-        alpha = aIn0/aOut0
-        assert alpha < 1, "Particles are not in order by semi-major axis."
-        prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
-
-        self.expression = 0 
-        self.alpha = alpha
-        kmax = 0
-        Nmax = 0
+    def __init__(self,resterm_dictionary,Lambda0In,Lambda0Out):
         self.slast_pointer = None
         self.s_dXbar_last_pointer = None
-        for ks,zs in resterm_list:
-            self.expression += get_term_symbol(*ks,*zs)
+        kmax = 0
+        Nmax = 0
+        for kzpair,coeff_value in resterm_dictionary.items():
+            ks,zs = kzpair
             kmax = max(kmax,abs(ks[0]),abs(ks[1]))
             Nmax = max(
                       Nmax,
@@ -102,7 +94,7 @@ class DFTermSeries(object):
             s = SeriesTerm()
             s.k = (6 * c_int)(*ks)
             s.z = (4 * c_int)(*zs)
-            s.coeff = prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),self.alpha)
+            s.coeff = coeff_value
             s.next = self.slast_pointer
             self.slast_pointer = pointer(s)
         self.s0 = s
@@ -117,10 +109,23 @@ class DFTermSeries(object):
         Zeros = np.zeros((4,4))
         Id = np.eye(4)
         self.Omega = np.block([[Zeros,Id],[-Id,Zeros]])
+
+    @classmethod
+    def from_resonance_list(cls,resterm_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+        aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
+        aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
+        alpha = aIn0/aOut0
+        assert alpha < 1, "Particles are not in order by semi-major axis."
+        prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+        resterm_dictionary  = {
+                (ks,zs):prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),alpha)
+                for ks,zs in resterm_list
+                }
+        return cls(resterm_dictionary,Lambda0In,Lambda0Out)
     @classmethod
     def from_resonance_range(cls,j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out):
         terms = ResonanceTermsList(j,k,Nmin,Nmax)
-        return cls(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out)
+        return cls.from_resonance_list(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out)
 
     def _evaluate(self,lambda_arr, xy_arr):
         expIL = np.exp( 1j * lambda_arr)
