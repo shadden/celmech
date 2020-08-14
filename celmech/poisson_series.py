@@ -77,6 +77,30 @@ def get_term_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
 
 class DFTermSeries(object):
     def __init__(self,resterm_dictionary,Lambda0In,Lambda0Out):
+        r"""
+        An object representing a Poisson series in variables
+         exp[i\lambda_out],exp[i\lambda_in],Xin,Xout,Yin, and Yout.
+
+        An instance can be used to calculate the value of the 
+        Poisson series as well as its first and second derivatives
+        with respect to Xin,Xout,Yin,and Yout.
+
+        Arguments
+        ---------
+        resterm_dictionary : dict
+          Supply the terms of the Poisson series and their coefficients.
+          Dictionary entries are in the form {(kvec,zvec):Coeff}          
+        Lambda0In : float
+          The value of the inner planet's canonical momentum, Lambda,
+          which is trated as consant in the Poisson series. 
+          The value is neccessary for computing the value of derivatives
+          of the canonical variables \eta,\kappa,\rho,\sigma.
+        Lambda0Out : float
+          The value of the outer planet's canonical momentum, Lambda,
+          which is trated as consant in the Poisson series. 
+          The value is neccessary for computing the value of derivatives
+          of the canonical variables \eta,\kappa,\rho,\sigma.
+        """
         self.slast_pointer = None
         self.s_dXbar_last_pointer = None
         kmax = 0

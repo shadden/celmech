@@ -808,3 +808,215 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     else:
         return 0
 
+def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+    """
+    Retrieve the a dictionary with the coefficient values of terms appearing in the Hamiltonian.
+    
+    Arguments
+    ---------
+    terms_list : list
+      List of terms to copmute coefficients for. List entries
+      should be in the form (kvec, zvec) where kvec and zvec
+      are tuples of integers.
+    G : float
+      Value of gravitational constant.
+    mIn : float
+      Inner planet mass parameter
+    mOut : float
+      Outer planet mass parameter
+    MIn : float
+      Inner planet stellar mass parameter
+    MOut : float
+      Outer planet stellar mass parameter
+    Lambda0In : float
+      Lambda of inner planet for evaluating coefficient.
+    Lambda0Out : float
+      Lambda of outer planet for evaluating coefficient.
+    
+    Returns
+    -------
+    coeff_dictionary : dict
+      Coefficients given in dictionary where entries are given in the form
+        {(kvec,zvec):Coeff}
+      where 'Coeff' represents the coefficient the term
+        (1/2) * Coeff * exp[i * (k[0] *\lambda_{out} + k[1] *\lambda_{in})] * 
+          X_{in}^{|kvec[2]| + zvec[2]} * 
+          X_{out}^{|kvec[3]| + zvec[3]} * 
+          Y_{in}^{|kvec[4]| + zvec[0]} * 
+          Y_{out}^{|kvec[5]| + zvec[1]}
+          +
+          complex conjugate
+      appearing in the interaction Hamiltonian between a pair of planets.
+    """
+    aOut0 = ( Lambda0Out / mOut )**2 / MOut / G
+    aIn0 = ( Lambda0In / mIn )**2 / MIn / G
+    alpha = aIn0/aOut0
+    assert alpha < 1, "Particles are not in order by semi-major axis."
+    prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+    return {
+        (kvec,zvec):prefactor*eval_DFCoeff_dict(DFCoeff_C(*kvec,*zvec),alpha)
+        for kvec,zvec in terms_list
+    }
+
+def kz_to_xx1yy1_powers(kz):
+    """
+    Convert (kvec,zvec) Poisson series term designation 
+    to the integer powers of variables x_{in},x_{out},y{in}, and y_{out}
+    and their complex conjugates.
+
+    Arguments
+    ---------
+    kz : tuple
+      tuple (kvec,zvec) designating the Poisson series term.
+
+    Returns
+    -------
+    pows : array
+      Poisson series powers
+      x_{in}^{pows[0]} * 
+      x_{out}^{pows[1]} *
+      y_{in}^{pows[2]} * 
+      y_{out}^{pows[3]} 
+      xbar_{in}^{pows[4]} * 
+      xbar_{out}^{pows[5]} *
+      ybar_{in}^{pows[6]} * 
+      ybar_{out}^{pows[7]} 
+    """
+    k,z = kz
+    zpow = lambda x: max(x,0)
+    zbarpow = lambda x: max(-x,0)
+    xx1yy1_pows = [
+        z[2] + zpow(k[2]),
+        z[3] + zpow(k[3]),
+        z[0] + zpow(k[4]),
+        z[1] + zpow(k[5])
+    ]
+    xx1yy1_bar_pows = [
+        z[2] + zbarpow(k[2]),
+        z[3] + zbarpow(k[3]),
+        z[0] + zbarpow(k[4]),
+        z[1] + zbarpow(k[5])
+    ]
+    return np.array(xx1yy1_pows + xx1yy1_bar_pows,dtype=np.int64)
+
+def xx1yy1_powers_to_kz(xx1yy1_powers,k1=0,k2=0):
+    """
+    Inverse of 'kz_to_xx1yy1_powers'
+    """
+    pows = xx1yy1_powers[:4]
+    bar_pows = xx1yy1_powers[4:]
+    zpows = np.min(np.vstack((pows,bar_pows)),axis=0)
+    kvec=np.concatenate(([k1,k2],pows - bar_pows))
+    zvec = np.concatenate((zpows[2:],zpows[:2]))
+    return tuple(kvec),tuple(zvec)
+
+def xx1yy1_powers_conj(xx1yy1_powers):
+    return np.concatenate([xx1yy1_powers[-4:],xx1yy1_powers[:4]])
+
+def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut):
+    pows1 = kz_to_xx1yy1_powers(k1z1)
+    pows2 = kz_to_xx1yy1_powers(k2z2)
+    pows1conj = xx1yy1_powers_conj(pows1)
+    pows2conj = xx1yy1_powers_conj(pows2)
+    LmbdaInv_factors = np.array((2/LambdaIn,2/LambdaOut,0.5/LambdaIn,0.5/LambdaOut))
+    p1conjp2 = pows1conj + pows2
+
+    for i,p1bar,p2 in zip(range(4),pows1conj[:4],pows2[4:]):
+        if p1bar > 0 and p2 > 0:
+            v = p1conjp2.copy()
+            v[i]-=1
+            v[4+i]-=1
+            coeff = p1bar * p2 * coeff1 * coeff2 * LmbdaInv_factors[i]
+            results[xx1yy1_powers_to_kz(v)] -= coeff
+
+    p1p2conj = pows1 + pows2conj
+    for i,p1,p2bar in zip(range(4),pows1[:4],pows2conj[4:]):
+        if p1 > 0 and p2bar > 0:
+            v = p1p2conj.copy()
+            v[i]-=1
+            v[4+i]-=1
+            coeff = p1 * p2bar * coeff1 * coeff2 * LmbdaInv_factors[i]
+            newk,newz=xx1yy1_powers_to_kz(v)
+            newk = tuple(np.sign(newk[2]) * np.array(newk))
+            results[(newk,newz)] += coeff
+
+def _consolidate_dictionary_terms(d):
+    """
+    Combine all terms (kvec,zvec) that are conjugates of one another
+    into single terms with a positive coefficient for 
+    pomega_in (i.e., k[2]).
+    """
+    dnew = defaultdict(int)
+    for kz, val in d.items():
+        k,z = kz
+        k = np.array(k,dtype=np.int64)
+        if k[2] == 0:
+            k *= np.sign(k[4])
+        else:
+            k *= np.sign(k[2])
+        dnew[(tuple(k),z)] += val
+    return dict(dnew)
+
+def resonant_terms_secular_contribution_dictionary(terms_list,j,k,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,Nmin,Nmax):
+    """
+    Generate a dictionary containing the secular terms generated by a list of resonant terms.
+    The secular contributions arise at second order in planet masses.
+
+    Arguments
+    ---------
+    terms_list : list
+      List of resonance terms in (kvec,zvec) form.
+    j : int
+      Specifies resonance as the j:j-k MMR.
+    k : int
+      Order of MMR.
+    G : float
+      Value of gravitational constant.
+    mIn : float
+      Inner planet mass parameter
+    mOut : float
+      Outer planet mass parameter
+    MIn : float
+      Inner planet stellar mass parameter
+    MOut : float
+      Outer planet stellar mass parameter
+    Lambda0In : float
+      Lambda of inner planet for evaluating coefficient.
+    Lambda0Out : float
+      Lambda of outer planet for evaluating coefficient.
+    Nmin : int
+      Minimum power (in inclination/eccentricity) of terms to include in result.
+    Nmax : int
+      Maximum power (in inclination/eccentricity) of terms to include in result.
+
+    Returns
+    -------
+    result : dict
+      A dictionary containing the secular terms with 
+      entries in the form
+       {(kvec,zvec):Coeff}
+
+    """
+    omega_vec = G * G * np.array([
+        MIn * MIn * mIn * mIn * mIn / Lambda0In / Lambda0In / Lambda0In,
+        MOut * MOut * mOut * mOut * mOut / Lambda0Out / Lambda0Out / Lambda0Out
+    ])
+    Domega = np.diag(-3 * omega_vec / np.array([Lambda0In,Lambda0Out]))
+    res_kvec = np.array([k-j,j])
+    res_omega = res_kvec @ omega_vec
+    res_factor = 0.25 * (res_kvec @ Domega @ res_kvec) / res_omega / res_omega
+    p = terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+    result = defaultdict(int)
+    for kz1,coeff1 in p.items():
+        for kz2, coeff2 in p.items():
+            pows1 = kz_to_xx1yy1_powers(kz1)
+            pows2 = kz_to_xx1yy1_powers(kz2)
+            pows2conj = xx1yy1_powers_conj(pows2)
+            powsnew = pows1 + pows2conj
+            tot_pow = np.sum(powsnew)
+            if Nmin<=tot_pow<=Nmax:
+                newk,newz = xx1yy1_powers_to_kz(powsnew)
+                result[(newk,newz)] += res_factor*coeff1*coeff2
+            if Nmin<=tot_pow-2<=Nmax:
+                _add_ppbar_bracket_terms((+0.25/res_omega) * coeff1,kz1,coeff2,kz2,result,Lambda0In,Lambda0Out)
+    return _consolidate_dictionary_terms(result)

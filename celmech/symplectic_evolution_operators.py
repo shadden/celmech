@@ -653,9 +653,14 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
     terms_dict : dictionary
         Dictionary keys are given in the form (iIn,iOut) where 
         iIn and iIout are the indices of the inner and outer planet.
-        Each dictionary entry contains a list of distrubing function terms 
-        to include for a given pair. List items are tuples of the form 
-        (kvec, zvec).
+        Each dictionary entry contains either: 
+            - A list of distrubing function terms to include 
+            for a given pair where list items are tuples of the form 
+            (kvec, zvec). Disturbing function term values are computed
+            automatically. 
+            - A dictionary of terms to include with keys in the form
+            (kvec,zvec) and values giving the coefficient value for the
+            disturbing function term. 
     Lambda0 : array-like
         The Poincare momenta Lambda are treated as constant
         in the disturing function. Lambda0 sets the values
@@ -664,28 +669,33 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         If no value is supplied, initial values are chosen.
     """
     def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10,rkmethod='LobattoIIIB'):
+        # Set Lambda0 constants in secular Hamiltonian.
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
         self.rtLambda0_inv = 1 / sqrt(Lambda0[1:])
         self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
+
         self._dt = dt
-        self.DFSeries_dict = dict()       
+        
         self.N = initial_state.N
         self.Npl = self.N - 1
         self.Ndim = 4 * self.Npl
         G = initial_state.G
         ps = initial_state.particles
+
+        # Set tolerance and iteration parameters
         tols_allowed = atol >=0 and rtol >=0
         tols_allowed = tols_allowed and (atol > 0 or rtol > 0)
         assert tols_allowed, "Tolerances must be non-negative and at least one tolerance must be positive." 
         self.rtol = rtol
         self.atol = atol
         self.max_iter = max_iter
-        for iPair, term_list in terms_dict.items():
+
+        # Generate DFTermsSeries objects for each planet pair
+        self.DFSeries_dict = dict()       
+        for iPair, pair_terms in terms_dict.items():
             iIn,iOut = iPair
             assert iIn < iOut, "Dictionary keys must have iIn < iOut."
-            all_secular = np.alltrue( [x[0][0] == 0 and x[0][1] == 0 for x in term_list] )
-            assert all_secular, "Only secular terms may be inlcuded in the DF term lists."
             pIn = ps[iIn]
             pOut = ps[iOut]
             Lambda0Out = Lambda0[iOut] 
@@ -694,9 +704,19 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             MIn = pIn.M
             mOut = pOut.m
             mIn = pIn.m
-            dfseries = DFTermSeries.from_resonance_list(term_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+            if type(pair_terms) is list:
+                all_secular = np.alltrue( [x[0][0] == 0 and x[0][1] == 0 for x in pair_terms] )
+                assert all_secular, "Only secular terms may be inlcuded in the DF term lists."
+                dfseries = DFTermSeries.from_resonance_list(pair_terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+            elif type(pair_terms) is dict:
+                all_secular = np.alltrue( [x[0][0] == 0 and x[0][1] == 0 for x in pair_terms.keys()] )
+                assert all_secular, "Only secular terms may be inlcuded in the DF term lists."
+                dfseries = DFTermSeries(pair_terms,Lambda0In,Lambda0Out)
+            else:
+                raise ValueError("'terms_dict' entry for pair ({0},{1}) is type {2}. Entries must be either lists or dictionaries!".format(iIn,iOut,type(pair_terms)))
             self.DFSeries_dict[iPair] = dfseries
 
+        # Set Runge-Kutta integration parameters.
         self._rkmethod = rkmethod
         self._rk_tableau=_rk_methods[rkmethod]
         self.rk_a= self._rk_tableau['a']
@@ -718,7 +738,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.rk_s = len(self.rk_c)
 
     @classmethod
-    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,**kwargs):
+    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax, **kwargs):
         """
         Initialize operator that includes all eccentricity and
         inclination terms with orders ranging from Nmin to Nmax.
@@ -734,6 +754,10 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
           Minimum order of secular terms to include.
         Nmax : int
           Maximum order of secular terms to include.
+        resonant_terms_dict : dict
+          A dictionary specifying a list of mu^2
+          resonant contributions to the secular dynamics
+          to include
         Lambda0 : array-like
             The Poincare momenta Lambda are treated as constant
             in the disturing function. Lambda0 sets the values
