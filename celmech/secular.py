@@ -442,10 +442,12 @@ class SecularSystemSimulation():
         for vals,p in zip(vecs,self.state.particles[1:]):
             p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho = vals
 
-    def integrate(self,time,exact_finish_time = False):
+    def integrate(self,time,exact_finish_time = False, corrector=False):
         assert time >= self.t, "Backward integration is currently not implemented."
         Nstep = int( np.ceil( (time-self.t) / self.dt) )
         state_vec = self.state_vector
+        if corrector is True:
+            state_vec = self.corrector3(state_vec, self.dt)
         state_vec = self.linearOp_half_step_forward(state_vec)
         for _ in xrange(Nstep):
 
@@ -458,6 +460,8 @@ class SecularSystemSimulation():
         if exact_finish_time:
            warnings.warn("Exact finish time is not currently implemented.")
         state_vec = self.linearOp_half_step_backward(state_vec)
+        if corrector is True:
+            state_vec = self.corrector3inv(state_vec, self.dt)
         self.update_state_from_vector(state_vec)
         self.t += Nstep * self.dt
 
@@ -469,6 +473,41 @@ class SecularSystemSimulation():
 
     def calculate_AMD(self):
         return np.sum([p.Q + p.Gamma for p in self.state.particles[1:]])
+
+    def X(self, state_vec, a, b, h):
+        state_vec = self.apply_A_step_for_dt(state_vec,-a*h)
+        state_vec = self.apply_B_step_for_dt(state_vec,b*h)
+        state_vec = self.apply_A_step_for_dt(state_vec,a*h)
+        return state_vec
+
+    def Z(self, state_vec, a, b, h):
+        state_vec = self.X(state_vec, -a, -b, h)
+        state_vec = self.X(state_vec, a, b, h)
+        return state_vec
+
+    def corrector3(self, state_vec, h):
+        alpha = (7./40.)**0.5
+        beta = 1/48./alpha
+        a1 = -alpha
+        a2 = alpha
+        b2 = beta/2.
+        b1 = -beta/2.
+        
+        state_vec = self.Z(state_vec, a2, b2, h)
+        state_vec = self.Z(state_vec, a1, b1, h)
+        return state_vec
+
+    def corrector3inv(self, state_vec, h):
+        alpha = (7./40.)**0.5
+        beta = 1/48./alpha
+        a1 = -alpha
+        a2 = alpha
+        b2 = beta/2.
+        b1 = -beta/2.
+        
+        state_vec = self.Z(state_vec, a1, -b1, h)
+        state_vec = self.Z(state_vec, a2, -b2, h)
+        return state_vec
 
     def apply_A_step_for_dt(self,state_vec,dt):
         """
@@ -487,8 +526,9 @@ class SecularSystemSimulation():
         state_vec : ndarray
           Updated state vector after application of operator.
         """
-        opMtrx_ecc = expm(-1j * 0.5 * dt * self.linearSecOp.ecc_matrix)
-        opMtrx_inc = expm(-1j * 0.5 * dt * self.linearSecOp.inc_matrix)
+        opMtrx_ecc = expm(-1j *  dt * self.linearSecOp.ecc_matrix)
+        opMtrx_inc = expm(-1j *  dt * self.linearSecOp.inc_matrix)
+
         vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
         x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
         y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
