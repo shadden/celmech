@@ -21,6 +21,7 @@ class Hamiltonian(object):
         self.H = H
         self.pqpairs = pqpairs
         self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
+        
         self._update()
 
     def integrate(self, time):
@@ -51,6 +52,7 @@ class Hamiltonian(object):
         for keyval in function_keyval_pairs:
             self.NH = self.NH.subs(keyval[0],keyval[1])
         
+        self.Energy = lambdify(self.varsymbols,self.NH,'numpy')
         self.derivs = {}
         self.Nderivs = []
         for pqpair in self.pqpairs:
