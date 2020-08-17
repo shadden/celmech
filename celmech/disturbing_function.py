@@ -937,7 +937,7 @@ def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut)
             v[4+i]-=1
             coeff = p1 * p2bar * coeff1 * coeff2 * LmbdaInv_factors[i]
             newk,newz=xx1yy1_powers_to_kz(v)
-            newk = tuple(np.sign(newk[2]) * np.array(newk))
+            newk = tuple(np.array(newk))
             results[(newk,newz)] += coeff
 
 def _consolidate_dictionary_terms(d):
@@ -950,10 +950,14 @@ def _consolidate_dictionary_terms(d):
     for kz, val in d.items():
         k,z = kz
         k = np.array(k,dtype=np.int64)
-        if k[2] == 0:
-            k *= np.sign(k[4])
-        else:
-            k *= np.sign(k[2])
+        if k[2] != 0:
+           k *= np.sign(k[2])
+        elif k[4] !=0:
+           k *= np.sign(k[4]) 
+        elif k[3] !=0:
+           k *= np.sign(k[3]) 
+        else: 
+            assert np.alltrue(k==0) and not np.alltrue(np.array(z)==0), "Suspected bad k,z={},{} pair in term dictionary!".format(k,z)
         dnew[(tuple(k),z)] += val
     return dict(dnew)
 
