@@ -668,7 +668,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         with an entry for each particle in the system.
         If no value is supplied, initial values are chosen.
     """
-    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10,rkmethod='LobattoIIIB'):
+    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10,rkmethod='LobattoIIIB',rk_root_method='Newton'):
         # Set Lambda0 constants in secular Hamiltonian.
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
@@ -690,7 +690,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.rtol = rtol
         self.atol = atol
         self.max_iter = max_iter
-
+        self._rk_root_method=rk_root_method
+        if rk_root_method == 'Newton':
+            self.implicit_rk_step = self._implicit_rk_step_jacobian
+        elif rk_root_method == 'fixed_point':
+            self.implicit_rk_step = self._implicit_rk_step_fixed_point
+        else:
+            raise ValueError("'rk_root_method' must be either 'Newton' or 'fixed_point'")
         # Generate DFTermsSeries objects for each planet pair
         self.DFSeries_dict = dict()       
         for iPair, pair_terms in terms_dict.items():
@@ -724,6 +730,19 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.rk_c= self._rk_tableau['c']
         self.rk_s = len(self.rk_c)
     
+    @property 
+    def rk_root_method(self):
+        return self._rk_root_method
+    @rk_root_method.setter
+    def rk_root_method(self,rk_root_method):
+        if rk_root_method == 'Newton':
+            self.implicit_rk_step = self._implicit_rk_step_jacobian
+        elif rk_root_method == 'fixed_point':
+            self.implicit_rk_step = self._implicit_rk_step_fixed_point
+        else:
+            raise ValueError("'rk_root_method' must be either 'Newton' or 'fixed_point'")
+        self._rk_root_method = rk_root_method
+
     @property
     def rkmethod(self):
         return self._rkmethod
@@ -1023,7 +1042,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         yout = y + h * (k1 + 2*k2 + 2*k3 + k4) / 6.
         return yout,f(yout)
 
-    def implicit_rk_step(self,qp_vec):
+    def _implicit_rk_step_fixed_point(self,qp_vec):
         """
         Advance ODE for input qpve for a timestep h
         using an implicit Runge-Kutta method defined by the
@@ -1062,7 +1081,57 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         ynew = y + h * b @ k
         return ynew
 
+    def _implicit_rk_step_jacobian(self,qp_vec):
+        """
+        Advance ODE for input qpve for a timestep h
+        using an implicit Runge-Kutta method defined by the
+        Butcher tableau [a,b,c].
 
+        Arguments
+        ---------
+        qp_vec
+        """
+        h = self._dt
+        a = self.rk_a
+        b = self.rk_b
+        c = self.rk_c
+        s = self.rk_s
+        Ndim = self.Ndim
+        f = self.deriv_from_qp_vec
+        f_and_Df = self.deriv_and_jacobian_from_qp_vec
+        y = qp_vec
+        ktemp = f(qp_vec)
+        max_iter = self.max_iter
+        k = np.zeros((s,Ndim))
+        Dkdy = np.zeros((s,Ndim,Ndim))
+        rtol = self.rtol
+        atol = self.atol
+        Imtrx = np.eye(s * Ndim)
+
+        # Generate initial guesses via RK4
+        for i,ci in enumerate(c):
+            if ci == 0:
+                k[i,:] = ktemp 
+            else:
+                _,k[i,:] = self._rk4_step(y,ktemp,ci*h)
+        # Main loop
+        K = np.hstack(k)
+        for itr in xrange(max_iter):
+            ytemps = y + h * a @ k 
+            for i,ytemp in enumerate(ytemps):
+                k[i],Dkdy[i] = f_and_Df(ytemp)
+            fOfK=np.hstack(k)
+            g = K - fOfK
+            Dg = Imtrx - h * np.block([[ a[i,j] * Dkdy[i] for j in range(s)] for i in range(s)])
+            dK = np.linalg.solve(Dg,-1*g)
+            K+=dK
+            k=K.reshape(s,Ndim)
+            if np.alltrue( np.abs(dK) < rtol * np.abs(K) + atol ):
+                break
+        else:
+            warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
+        ynew = y + h * b @ k
+        return ynew
 
     def apply(self):
         warnings.warn("'SecularDFTermsEvolutionOperator.apply' method not implemented.")
