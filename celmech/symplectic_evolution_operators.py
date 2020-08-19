@@ -1021,7 +1021,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         k = np.zeros((self.rk_s,self.Ndim))
         rtol = self.rtol
         atol = self.atol
-
+        # 
         for i,ci in enumerate(c):
             if ci == 0:
                 k[i,:] = ktemp 
@@ -1058,20 +1058,26 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         f = self.deriv_from_qp_vec
         f_and_Df = self.deriv_and_jacobian_from_qp_vec
         y = qp_vec
-        ktemp = f(qp_vec)
+        
         max_iter = self.max_iter
         k = np.zeros((s,Ndim))
         Dkdy = np.zeros((s,Ndim,Ndim))
         rtol = self.rtol
         atol = self.atol
         Imtrx = np.eye(s * Ndim)
+        #
+        
+        # Generate initial guesses from second-order approx.
+        ####################################################
+        # This appears to be sligtly faster than
+        # than generating guesses via RK4, as in
+        #  _implicit_rk_step_fix_point, but I haven't
+        # tested it extensively.
+        ####################################################
+        ktemp,Dktemp = f_and_Df(qp_vec)
+        d2ydt2 = Dktemp @ ktemp
+        k = np.array([ktemp + ci*h*d2ydt2 for ci in c])
 
-        # Generate initial guesses via RK4
-        for i,ci in enumerate(c):
-            if ci == 0:
-                k[i,:] = ktemp 
-            else:
-                _,k[i,:] = self._rk4_step(y,ktemp,ci*h)
         # Main loop
         K = np.hstack(k)
         for itr in xrange(max_iter):
@@ -1081,7 +1087,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             fOfK=np.hstack(k)
             g = K - fOfK
             Dg = Imtrx - h * np.block([[ a[i,j] * Dkdy[i] for j in range(s)] for i in range(s)])
-            dK = np.linalg.solve(Dg,-1*g)
+            dK = lin_solve(Dg,-1*g)
             K+=dK
             k=K.reshape(s,Ndim)
             if np.alltrue( np.abs(dK) < rtol * np.abs(K) + atol ):
