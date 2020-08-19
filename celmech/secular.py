@@ -569,6 +569,3 @@ class SecularSystemSimulation():
         
         # return result
         return state_vec
-
-    def apply_symplectic_corrector(self,state_vec,order):
-        pass
