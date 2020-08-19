@@ -3,6 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from .hamiltonian import Hamiltonian
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .disturbing_function import terms_list_to_HamiltonianCoefficients_dict, _add_dicts, resonant_secular_contribution_dictionary
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
@@ -14,6 +15,11 @@ _rt2 = sqrt(2)
 _rt2_inv = 1 / _rt2 
 _machine_eps = np.finfo(np.float64).eps
 # Runge-Kutte Butcher tableaus
+_ImplicitMidpoint = {
+        'a':np.array([[0.5]]),
+        'c':np.array([0.5]),
+        'b':np.array([1])
+        }
 _LobattoIIIB = {
     'a':np.array([
         [1/6, -1/6, 0],
@@ -42,7 +48,7 @@ _GL6 = {
     'c':np.array([1/2 - 1/10*sqrt(15), 1/2, 1/2 + 1/10*sqrt(15)]),
     'b':np.array([5/18,  4/9,  5/18])
 }
-_rk_methods = {'LobattoIIIB':_LobattoIIIB,'GL4':_GL4,'GL6':_GL6}
+_rk_methods = {'ImplicitMidpoint':_ImplicitMidpoint,'LobattoIIIB':_LobattoIIIB,'GL4':_GL4,'GL6':_GL6}
 
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
@@ -512,7 +518,7 @@ class MeanMotionResonanceDFTermsEvolutionOperator(EvolutionOperator):
         presuming only two planets are in the system.
     """
 
-    def __init__(self, initial_state, dt, j, k, terms_list, indexIn=1, indexOut=2, Lambda0=None):
+    def __init__(self, initial_state, dt, j, k, terms_list, indexIn=1, indexOut=2, Lambda0=None,**kwargs):
 
         pIn = initial_state.particles[indexIn]
         pOut = initial_state.particles[indexOut]
@@ -668,7 +674,15 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         with an entry for each particle in the system.
         If no value is supplied, initial values are chosen.
     """
-    def __init__(self, initial_state, dt, terms_dict, Lambda0=None,rtol = _machine_eps, atol = 0.0, max_iter = 10,rkmethod='LobattoIIIB',rk_root_method='Newton'):
+    def __init__(
+            self,
+            initial_state, 
+            dt, 
+            terms_dict, 
+            Lambda0=None,
+            rtol = _machine_eps, atol = 0.0, max_iter = 10,
+            rkmethod='LobattoIIIB',rk_root_method='Newton'
+    ):
         # Set Lambda0 constants in secular Hamiltonian.
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
@@ -723,12 +737,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             self.DFSeries_dict[iPair] = dfseries
 
         # Set Runge-Kutta integration parameters.
-        self._rkmethod = rkmethod
-        self._rk_tableau=_rk_methods[rkmethod]
-        self.rk_a= self._rk_tableau['a']
-        self.rk_b= self._rk_tableau['b']
-        self.rk_c= self._rk_tableau['c']
-        self.rk_s = len(self.rk_c)
+        self.rkmethod = rkmethod
     
     @property 
     def rk_root_method(self):
@@ -749,15 +758,19 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
 
     @rkmethod.setter
     def rkmethod(self,rkmethod):
-        self._rkmethod = rkmethod
-        self._rk_tableau=_rk_methods[rkmethod]
-        self.rk_a= self._rk_tableau['a']
-        self.rk_b= self._rk_tableau['b']
-        self.rk_c= self._rk_tableau['c']
-        self.rk_s = len(self.rk_c)
+        if rkmethod in _rk_methods.keys():
+            self._rkmethod = rkmethod
+            self._rk_tableau=_rk_methods[rkmethod]
+            self.rk_a= self._rk_tableau['a']
+            self.rk_b= self._rk_tableau['b']
+            self.rk_c= self._rk_tableau['c']
+            self.rk_s = len(self.rk_c)
+        else:
+            methods_list = "\n".join(["\t{:s}".format(method) for method in _rk_methods.keys()])
+            raise ValueError("'rkmethod' must be one of:\n" + methods_list) 
 
     @classmethod
-    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax, **kwargs):
+    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,resonances_info={}, **kwargs):
         """
         Initialize operator that includes all eccentricity and
         inclination terms with orders ranging from Nmin to Nmax.
@@ -794,6 +807,26 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         for iOut in range(1,N):
             for iIn in range(1,iOut):
                 terms_dict[(iIn,iOut)] = terms
+
+        # Add any resonant contrbutions to the secular dynamics
+        Lambda0 = kwargs.get('Lambda0',[p.Lambda for p in initial_state.particles])
+        ps = initial_state.particles
+        G = initial_state.G
+
+        for key,res_jk_list in resonances_info.items():
+            iIn,iOut = key
+            pIn,pOut = ps[iIn],ps[iOut]
+            mIn,mOut = pIn.m,pOut.m
+            MIn,MOut = pIn.M,pOut.M
+            Lambda0In,Lambda0Out = Lambda0[iIn],Lambda0[iOut]
+            sec_terms = terms_dict[key]
+            extra_args = G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out
+            dsec = terms_list_to_HamiltonianCoefficients_dict(sec_terms,*extra_args)
+            for j,k in res_jk_list:
+                dres = resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,*extra_args)
+                dsec = _add_dicts(dsec,dres)
+            terms_dict[key] = dsec
+
         return cls(initial_state, dt, terms_dict,**kwargs) 
 
     @property
@@ -954,81 +987,6 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
                     jac[I,J] += _jac[i,j]
         return derivs, jac
 
-    def implicit_midpoint_f_and_Df(self,qp_vec1,qp_vec0):
-        """
-        Returns the objective function that must be solved via
-        root-finding for an implicit midpoint step along its Jacobian.
-
-        An implicit midpoint method approximates equations of motion:
-        
-          d(qp_vec)/dt = F(qp_vec)
-
-        such that a single step satisfies:
-
-          qp_vec1 = qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
-
-        for the updated variables qp_vec1.
-
-        This is an implicit equation for qp_vec1 and requires
-        finding the root of the equation:
-
-          f(qp_vec1;qp_vec0) = qp_vec1 - qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
-
-        This method returns the value of f along with the Jacobian df/d(qp_vec1).
-
-        Arguments
-        ---------
-        qp_vec1 : ndarray shape (4 * Nplanet,)
-          Updated variable vector. 
-        qp_vec0 : ndarray shape (4 * Nplanet,)
-          Initial variable vector. 
-
-        Returns
-        -------
-        f : ndarray, shape (4 * Nplanet,)
-          Value of vector function f(qp_vec1;qp_vec0).
-
-        Df : ndarray, shape (4 * Nplanet,)
-          Jacobian of vector function, df/d(qp_vec1)
-        """
-        h = self._dt
-        qp_vec_mid = 0.5 * (qp_vec1+qp_vec0)
-        qp_dot,qp_dotJac = self.deriv_and_jacobian_from_qp_vec(qp_vec_mid)
-        f = qp_vec1 - qp_vec0 - h * qp_dot
-        Df = np.eye(self.Npl * 4 ) - 0.5 * h * qp_dotJac
-        return f,Df
-
-    def implicit_midpoint_step(self,qp_vec):
-        """
-        Update input varaibles qp_vec using the implicit
-        midpoint method.  This is a symplectic second-order 
-        method [Harrier et. al. 2006]. 
-
-        An implicit midpoint step of step-size h approximates 
-        equations of motion:
-        
-          d(qp_vec)/dt = F(qp_vec)
-
-        by the equation:
-
-          qp_vec1 = qp_vec0 + h * F((qp_vec1 + qp_vec0) / 2)
-
-        for the updated variables qp_vec1.
-        """
-        y = qp_vec + self._dt * self.deriv_from_qp_vec(qp_vec)
-        f,Df = self.implicit_midpoint_f_and_Df(y,qp_vec)
-        for _ in xrange(self.max_iter):
-            dy = lin_solve(Df,-f)
-            y+= dy
-            converged = np.alltrue(np.abs(dy) < self.rtol * np.abs(y) + self.atol)
-            if converged:
-                break
-            f,Df = self.implicit_midpoint_f_and_Df(y,qp_vec)
-        else:
-            warnings.warn("Implicit step failed to converge.")
-
-        return y
-    
     def _rk4_step(self,y,ydot,h):
         f = self.deriv_from_qp_vec
         h_by_2 = 0.5 * h
@@ -1157,7 +1115,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
           Updated state vector of the system.
         """
         qp_vec = self.state_vec_to_qp_vec(state_vec)
-        qp_vec_new = self.implicit_midpoint_step(qp_vec)
+        qp_vec_new = self.implicit_rk_step(qp_vec)
         for i in xrange(self.Npl):
             # eta
             state_vec[6*i+1] = qp_vec_new[i]
