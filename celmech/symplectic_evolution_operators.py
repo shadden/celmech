@@ -3,7 +3,7 @@ import warnings
 from abc import ABC, abstractmethod
 from .hamiltonian import Hamiltonian
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
-from .disturbing_function import terms_list_to_HamiltonianCoefficients_dict, _add_dicts, resonant_secular_contribution_dictionary
+from .disturbing_function import terms_list_to_HamiltonianCoefficients_dict, _add_dicts, resonant_secular_contribution_dictionary,_consolidate_dictionary_terms
 from .transformations import masses_to_jacobi, masses_from_jacobi
 from .poincare import Poincare
 from .miscellaneous import getOmegaMatrix
@@ -770,7 +770,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             raise ValueError("'rkmethod' must be one of:\n" + methods_list) 
 
     @classmethod
-    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,resonances_info={}, **kwargs):
+    def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,resonances_to_include={}, **kwargs):
         """
         Initialize operator that includes all eccentricity and
         inclination terms with orders ranging from Nmin to Nmax.
@@ -813,7 +813,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         ps = initial_state.particles
         G = initial_state.G
 
-        for key,res_jk_list in resonances_info.items():
+        for key,res_jk_list in resonances_to_include.items():
             iIn,iOut = key
             pIn,pOut = ps[iIn],ps[iOut]
             mIn,mOut = pIn.m,pOut.m
@@ -825,6 +825,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             for j,k in res_jk_list:
                 dres = resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,*extra_args)
                 dsec = _add_dicts(dsec,dres)
+                dsec = _consolidate_dictionary_terms(dsec)
             terms_dict[key] = dsec
 
         return cls(initial_state, dt, terms_dict,**kwargs) 

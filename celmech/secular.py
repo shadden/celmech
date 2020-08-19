@@ -267,9 +267,12 @@ class LaplaceLagrangeSystem(Poincare):
 from .symplectic_evolution_operators import EvolutionOperator
 from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
 class LinearSecularEvolutionOperator(EvolutionOperator):
-    def __init__(self,initial_state,dt):
+    def __init__(self,initial_state,dt,first_order_resonances={}):
         super(LinearSecularEvolutionOperator,self).__init__(initial_state,dt)
         LL_system = LaplaceLagrangeSystem.from_Poincare(self.state)
+        for pair,res_j_list in first_order_resonances.items():
+            for j in res_j_list:
+                LL_system.add_first_order_resonance_term(*pair,j)
         self.ecc_matrix = LL_system.Neccentricity_matrix
         self.inc_matrix = LL_system.Ninclination_matrix
         self.ecc_operator_matrix = expm(-1j * self.dt * self.ecc_matrix)
@@ -333,7 +336,7 @@ class LinearSecularEvolutionOperator(EvolutionOperator):
         H = np.conj(x) @ self.ecc_matrix @ x + np.conj(y) @ self.inc_matrix @ y
         return np.real(H)
 class SecularSystemSimulation():
-    def __init__(self, state, dt = None,dtFraction = None, max_order = 4, DFOp_kwargs = {}):
+    def __init__(self, state, dt = None, dtFraction = None, max_order = 4,NsubB=1, resonances_to_include={}, DFOp_kwargs = {}):
         """
         A class for integrating the secular equations of motion governing a planetary system.
 
@@ -347,15 +350,32 @@ class SecularSystemSimulation():
         ----------
         state : celmech.Poincare
             The initial dynamical state of the system.
-        max_order : int, optional
-            The maximum order of disturbing function terms to include in the integration. 
-            By default, the equations of motion include terms up to 4th order.
         dt : float, optional
             The timestep to use for the integration. Either dt or dtFraction must be
             specified.
         dtFraction : float, optional
             Set the timestep to a constant fraction the period of shortest-period linear 
             secular eigenmode.
+        max_order : int, optional
+            The maximum order of disturbing function terms to include in the integration. 
+            By default, the equations of motion include terms up to 4th order.
+        NsubB : int, optional
+            The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
+        resonances_to_include : dict, optional
+            A dictionary containing information that sets the list of MMRs for which the 
+            secular contribution will be accounted for (at second order on planet masses).
+            Dictionary should be in the from:
+                {
+                  ....
+                  (iIn,iOut):[(j_0,k_0),...(j_N,k_N)]
+                  ....
+                }
+            in order to include the resonances j_i : j_i-k_i with i=0,...,N between planets
+            iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
+            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+            *NOT* also appear; these terms' contributions will be added automatically when 
+            the (2,1) term is added.
+            By default, no MMRs are included.
         DFOp_kwargs : dict, optional
             Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
             See celmech.symplectic_evolution_operators.SecularDFTermsEvolutionOperator for list of
@@ -365,15 +385,29 @@ class SecularSystemSimulation():
         if not single_true([dt,dtFraction]):
             raise AttributeError("Can only pass one of dt or dtFraction")
         llsys = LaplaceLagrangeSystem.from_Poincare(state)
+        first_order_resonances_to_include = {}
+        for pair,res_list in resonances_to_include.items():
+            first_order_js = [ j for j,k in res_list if k==1]
+            first_order_resonances_to_include.update({pair:first_order_js})
+            for j in first_order_js:
+                llsys.add_first_order_resonance_term(*pair,j)
         Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
         Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
         self.Tsec = min(Tsec_e,Tsec_inc)
+        self._NsubB = NsubB
         if dt:
-            self._dt = dt
+            self._dtA = dt
         elif dtFraction:
-            self._dt = dtFraction * self.Tsec
-        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dt)
-        self.nonlinearSecOp = DFOp.fromOrderRange(state,self._dt,4,max_order, **DFOp_kwargs)
+            self._dtA = dtFraction * self.Tsec
+        self._dtB = self._dtA / self._NsubB
+        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dtA)
+        self.nonlinearSecOp = DFOp.fromOrderRange(
+                state,
+                self._dtB,
+                4,max_order,
+                resonances_to_include=resonances_to_include,
+                **DFOp_kwargs
+        )
         self.state = state
         self._half_step_forward_e_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
         self._half_step_backward_e_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
@@ -382,9 +416,17 @@ class SecularSystemSimulation():
         self.t = 0
 
     @classmethod
-    def from_Simulation(cls,sim, dt = None, dtFraction = None, max_order = 4, DFOp_kwargs = {}):
+    def from_Simulation(cls,sim, dt = None, dtFraction = None, max_order = 4,NsubB=1,resonances_to_include={}, DFOp_kwargs = {}):
         pvars = Poincare.from_Simulation(sim)
-        return cls(pvars, max_order = max_order, dt = dt, dtFraction = dtFraction, DFOp_kwargs = DFOp_kwargs)
+        return cls(
+                pvars,
+                max_order = max_order,
+                NsubB=NsubB,
+                dt = dt,
+                dtFraction = dtFraction,
+                resonances_to_include=resonances_to_include,
+                DFOp_kwargs = DFOp_kwargs
+        )
 
     @property
     def state_vector(self):
@@ -393,13 +435,22 @@ class SecularSystemSimulation():
             state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
         return np.array(state_vec)
     @property
+    def NsubB(self):
+        return self._NsubB
+    @NsubB.setter
+    def NsubB(self,N):
+        self._NsubB = N
+        self._dtB = self._dtA / N
+        self.nonlinearSecOp.dt = self._dtB
+    @property
     def dt(self):
-        return self._dt
+        return self._dtA
     @dt.setter
     def dt(self,value):
-        self._dt = value
-        self.linearSecOp.dt = value
-        self.nonlinearSecOp.dt = value
+        self._dtA = value
+        self._dtB = self._dtA / self._NsubB
+        self.linearSecOp.dt = self._dtA
+        self.nonlinearSecOp.dt = self._dtB
         self._half_step_forward_e_matrix = expm(-1j * 0.5 * value * self.linearSecOp.ecc_matrix)
         self._half_step_backward_e_matrix = expm(+1j * 0.5 * value * self.linearSecOp.ecc_matrix)
         self._half_step_forward_inc_matrix = expm(-1j * 0.5 * value * self.linearSecOp.inc_matrix)
@@ -452,7 +503,7 @@ class SecularSystemSimulation():
         for _ in xrange(Nstep):
 
             # B step
-            state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
+            state_vec = self.Bstep(state_vec)
             
             # A step
             state_vec = self.linearSecOp.apply_to_state_vector(state_vec)
@@ -465,6 +516,22 @@ class SecularSystemSimulation():
         self.update_state_from_vector(state_vec)
         self.t += Nstep * self.dt
 
+    def Bstep(self,state_vec):
+        nlOp = self.nonlinearSecOp
+        qp = nlOp.state_vec_to_qp_vec(state_vec)
+        for _ in xrange(self.NsubB):
+            qp = nlOp.implicit_rk_step(qp)
+        for i in xrange(nlOp.Npl):
+            # eta
+            state_vec[6*i+1] = qp[i]
+            # kappa
+            state_vec[6*i] = qp[i + 2 * nlOp.Npl]
+            # rho
+            state_vec[6*i+5] = qp[i + nlOp.Npl]
+            # sigma
+            state_vec[6*i+4] = qp[i + 3 * nlOp.Npl]
+
+        return state_vec
     def calculate_energy(self):
         sv = self.state_vector
         E = self.linearSecOp.calculate_Hamiltonian(sv)

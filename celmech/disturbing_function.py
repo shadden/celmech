@@ -944,7 +944,8 @@ def _consolidate_dictionary_terms(d):
     """
     Combine all terms (kvec,zvec) that are conjugates of one another
     into single terms with a positive coefficient for 
-    pomega_in (i.e., k[2]).
+    pomega_in (i.e., k[2]) or, if k[2]=0, Omega_in (k[4]), or, if k[4]=0,
+    pomega_out k[3]
     """
     dnew = defaultdict(int)
     for kz, val in d.items():
