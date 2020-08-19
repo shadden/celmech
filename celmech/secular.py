@@ -400,7 +400,7 @@ class SecularSystemSimulation():
         elif dtFraction:
             self._dtA = dtFraction * self.Tsec
         self._dtB = self._dtA / self._NsubB
-        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dtA)
+        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dtA,first_order_resonances = first_order_resonances_to_include)
         self.nonlinearSecOp = DFOp.fromOrderRange(
                 state,
                 self._dtB,
