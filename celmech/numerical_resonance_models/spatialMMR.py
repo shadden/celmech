@@ -370,10 +370,10 @@ class SpatialResonanceEquations():
         r"""
         Convert dynamical variables
         .. math:
-            z = (y_1,y_2,x_1,x_2,{\cal D})
+            z = (y_1,y_2,y_inc,x_1,x_2,y_inc,{\cal D})
         to orbital elements
         .. math:
-            (a_1,e_1,\theta_1,a_2,e_2,\theta_2)
+            (a_1,e_1,inc_1,\theta_1,a_2,e_2,inc_2,\theta_2)
         """
 
         return self._funcs['orbital_elements'](z,*self.extra_args)
