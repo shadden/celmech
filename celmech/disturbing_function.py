@@ -920,7 +920,6 @@ def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut)
     pows2conj = xx1yy1_powers_conj(pows2)
     LmbdaInv_factors = np.array((2/LambdaIn,2/LambdaOut,0.5/LambdaIn,0.5/LambdaOut))
     p1conjp2 = pows1conj + pows2
-
     for i,p1bar,p2 in zip(range(4),pows1conj[:4],pows2[4:]):
         if p1bar > 0 and p2 > 0:
             v = p1conjp2.copy()
@@ -928,7 +927,6 @@ def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut)
             v[4+i]-=1
             coeff = p1bar * p2 * coeff1 * coeff2 * LmbdaInv_factors[i]
             results[xx1yy1_powers_to_kz(v)] -= coeff
-
     p1p2conj = pows1 + pows2conj
     for i,p1,p2bar in zip(range(4),pows1[:4],pows2conj[4:]):
         if p1 > 0 and p2bar > 0:
@@ -1100,14 +1098,13 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
         res_args = []
     
         # With resonant coefficient p(z,zbar)
-        # expanded to order e^(k1 + 2* Mmax), 
+        # expanded to order e^(k1 + 2* Mmax + 2), 
         # maximum order secular terms are: 
-        #   e^k1 * e^(k1 + 2 * Mmax) = e^Nmax
-        # This ingores secular terms 
-        # that come from the  ~{pbar,p} / omega_res
-        # term in the transformed Hamiltonian but
-        # these terms should be subdominant.
-        Mmax = (Nmax - 2 * k1)//2
+        #  D_e[e^k1] * D_e [e^(k1 + 2 * Mmax + 2)] = e^Nmax
+        # These come from the  ~{pbar,p} / omega_res
+        # term in the transformed Hamiltonian so they're
+        # subdominant but we'll add them for completeness.
+        Mmax = 1 + (Nmax - 2 * k1)//2
         for M in range(0,Mmax+1):
             # print(j1,k1,k1 + 2 * M)
             res_args += _resonance_arguments_of_fixed_order(j1,k1,k1 + 2 * M)
