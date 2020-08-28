@@ -629,13 +629,14 @@ class SecularSystemSimulation():
         """
 
         # change time-step
-        self.nonlinearSecOp.dt = dt
+        self.nonlinearSecOp.dt = dt/self._NsubB
 
         # apply
-        state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
+        for _ in xrange(self.NsubB):
+            state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
         
         # set time-step back to default
-        self.nonlinearSecOp.dt = self.dt
+        self.nonlinearSecOp.dt = self._dtB
         
         # return result
         return state_vec
