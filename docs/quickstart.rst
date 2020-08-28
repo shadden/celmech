@@ -63,7 +63,7 @@ We'd like a construct a Hamiltonian that can capture the dynamical evolution of 
         pvars = Poincare.from_Simulation(sim)
         pham = PoincareHamiltonian()
 
-We've now generated a Hamiltonian model  using the ``PoincareHamiltonian`` class. We can examine the symbolic expression for our Hamiltonian, stored as 
+We've now generated a Hamiltonian model using the :class:`celmech.poincare.PoincareHamiltonian` class. We can examine the symbolic expression for our Hamiltonian, stored as 
 
 .. code:: python
 
@@ -76,7 +76,7 @@ which should display:
         - \frac{G^{2} M_{2}^{2} m_{2}^{3}}{2 \Lambda_{2}^{2}} - \frac{G^{2} M_{1}^{2} m_{1}^{3}}{2 \Lambda_{1}^{2}}
 
 This expression is the Hamiltonian of two non-interacting Keplerian orbits expressed in canonical variables used by ``celmech``.
-The canonical momenta for the :math:`i`-th planet are defined[#]_ in terms of the planet's standard `orbital elements <https://en.wikipedia.org/wiki/Orbital_elements>`_ :math:`(a_i,e_i,I_i,\lambda_i,\varpi_i,\Omega_i)` and mass parameters :math:`\mu_i\sim m_i` and :math:`M_i \sim M_*`:
+The canonical momenta for the :math:`i`-th planet are defined [#]_ in terms of the planet's standard `orbital elements <https://en.wikipedia.org/wiki/Orbital_elements>`_ :math:`(a_i,e_i,I_i,\lambda_i,\varpi_i,\Omega_i)` and mass parameters :math:`\mu_i\sim m_i` and :math:`M_i \sim M_*`:
 
 .. math::
         
