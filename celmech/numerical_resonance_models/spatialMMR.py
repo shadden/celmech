@@ -535,8 +535,6 @@ class SpatialResonanceEquations():
         warnings.warn("Correction from mean to osculating variables is not currently implemented!")
         return z
 
-    from scipy.optimize import lsq_linear
-
     def dyvars_to_rebound_simulation(self,z,psi=0,Omega=0,osculating_correction = True,include_dissipation = False,**kwargs):
         r"""
         Convert dynamical variables to a Rebound simulation.

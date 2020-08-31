@@ -236,7 +236,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         
 
 class PlanarResonanceEquations():
-    """
+    r"""
     A class for the model describing the dynamics of a pair of planar planets
     in/near a mean motion resonance.
 
@@ -251,7 +251,7 @@ class PlanarResonanceEquations():
         Order of resonance.
     
     alpha : float
-        Semi-major axis ratio a_1/a_2
+        Semi-major axis ratio :math:`a_1/a_2`
 
     eps : float
         Mass parameter m1*mu2 / (mu1+mu2)
@@ -261,6 +261,29 @@ class PlanarResonanceEquations():
 
     m2 : float
         Outer planet mass
+
+    tau_alpha : float
+        Migration timescale defined by :math:`\tau_\alpha^{-1} =\tau_{m,2}^{-1} - \tau_{m,1}^{-1}`
+
+    K1 : float
+        Ratio of inner planet eccentricity damping timescale to migration timescale, tau_alpha.
+
+    K2 : float
+        Ratio of outer planet eccentricity damping timescale to migration timescale, tau_alpha.
+
+    p : float
+        Sets coupling between eccentricity damping and semi-major axis damping so that
+
+        .. math::
+
+            \frac{d}{dt}a_i = -a_i/\tau_{m,i} - 2pe_i^2/\tau_{e,i} 
+        
+        A value of p=1 corresponds to eccentricity damping at constant angular momentum.
+
+    timescales : dict
+        Dictionary containing the migration and eccentricity damping time-scales of 
+        the inner and outer planets based on the damping parameters of the resonance
+        model.
 
     """
     def __init__(self,j,k, n_quad_pts = 40, m1 = 1e-5 , m2 = 1e-5,K1=100, K2=100, tau_alpha = 1e5, p = 1):
@@ -350,8 +373,9 @@ class PlanarResonanceEquations():
     def H_flow(self,z):
         r"""
         Calculate flow induced by the Hamiltonian
-        .. math:
-            \dot{z} = \Omega \cdot \nablda_{z}H(z)
+
+        .. math::
+            \dot{z} = \Omega \cdot \nabla_{z}H(z)
 
         Arguments
         ---------
@@ -369,7 +393,8 @@ class PlanarResonanceEquations():
     def H_flow_jac(self,z):
         r"""
         Calculate the Jacobian of the flow induced by the Hamiltonian
-        .. math:
+
+        .. math::
              \Omega \cdot \Delta H(z)
 
         Arguments
@@ -388,7 +413,8 @@ class PlanarResonanceEquations():
         r"""
         Calculate the flow vector of the equations
         of motion
-        .. math:
+
+        .. math::
             \dot{z} = \Omega \cdot \nabla_{z}H(z) + f_{dis}(z)
 
         Arguments
@@ -407,7 +433,8 @@ class PlanarResonanceEquations():
         r"""
         Calculate the Jacobian of the equations of motion
         given by 
-        .. math:
+
+        .. math::
              \Omega \cdot \Delta H(z) + \nabla f_{dis}(z)
 
         Arguments
@@ -425,10 +452,13 @@ class PlanarResonanceEquations():
     def dyvars_to_orbital_elements(self,z):
         r"""
         Convert dynamical variables
-        .. math:
+
+        .. math::
             z = (y_1,y_2,x_1,x_2,{\cal D})
+
         to orbital elements
-        .. math:
+
+        .. math::
             (a_1,e_1,\theta_1,a_2,e_2,\theta_2)
         """
 
@@ -437,10 +467,13 @@ class PlanarResonanceEquations():
     def orbital_elements_to_dyvars(self,orbels):
         r"""
         Convert orbital elements
-        .. math:
+
+        .. math::
             (a_1,e_1,\theta_1,a_2,e_2,\theta_2)
+
         to dynamical variables
-        .. math:
+
+        .. math::
             z = (y_1,y_2,x_1,x_2,{\cal D})
         """
         # Total angular momentum constrained by
@@ -488,7 +521,6 @@ class PlanarResonanceEquations():
 
         return np.array((y1,y2,x1,x2,amd))
     
-    from scipy.optimize import lsq_linear
     def find_equilibrium(self,guess,dissipation=False,tolerance=1e-9,max_iter=10):
         """
         Use Newton's method to locate an equilibrium solution of 
@@ -513,7 +545,8 @@ class PlanarResonanceEquations():
             Default value is 1E-9.
         max_iter : int, optional
             Maximum number of Newton's method iterations.
-            Default is 10.
+            Default is 10. If maximum is reached, result will be 
+            returned with a warning.
         include_dissipation : bool, optional
             Include dissipative terms in the equations of motion.
             Default is False
@@ -523,9 +556,6 @@ class PlanarResonanceEquations():
         zeq : ndarray
             Equilibrium value of dynamical variables.
     
-        Raises
-        ------
-        RuntimeError : Raises error if maximum number of Newton iterations is exceeded.
         """
         if dissipation:
             return self._find_dissipative_equilibrium(guess,tolerance,max_iter)
@@ -547,7 +577,7 @@ class PlanarResonanceEquations():
             J = jac(y)
             it+=1
             if it==max_iter:
-                raise RuntimeError("Max iterations reached!")
+                warn("Newton's method failed to converge before the maximum of {} iterations were completed. Try re-running with a higher value of 'max_iter' or choose a better initial guess for the equilibrium configuration.".format(max_iter))
         return y
     def _find_conservative_equilibrium(self,guess,tolerance=1e-9,max_iter=10):
         y = guess
@@ -570,8 +600,10 @@ class PlanarResonanceEquations():
     def dyvars_to_rebound_simulation(self,z,Q=0,pomega1=0,osculating_correction = True,include_dissipation = False,**kwargs):
         r"""
         Convert dynamical variables
-        .. math:
+
+        .. math::
             z = (\sigma_1,\sigma_2,I_1,I_2,{\cal C}
+
         to a Rebound simulation.
 
         Arguments
@@ -608,8 +640,6 @@ class PlanarResonanceEquations():
         if osculating_correction:
             warn("Osculating corrections are currently not implemented.")
             orbels = mean_orbels
-            #zosc = self.mean_to_osculating_dyvars(Q,z)
-            #orbels = self.dyvars_to_orbels(zosc)
         else:
             orbels = mean_orbels
         j,k = self.j, self.k
@@ -651,8 +681,10 @@ class PlanarResonanceEquations():
     def dyvars_from_rebound_simulation(self,sim,iIn=1,iOut=2, osculating_correction = False):
         r"""
         Convert dynamical variables
+
         .. math:
             z = (\sigma_1,\sigma_2,I_1,I_2,{\cal C}
+
         to a Rebound simulation.
 
         Arguments
@@ -693,7 +725,21 @@ class PlanarResonanceEquations():
         return self.orbital_elements_to_dyvars(els)
 
     def dyvars_to_Poincare_actions(self,dyvars):
+        """
+        Convert a set of dynamical variables to Poincare actions
+
+        Arguments
+        ---------
+        dyvars : ndarray
+          Dynamical variables to convert
+
+        Returns
+        -------
+        actions : dict
+          Poincare actions stored as dictionary entries.
+        """
         return self._funcs['actions'](dyvars,*self.extra_args)
+
     def integrate_initial_conditions(self,dyvars0,times,dissipation=False):
         """
         Integrate initial conditions and calculate dynamical

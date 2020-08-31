@@ -32,6 +32,9 @@ def single_true(iterable): # Returns true if only one element in the iterable is
     return any(i) and not any(i) # any(i) True once first valid item found. not any(i) ensures no additional ones exist
 
 class PoincareParticle(object):
+    """
+    A class representing an individual member  (star, planet, or test particle) of a planetary system.
+    """
     def __init__(self, m, M, l, gamma, q, G=1., sLambda=None, sGamma=None, sQ=None, Lambda=None, Gamma=None, Q=None,  a=None, e=None, inc=None):
         """
         We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
@@ -197,6 +200,9 @@ class PoincareParticle(object):
         return np.sqrt(self.G*self.M/self.a**3)
 
 class Poincare(object):
+    """
+    A class representing a collection of Poincare particles constituting a planetary system.
+    """
     def __init__(self, G, poincareparticles=[]):
         self.G = G
         self.t = 0
@@ -229,10 +235,10 @@ class Poincare(object):
         return pvars
 
     def to_Simulation(self, masses=None, average=True):
-        ''' 
+        """ 
         if masses is None, will calculate physical masses from the jacobi ones.
         if masses is a list, will use those as the physical masses.
-        '''
+        """ 
 
         if average is True:
             self.average_synodic_terms(inverse=True)
@@ -290,6 +296,10 @@ class Poincare(object):
         return len(self.particles)
 
 class PoincareHamiltonian(Hamiltonian):
+    """
+    A class representing the Hamiltonian governing the dynamical evolution of a system of particles,
+    stored as a :class:`celmech.poincare.Poincare` instance.
+    """
     def __init__(self, pvars):
         Hparams = {symbols('G'):pvars.G}
         pqpairs = []

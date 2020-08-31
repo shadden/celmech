@@ -23,6 +23,9 @@ Getting Started!
     quickstart
     poincare
     disturbing_function
+    secular
+    andoyer
+    numerical_resonance_models   
     miscellaneous 
 
 

@@ -210,7 +210,9 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
     Coeff_dict : dictionary
         Dictionary with entries {(p,(s,j,n)) : coeff}
         representing a sum of Laplace coefficients:
-         coeff * \alpha^p * d^n b_s^{(j)}(\alpha) / d\alpha^n
+
+        .. math::
+         \mathrm{coeff}  \alpha^p \frac{ d^n b_s^{(j)}(\alpha)} { d\alpha^n}
     alpha : float
         Value of semi-major axis ratio a1/a2 appearing
         as an argument of Laplace coefficients.
@@ -307,51 +309,6 @@ def get_fg_coeffs(res_j,res_k):
     f,g = leastsq(resids_vec_fn,(f0,g0))[0]
     return f,g
 
-def Nto1_indirect_term_correction(N):
-    r"""
-    Get the correction to the DF coefficient of an
-    N:1 resonance that comes from the indirect term
-    to leading order in eccentricity.
-
-    The corrections applies to the coefficient associated
-    with the argument
-        $N\lambda_2 - \lambda_1 - (N-1)\varpi_2$
-    and is computed by means of expanding the expression
-    for the Hansen coefficient.
-
-    Arguemnts
-    ---------
-    N : int
-        Integer denoting the specific N:1 MMR to compute
-        the correction for.
-
-    Returns
-    -------
-    correction_term : float
-        Correction term to add to Cjkl(N,N-1,0,alpha)
-    """
-    hard_coded_coeffs = [2,27/8,16/3,3125/284] 
-    assert N>1,"Indirect terms not implemented for {}:1 resonance!".format(N)
-    if N<len(hard_coded_coeffs) + 2:
-        coeff = hard_coded_coeffs[N-2]
-    else:
-        u,e,x=symbols('u,e,x')
-        expif = cos(u)-e + I * sqrt(1-e*e) * sin(u)
-        M = u - e * sin(u)
-        exp_iNpl1M = exp(-I * N * M)
-        r_by_a = 1 - e * cos(u)
-        integrand = expif * exp_iNpl1M / (r_by_a)**2
-        s = series(integrand,e,0,N)
-        subdict={
-            sin(u):(x - 1/x) / 2 / I,
-            exp(I*u): x,
-            exp(-I*u): 1/x,
-            cos(u):(x + 1/x) / 2}
-        term = s.coeff(e,N-1)
-        term = term.subs(subdict).expand()
-        coeff = term.coeff(x,0).evalf()
-    alpha  = N**(-2/3)
-    return -1 * coeff * alpha
 
 def NCOd0(a,b,c):
     """
@@ -405,14 +362,19 @@ def HansenCoefficient_term(a,b,c,sigma):
     of the Hansen coefficient X^{a,b}_c(e).
     The Hansen coefficient is given by:
 
+    .. math::
+
         X^{a,b}_c(e) = e^{|c-b|} \times
-        \sum_{\sigma=0}^\infty HansenCoefficient_term(a,b,c,sigma)e^{2\sigma}
+        \sum_{\sigma=0}^\infty \mathrm{HansenCoefficient\_term(a,b,c,sigma)}e^{2\sigma}
 
     Arguments
     ---------
     a : int
+
     b : int
+    
     c : int
+    
     sigma : int
 
     Returns
@@ -435,8 +397,11 @@ def calX_term(a,b,c,d):
     Arguments
     ---------
     a : int
+    
     b : int
+    
     c : int
+    
     d : int
 
     Returns
@@ -457,6 +422,7 @@ def threeFtwo(a,b):
     Arguments
     ---------
     a : list of ints
+    
     b :  list of ints
     
     Returns
@@ -488,8 +454,11 @@ def KaulaF(n,q,p,j):
     Arguments
     ---------
     n : int
+
     q : int
+    
     p : int
+    
     j : int
 
     Returns
@@ -587,6 +556,8 @@ def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
     dictionary 
         The coefficient is given by the sum over laplace coefficients
         contained in the dictionary entries: 
+
+        ..math::
             \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
@@ -677,7 +648,10 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
     dictionary
         The coefficient is given by the sum over laplace coefficients
         contained in the dictionary entries:
+
+        .. math::
             \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
+
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
     terms_total = defaultdict(float)
@@ -710,6 +684,7 @@ def deriv_DFCoeff(coeff):
     coeff : dict
         The coefficient is given by the sum over laplace coefficients
         contained in the dictionary entries:
+
             .. math::
             \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
@@ -767,8 +742,10 @@ def _Cindirect_type1(k1,k2,m,z1,z2,z3,z4):
     return 0
 
 def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
-    """
+    r"""
     Indirect term cosine coefficient for argument:
+
+        .. math::
         \theta = k_1\lambda_j + k_2\lambda_i
                     - (k_1-1)\varpi_j - (k_2-1) \varpi_i
                     - \Omega_i - \Omega_j + m(\Omega_j-\Omega_i)
@@ -787,8 +764,10 @@ def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
 
 
 def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
-    """
+    r"""
     Get the indirect contribution to disturbing function coefficient
+
+    .. math::
         \bar{C}_{\pmb{k}}^{(z_1,z_2,z_3,z_4)}
     """
     if np.sum([k1,k2,k3,k4,k5,k6]) !=0:

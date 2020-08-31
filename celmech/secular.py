@@ -10,6 +10,42 @@ _rt2_inv = 1 / _rt2
 _machine_eps = np.finfo(np.float64).eps
 
 class LaplaceLagrangeSystem(Poincare):
+    r"""
+    A class for representing the classical Laplace-Lagrange secular
+    solution for a planetary system.
+    
+    Attributes
+    ----------
+    
+    eccentricity_matrix : sympy.Matrix
+      The matrix :math:`\pmb{S}_e` appearing in the secular equations
+      of motion for the eccentricity variables, 
+
+      .. math::
+        \frac{d}{dt}(\eta_i + i\kappa_i) = [\pmb{S}_e]_{ij} (\eta_j + i\kappa_j)~.
+    
+      or, equivalently,
+
+      .. math::
+        \frac{d}{dt}\pmb{x} = -i \pmb{S}_e \cdot \pmb{x}
+
+      The matrix is given in symbolic form.
+
+     inclination_matrix : sympy.Matrix
+      The matrix :math:`\pmb{S}_I` appearing in the secular equations
+      of motion for the eccentricity variables, 
+
+      .. math::
+        \frac{d}{dt}(rho_i + i \sigma_i \) =[\pmb{S}_I]_{ij} (\rho_j + i \sigma_j)~.
+    
+      or, equivalently,
+
+      .. math::
+        \frac{d}{dt}\pmb{y} = -i \pmb{S}_I \cdot \pmb{y}
+
+      The matrix is given in symbolic form.
+      
+    """
     def __init__(self,G,poincareparticles=[]):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
         self.params = {S('G'):self.G}
@@ -140,15 +176,23 @@ class LaplaceLagrangeSystem(Poincare):
         r"""
         Solve for matrix S, that diagonalizes the
         matrix T in the equations of motion:
-            .. math::
+
+        .. math::
+
             \frac{d}{dt}(\eta + i\kappa) = i A \cdot (\eta + i\kappa)
+
         The matrix S satisfies
-            .. math::
+
+        .. math::
+
                 T^{T} \cdot A \cdot T = D
+        
         where D is a diagonal matrix.
         The equations of motion are decoupled harmonic
         oscillators in the variables (P,Q) defined by 
-            .. math::
+
+        .. math::
+
             H + i K = S^{T} \cdot (\eta + i \kappa)
         
         Returns
@@ -162,15 +206,20 @@ class LaplaceLagrangeSystem(Poincare):
         r"""
         Solve for matrix U, that diagonalizes the
         matrix B in the equations of motion:
-            .. math::
+        
+        .. math::
             \frac{d}{dt}(\rho + i\sigma) = i B \cdot (\rho + i\sigma)
+
         The matrix S satisfies
-            .. math::
+
+        .. math::
                 U^{T} \cdot B \cdot U = D
+
         where D is a diagonal matrix.
         The equations of motion are decoupled harmonic
-        oscillators in the variables (P,Q) defined by 
-            .. math::
+        oscillators in the variables :math:`(R,S)` defined by 
+
+        .. math::
             R + i S = U^{T} \cdot (\rho + i \sigma)
         
         Returns
