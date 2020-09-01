@@ -2,14 +2,35 @@ from sympy import S, diff, lambdify, symbols
 from scipy.integrate import ode
 
 class Hamiltonian(object):
+    """
+    A general class for describing and evolving Hamiltonian systems.
+
+    Attributes
+    ----------
+
+    state : object
+        An object that stores the dynamical state of the system.
+
+    H : sympy expression
+        Symbolic expression for system's Hamiltonian.
+
+    pqpars : list
+        List of canonical variable pairs. 
+    """
     def __init__(self, H, pqpairs, Hparams, initial_state):
         """
-        H = Hamiltonian made up only of sympy symbols in pqpairs and keys in Hparams
-        pqpairs = list of momentum, position pairs [(P1, Q1), (P2, Q2)], where each element is a sympy symbol
-        Hparams = dictionary from sympy symbols for the constant parameters in H to their value
-        initial_conditions = arbitrary object for holding the dynamical state
-
-        The variables are stored in the self.state object, while ODE uses a list of dynamical variables y. 
+        Arguments
+        ---------
+        H : sympy expression
+            Hamiltonian made up only of sympy symbols in pqpairs and keys in Hparams
+        pqpairs : list
+            list of momentum, position pairs [(P1, Q1), (P2, Q2)], where each element is a sympy symbol
+        Hparams : dict
+            dictionary from sympy symbols for the constant parameters in H to their value
+        initial_conditions : object
+            Arbitrary object for holding the dynamical state.
+        
+        
         In addition to the above, one needs to write 2 methods to map between the two objects:
         def state_to_list(self, state): 
             returns a list of values from state in the same order as pqpairs e.g. [P1,Q1,P2,Q2]
@@ -24,7 +45,23 @@ class Hamiltonian(object):
         
         self._update()
 
-    def integrate(self, time):
+    def integrate(self, time, integrator_kwargs={}):
+        """
+        Evolve Hamiltonian system from current state
+        to input time by integrating the equations of 
+        motion.
+
+        Arguments
+        ---------
+        time : float
+            Time to advance Hamiltonian system to.
+        integrator_kwargs : dict,optional
+            A dictionary of integrator keyword arguments
+            to pass to the integrator. ``celmech`` uses
+            the scipy.ode 'lsoda' integrator.  Valid 
+            keyword options can be found 
+            `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
+        """
         try:
             time /= self.state.params['tau'] # scale time if defined
         except:
@@ -33,7 +70,7 @@ class Hamiltonian(object):
             self._update()
         if time > self.integrator.t:
             try:
-                self.integrator.integrate(time)
+                self.integrator.integrate(time,**integrator_kwargs)
             except:
                 raise AttributeError("Need to initialize Hamiltonian")
         self.update_state_from_list(self.state, self.integrator.y)

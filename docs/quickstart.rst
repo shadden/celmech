@@ -111,6 +111,85 @@ In addition to storing a purely symbolic expression for
 Integration
 -----------
 
-Now that we have a Hamiltonain model, we'll integrate it
+Now that we have a Hamiltonain model, we'll integrate it and compare the results to direct :math:`N`-body.
+First, we'll set up some preliminary python dictionaries and arrays to hold the results of both integrations.
+
+.. code:: python
+
+        # Here we define the times at which we'll get simulation outputs
+        Nout = 150
+        times = np.linspace(0 , 3e3, Nout) * sim.particles[1].P
+        
+        # These are the quantites we'll track in our rebound and celmech integrations
+        keys = ['l1','l2','pomega1','pomega2','e1','e2','a1','a2'] 
+
+        # These dictionaries will hold our results
+        rebound_results= {key:np.zeros(Nout) for key in keys}
+        celmech_results= {key:np.zeros(Nout) for key in keys}
+
+        # These are the lists of particles in both simulations 
+        # for which we'll save quantities.
+        rb_particles = sim.particles
+        cm_particles = pvars.particles
+
+
+The :class:`celmech.PoincareHamiltonian` class inherits the method :meth:`celmech.hamiltonian.Hamiltonian.integrate` that can be used to evolve the system forward in much the same way as ``REBOUND``'s :meth:`rebound.Simulation.integrate` method.
+Below is the main integration loop where we'll integrate our system and store the results: 
+
+.. code:: python
+
+        for i,t in enumerate(times):
+            sim.integrate(t) # advance N-body
+            pham.integrate(t) # advance celmech
+            for j,p_rb,p_cm in zip([1,2],rb_particles[1:],cm_particles[1:]):
+                # store N-body results
+                rebound_results["l{}".format(j)][i] = p_rb.l
+                rebound_results["pomega{}".format(j)][i] = p_rb.pomega
+                rebound_results["e{}".format(j)][i] = p_rb.e
+                rebound_results["a{}".format(j)][i] = p_rb.a
+
+                # store celmech results
+                celmech_results["l{}".format(j)][i] = p_cm.l
+                celmech_results["pomega{}".format(j)][i] = p_cm.pomega
+                celmech_results["e{}".format(j)][i] = p_cm.e
+                celmech_results["a{}".format(j)][i] = p_cm.a
+
+Finally, we'll plot the simulation results in order to compare them:
+
+.. code:: python
+        
+        # First, we compute resonant angles for both sets of results
+        for d in [celmech_results,rebound_results]:
+            d['theta1'] = np.mod(3 * d['l2'] - 2 * d['l1'] - d['pomega1'],2*np.pi)
+            d['theta2'] = np.mod(3 * d['l2'] - 2 * d['l1'] - d['pomega2'],2*np.pi)
+        
+        # Now we'll create a figure...
+        import matplotlib.pyplot as plt
+        fig,ax = plt.subplots(3,2,sharex = True,figsize = (12,8))
+        for i,q in enumerate(['theta','e','a']):
+            for j in range(2):
+                key = "{:s}{:d}".format(q,j+1)
+                ax[i,j].plot(times,rebound_results[key],'k.',label='$N$-body')
+                ax[i,j].plot(times,celmech_results[key],'r.',label='celmech')
+                ax[i,j].set_ylabel(key,fontsize=15)
+                ax[i,j].legend(loc='upper left')
+
+        #... and make it pretty
+        ax[0,0].set_ylim(0,2*np.pi);
+        ax[0,1].set_ylim(0,2*np.pi);
+        ax[2,0].set_xlabel(r"$t/P_1$",fontsize=15);
+        ax[2,1].set_xlabel(r"$t/P_1$",fontsize=15);
+        
+This should produce a figure that looks something like this:
+
+.. image:: images/quickstart_example_plot.png
+        :width: 600
+
+Not too bad! Our ``celmech`` model reproduces the libration amplitudes and frequencies observed in the :math:`N`-body results quite successfully.
+
+Next steps
+----------
+
+Check out ...
 
 .. [#] The precise definitions of the orbital elements and mass parameters :math:`\mu_i,M_i` depend on the adopted coordinate system.  By default ``celmech`` uses canonical heliocentric coordinates.  
