@@ -55,15 +55,25 @@ Now we'll initialize a REBOUND simulation containing a pair of Earth-mass planet
         sim.add(m=3e-6,P = 1, e = 0.05)
         sim.add(m=3e-6,P = 3/2, e = 0.05,pomega = np.pi)
         sim.move_to_com()
+        rb.OrbitPlot(sim,periastron=True) # Gives a visualization of our system
+
+After running the above code, we should see a represntation of our planetary system:
+
+.. image:: images/quickstart_orbit_plot.png
+        :width: 300
 
 We'd like a construct a Hamiltonian that can capture the dynamical evolution of the system. 
+To start, we'll initialize a :class:`celmech.Poincare <celmech.poincare.Poincare>` object in order to represent our system
+and a :class:`celmech.PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` object to model its dynamical evolution. 
+These objects can be initialized directly from the ``REBOUND`` simulation that we created above:
 
 .. code:: python
         
         pvars = Poincare.from_Simulation(sim)
         pham = PoincareHamiltonian()
 
-We've now generated a Hamiltonian model using the :class:`celmech.poincare.PoincareHamiltonian` class. We can examine the symbolic expression for our Hamiltonian, stored as 
+Now that we've now generated a :class:`poincare.PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` object, 
+we'll examine the symbolic expression for the Hamiltonian governing our system:
 
 .. code:: python
 
@@ -75,23 +85,44 @@ which should display:
 
         - \frac{G^{2} M_{2}^{2} m_{2}^{3}}{2 \Lambda_{2}^{2}} - \frac{G^{2} M_{1}^{2} m_{1}^{3}}{2 \Lambda_{1}^{2}}
 
-This expression is the Hamiltonian of two non-interacting Keplerian orbits expressed in canonical variables used by ``celmech``.
+This expression is the just Hamiltonian of two non-interacting Keplerian orbits expressed in canonical variables used by ``celmech``.
 The canonical momenta for the :math:`i`-th planet are defined [#]_ in terms of the planet's standard `orbital elements <https://en.wikipedia.org/wiki/Orbital_elements>`_ :math:`(a_i,e_i,I_i,\lambda_i,\varpi_i,\Omega_i)` and mass parameters :math:`\mu_i\sim m_i` and :math:`M_i \sim M_*`:
 
 .. math::
-        
-        \Lambda_i = \mu_i \sqrt{G M_i a_i}\\
-        \kappa_i = \sqrt{2\Lambda_i(1-\sqrt{1-e_i^2})}\cos\varpi_i\\
-        \sigma_i = \sqrt{2\Lambda_i\sqrt{1-e_i^2}(1-\cos I_i)}\cos\Omega_i
+        \begin{align*}       
+        \Lambda_i &= \mu_i \sqrt{G M_i a_i}\\
+        \kappa_i &= \sqrt{2\Lambda_i(1-\sqrt{1-e_i^2})}\cos\varpi_i\\
+        \sigma_i &= \sqrt{2\Lambda_i\sqrt{1-e_i^2}(1-\cos I_i)}\cos\Omega_i
+        \end{align*}
 
 and their conjugate coordinates are:
 
 .. math::
-        \lambda_i \\
-        \eta_i = -\kappa_i\tan\varpi_i \\
-        \rho_i = -\sigma_i\tan\Omega_i 
+        \begin{align*}
+        \lambda_i & \\
+        \eta_i &= -\kappa_i\tan\varpi_i \\
+        \rho_i &= -\sigma_i\tan\Omega_i 
+        \end{align*}
 
-This is the default behavior of the ``PoincareHamiltonian`` class: upon initialization, it will only contain the terms corresponding to Keplerian orbits of the particles. Next, we will add terms to model the effect of the 3:2 mean motion resonance. This can be done conveniently with 
+
+When a :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` is first initialized, it will only contain the 'Keplerian' terms of the Hamiltonian 
+and will not contain any terms representing gravitaional interactions between the planets.  
+This will result in quite boring dynamical evolution: the planets' mean longitudes, :math:`\lambda_i`, 
+will simply increase linearly with time at a rate of 
+:math:`n_i = \frac{G^{2} M_{2}^{2} m_{i}^{3}}{\Lambda_{i}^{3}}`, while all other orbital elements remain constant.
+
+In order explore more interesting dynamics, we need to add term to Hamiltonian that capture pieces of the gravitational interactions between planets.
+Since our planet pair is near a 3:2 MMR, terms associated with this resonance are a natural choice to explore. 
+For a pair of co-planar planets, these terms will all involve linear combinations of the two resonant angles 
+
+.. math::
+        \theta_1 = 3\lambda_2-2\lambda_1 - \varpi_1 \\
+        \theta_2 = 3\lambda_2-2\lambda_1 - \varpi_2 
+
+In fact, at lowest order in the planets' eccentricities, there are just two such terms,
+:math:`\propto e_1\cos\theta_1` and :math:`\propto e_2\cos\theta_2`.
+The method :meth:`add_all_MMR_and_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_MMR_and_secular_terms>` provides a convenient
+method for adding these terms to our Hamiltonian:
 
 .. code:: python
 
@@ -104,9 +135,12 @@ which should now display
 
         - \frac{C^{0,0,0,0;(1,2)}_{0,0,0,0,0,0} G^{2} M_{2}^{2} m_{1}}{\Lambda_{2}^{2} M_{1}} m_{2}^{3} - \frac{C^{0,0,0,0;(1,2)}_{3,-2,-1,0,0,0} G^{2} M_{2}^{2} m_{1}}{\Lambda_{2}^{2} M_{1}} m_{2}^{3} \left(\frac{\eta_{1}}{\sqrt{\Lambda_{1}}} \sin{\left (2 \lambda_{1} - 3 \lambda_{2} \right )} + \frac{\kappa_{1}}{\sqrt{\Lambda_{1}}} \cos{\left (2 \lambda_{1} - 3 \lambda_{2} \right )}\right) - \frac{C^{0,0,0,0;(1,2)}_{3,-2,0,-1,0,0} G^{2} M_{2}^{2} m_{1}}{\Lambda_{2}^{2} M_{1}} m_{2}^{3} \left(\frac{\eta_{2}}{\sqrt{\Lambda_{2}}} \sin{\left (2 \lambda_{1} - 3 \lambda_{2} \right )} + \frac{\kappa_{2}}{\sqrt{\Lambda_{2}}} \cos{\left (2 \lambda_{1} - 3 \lambda_{2} \right )}\right) - \frac{G^{2} M_{2}^{2} m_{2}^{3}}{2 \Lambda_{2}^{2}} - \frac{G^{2} M_{1}^{2} m_{1}^{3}}{2 \Lambda_{1}^{2}}
 
-A call to ``pham.add_all_MMR_and_secular_terms(p,q,order)`` adds all disturbing function terms associated with the :math:`p:p-q` resonance up to order ``order`` in eccentricities and inclinations, along with all secular terms up to the same order. In our case, we have added the two first-order cosine terms associated with the 3:2 MMR. 
+This somewhat cumbersome expression is just equivalent to 
 
-In addition to storing a purely symbolic expression for 
+.. math::
+        - \frac{GM_*m_1}{2 a_1} - \frac{GM_*m_2}{2 a_2}  - \frac{Gm_1m_2}{a_2}\left(C^{0,0,0,0;(1,2)}_{3,-2,-1,0,0,0}e_1\cos(3\lambda_2-2\lambda_1-\varpi_1) + C^{0,0,0,0;(1,2)}_{3,-2,0,-1,0,0} e_2\cos(3\lambda_2-2\lambda_1-\varpi_2)\right)
+        
+but expressed in the canonical variables used by ``celmech``. [#]_
 
 Integration
 -----------
@@ -193,3 +227,4 @@ Next steps
 Check out ...
 
 .. [#] The precise definitions of the orbital elements and mass parameters :math:`\mu_i,M_i` depend on the adopted coordinate system.  By default ``celmech`` uses canonical heliocentric coordinates.  
+.. [#] The :math:`C` coefficients used by ``celmech`` are defined in :ref:`disturbing_function`. For those familiar with the notation of `Murray & Dermott (1999) <https://ui.adsabs.harvard.edu/abs/2000ssd..book.....M/abstract>`_, :math:`C^{0,0,0,0;(1,2)}_{3,-2,-1,0,0,0} = f_{27}(\alpha)` and :math:`C^{0,0,0,0;(1,2)}_{3,-2,0,-1,0,0} = f_{31}(\alpha)` evaluated at :math:`\alpha\approx (2/3)^{2/3}`.

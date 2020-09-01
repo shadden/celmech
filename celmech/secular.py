@@ -16,7 +16,6 @@ class LaplaceLagrangeSystem(Poincare):
     
     Attributes
     ----------
-    
     eccentricity_matrix : sympy.Matrix
       The matrix :math:`\pmb{S}_e` appearing in the secular equations
       of motion for the eccentricity variables, 
@@ -30,13 +29,12 @@ class LaplaceLagrangeSystem(Poincare):
         \frac{d}{dt}\pmb{x} = -i \pmb{S}_e \cdot \pmb{x}
 
       The matrix is given in symbolic form.
-
-     inclination_matrix : sympy.Matrix
+    inclination_matrix : sympy.Matrix
       The matrix :math:`\pmb{S}_I` appearing in the secular equations
       of motion for the eccentricity variables, 
 
       .. math::
-        \frac{d}{dt}(rho_i + i \sigma_i \) =[\pmb{S}_I]_{ij} (\rho_j + i \sigma_j)~.
+        \frac{d}{dt}(\rho_i + i \sigma_i ) =[\pmb{S}_I]_{ij} (\rho_j + i \sigma_j)~.
     
       or, equivalently,
 
@@ -44,7 +42,19 @@ class LaplaceLagrangeSystem(Poincare):
         \frac{d}{dt}\pmb{y} = -i \pmb{S}_I \cdot \pmb{y}
 
       The matrix is given in symbolic form.
-      
+    Neccentricity_matrix : ndarray
+        Numerical value of the eccentricity matrix :math:`\pmb{S}_e`
+    Ninclination_matrix : ndarray
+        Numerical value of the inclination matrix :math:`\pmb{S}_I`
+    Tsec : float
+        The secular timescale of the system, defined as the shortest
+        secular period among the system's inclination and eccentricity
+        modes.
+    eccentricity_eigenvalues : ndarray
+        Array of the eccentricity mode eigenvalues  (i.e., secular frequencies)
+    inclination_eigenvalues : ndarray
+        Array of the inclination mode eigenvalues  (i.e., secular frequencies)
+
     """
     def __init__(self,G,poincareparticles=[]):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
@@ -64,17 +74,48 @@ class LaplaceLagrangeSystem(Poincare):
         self._update()
     @classmethod
     def from_Poincare(cls,pvars):
+        """
+        Initialize a Laplace-Lagrange system directly from a 
+        :class:`celmech.poincare.Poincare` object.
+        
+        Arguments
+        ---------
+        pvars : :class:`celmech.poincare.Poincare` 
+            Instance of Poincare variables from which to initialize
+            Laplace-Lagrange system
+
+        Returns
+        -------
+        :class:`celmech.secular.LaplaceLagrangeSystem`
+        """
         return cls(pvars.G,pvars.particles[1:])
+
     @classmethod
     def from_Simulation(cls,sim):
+        """
+        Initialize a Laplace-Lagrange system directly from a 
+        :class:`rebound.Simulation` object.
+        
+        Arguments
+        ---------
+        pvars : :class:`rebound.Simulation` 
+            rebound simulation from which to initialize
+            Laplace-Lagrange system
+
+        Returns
+        -------
+        :class:`celmech.secular.LaplaceLagrangeSystem`
+        """
         pvars = Poincare.from_Simulation(sim)
         return cls.from_Poincare(pvars)
+
     @property
     def eccentricity_matrix(self):
         return Matrix([
             [self.ecc_entries[max(i,j),min(i,j)] for i in xrange(1,self.N)]
             for j in xrange(1,self.N) 
             ])
+
     @property
     def inclination_matrix(self):
         return Matrix([
@@ -106,6 +147,20 @@ class LaplaceLagrangeSystem(Poincare):
         Get the solution of the Laplace-Lagrange
         secular equations of motion at the 
         user-specified times.
+
+        Arguments
+        ---------
+        times : ndarray
+            Array of times at which to evaluate 
+            the solution to the equations of motion.
+        epoch : float, optional
+            Current time of system state. Default is 
+            t=0.
+        Returns
+        -------
+        soln : dict
+            The solution dictionary contains various dynamical
+            quantites computed at the input times. 
         """
         e_soln = self.secular_eccentricity_solution(times,epoch)
         solution = {key:val.T for key,val in e_soln.items()}
@@ -277,7 +332,23 @@ class LaplaceLagrangeSystem(Poincare):
         for indices,resonance_k in resonances_dictionary.items():
             self.add_first_order_resonance_term(*indices,resonance_k) 
 
-    def add_first_order_resonance_term(self,indexIn, indexOut,kres):
+    def add_first_order_resonance_term(self,indexIn, indexOut,jres):
+        """
+        Include a correction to the Laplace-Lagrange 
+        secular equations of motion that arise due to a nearby 
+        first-order mean motion resonance between two planets.
+
+        Note-- corrections are not valid for planets in resonance!
+    
+        Arguments
+        ---------
+        indexIn : int
+            Index of inner planet near resonance.
+        indexOut : int
+            Index of inner planet near resonance.
+        jres : int
+            Specify the jres:jres-1 mean motion resonance.
+        """
         assert indexIn < indexOut, "Input 'indexIn' must be less than 'indexOut'."
         particleIn = self.particles[indexIn]
         particleOut = self.particles[indexOut]
@@ -286,17 +357,17 @@ class LaplaceLagrangeSystem(Poincare):
         mIn,MIn,LambdaIn = symbols('m{0},M{0},Lambda{0}'.format(indexIn)) 
         mOut,MOut,LambdaOut = symbols('m{0},M{0},Lambda{0}'.format(indexOut)) 
         
-        CIn = get_DFCoeff_symbol(*[kres,1-kres,-1,0,0,0],0,0,0,0,indexIn,indexOut)
-        COut = get_DFCoeff_symbol(*[kres,1-kres,0,-1,0,0],0,0,0,0,indexIn,indexOut)
-        self.params[CIn] = eval_DFCoeff_dict(DFCoeff_C(*[kres,1-kres,-1,0,0,0],0,0,0,0),alpha)
-        self.params[COut] = eval_DFCoeff_dict(DFCoeff_C(*[kres,1-kres,0,-1,0,0],0,0,0,0),alpha)
+        CIn = get_DFCoeff_symbol(*[jres,1-jres,-1,0,0,0],0,0,0,0,indexIn,indexOut)
+        COut = get_DFCoeff_symbol(*[jres,1-jres,0,-1,0,0],0,0,0,0,indexIn,indexOut)
+        self.params[CIn] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,-1,0,0,0],0,0,0,0),alpha)
+        self.params[COut] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,0,-1,0,0],0,0,0,0),alpha)
         eps = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
         omegaIn = G * G * MIn * MIn * mIn**3 / (LambdaIn**3)
         omegaOut = G * G * MOut * MOut * mOut **3 / (LambdaOut**3)
         domegaIn = -3 * G * G * MIn * MIn * mIn**3 / (LambdaIn**4)
         domegaOut = -3 * G * G * MOut * MOut * mOut**3 / (LambdaOut**4)
-        kIn = 1 - kres
-        kOut = kres
+        kIn = 1 - jres
+        kOut = jres
         k_Domega_k = kIn**2 * domegaIn + kOut**2 * domegaOut
         prefactor = (k_Domega_k / (kIn * omegaIn + kOut * omegaOut)**2) 
         xToXIn = sqrt(2/LambdaIn)
@@ -691,45 +762,45 @@ class SecularSystemSimulation():
         return state_vec
 
 class SecularSystemRKIntegrator():
+    """
+    A class for integrating the secular equations of motion governing a planetary system.
+    
+    The integrations are carried out using a symplectic implicit Runge Kutta method.
+    
+    Arguments
+    ----------
+    state : celmech.Poincare
+        The initial dynamical state of the system.
+    dt : float, optional
+        The timestep to use for the integration. Either dt or dtFraction must be
+        specified.
+    dtFraction : float, optional
+        Set the timestep to a constant fraction the period of shortest-period linear 
+        secular eigenmode.
+    max_order : int, optional
+        The maximum order of disturbing function terms to include in the integration. 
+        By default, the equations of motion include terms up to 4th order.
+    resonances_to_include : dict, optional
+        A dictionary containing information that sets the list of MMRs for which the 
+        secular contribution will be accounted for (at second order on planet masses).
+        Dictionary should be in the from:
+            {
+              ....
+              (iIn,iOut):[(j_0,k_0),...(j_N,k_N)]
+              ....
+            }
+        in order to include the resonances j_i : j_i-k_i with i=0,...,N between planets
+        iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
+        if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+        *NOT* also appear; these terms' contributions will be added automatically when 
+        the (2,1) term is added.
+        By default, no MMRs are included.
+    DFOp_kwargs : dict, optional
+        Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
+        See celmech.symplectic_evolution_operators.SecularDFTermsEvolutionOperator for list of
+        keyword arguments.
+    """
     def __init__(self, state, dt = None, dtFraction = None, max_order = 4,NsubB=1, resonances_to_include={}, DFOp_kwargs = {}):
-        """
-        A class for integrating the secular equations of motion governing a planetary system.
-
-        The integrations are carried out using a symplectic implicit Runge Kutta method.
-        
-        Arguments
-        ----------
-        state : celmech.Poincare
-            The initial dynamical state of the system.
-        dt : float, optional
-            The timestep to use for the integration. Either dt or dtFraction must be
-            specified.
-        dtFraction : float, optional
-            Set the timestep to a constant fraction the period of shortest-period linear 
-            secular eigenmode.
-        max_order : int, optional
-            The maximum order of disturbing function terms to include in the integration. 
-            By default, the equations of motion include terms up to 4th order.
-        resonances_to_include : dict, optional
-            A dictionary containing information that sets the list of MMRs for which the 
-            secular contribution will be accounted for (at second order on planet masses).
-            Dictionary should be in the from:
-                {
-                  ....
-                  (iIn,iOut):[(j_0,k_0),...(j_N,k_N)]
-                  ....
-                }
-            in order to include the resonances j_i : j_i-k_i with i=0,...,N between planets
-            iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
-            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-            *NOT* also appear; these terms' contributions will be added automatically when 
-            the (2,1) term is added.
-            By default, no MMRs are included.
-        DFOp_kwargs : dict, optional
-            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
-            See celmech.symplectic_evolution_operators.SecularDFTermsEvolutionOperator for list of
-            keyword arguments.
-        """
         assert max_order > 1, "'max_order' must be greater than or equal to 2."
         if not single_true([dt,dtFraction]):
             raise AttributeError("Can only pass one of dt or dtFraction")
