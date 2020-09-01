@@ -26,6 +26,7 @@ Getting Started!
     secular
     andoyer
     numerical_resonance_models   
+    nbody_simulation_utilities
     miscellaneous 
 
 

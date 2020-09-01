@@ -31,6 +31,7 @@ A First Example
 ===============
 
 Now that ``celmech`` is installed, we'll run through a short example of how to use it. In our example we'll use it in conjunction with the ``REBOUND`` N-body integrator to build and integrate a simple Hamiltonian model for the dynamics of a pair of planets in a mean motion resonance.
+The example presented below is also available as a `Jupyter notebook on GitHub <https://github.com/shadden/celmech/tree/master/jupyter_examples/QuickstartExample.ipynb>`_.
 
 
 Setup
