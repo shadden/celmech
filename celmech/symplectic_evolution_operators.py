@@ -681,7 +681,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             terms_dict, 
             Lambda0=None,
             rtol = _machine_eps, atol = 0.0, max_iter = 10,
-            rkmethod='LobattoIIIB',rk_root_method='Newton'
+            rkmethod='ImplicitMidpoint',rk_root_method='Newton'
     ):
         # Set Lambda0 constants in secular Hamiltonian.
         if Lambda0 is None:

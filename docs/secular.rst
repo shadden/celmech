@@ -25,15 +25,23 @@ These equations may be written compactly as
         \frac{d}{dt}\pmb{x} = -\sqrt{-1}\pmb{S}_e \cdot \pmb{x}\\
         \frac{d}{dt}\pmb{y} = -\sqrt{-1}\pmb{S}_I \cdot \pmb{y}
 
-where :math:`x_i = \frac{1}{\sqrt{2}}(\kappa_i - \sqrt{-1}\eta_i)` and :math:`y_i = \frac{1}{\sqrt{2}}(\sigma_i - \sqrt{-1}\rho_i)`.
-These equations are derived from the 'Laplace-Lagrange' Hamiltonian:
+where :math:`x_i = \frac{1}{\sqrt{2}}(\kappa_i - \sqrt{-1}\eta_i)` and :math:`y_i = \frac{1}{\sqrt{2}}(\sigma_i - \sqrt{-1}\rho_i)` and are derived from the 'Laplace-Lagrange' Hamiltonian:
 
 .. math::
+
         H_\mathrm{LL} = \pmb{x} \cdot \pmb{S}_e \cdot \bar{\pmb{x}} + \pmb{y} \cdot \pmb{S}_I \cdot \bar{\pmb{y}}
+
+or, in terms of orbital elements and the notation of `Murray & Dermott (1999) <https://ui.adsabs.harvard.edu/abs/1999ssd..book.....M/abstract>`_,
+
+.. math::
+        H_\mathrm{LL} = -\sum_{j=1}^{N}\sum_{i<j}\frac{Gm_im_j}{a_j}\left(
+        f_2(e_i^2 + e_j^2) + f_{10}e_ie_j\cos(\varpi_i - \varpi_j)
+        +
+        f_3(s_i^2 + s_j^2) + f_{14}s_is_j\cos(\Omega_i - \Omega_j)\right)
 
 The :class:`celmech.secular.LaplaceLagrangeSystem` class provides utilities for computing the analytic solution to these equations of motion as well as deriving a number of properties of this solution.  
 
-A :class:`celmech.secular.LaplaceLagrangeSystem` object can be initialized directly from a :class:`celmech.poincare.Poincare` object with
+A :class:`LaplaceLagrangeSystem <celmech.secular.LaplaceLagrangeSystem>` object can be initialized directly from a :class:`Poincare <celmech.poincare.Poincare>` object with
 the :meth:`from_Poincare <celmech.secular.LaplaceLagrangeSystem.from_Poincare>` class method 
 or from a :class:`rebound.Simulation` object using the 
 :meth:`from_Simulation <celmech.secular.LaplaceLagrangeSystem.from_Simulation>` class method.
@@ -119,12 +127,13 @@ which produces [#]_
         :width: 600
 
 In this case, we see fair agreement between Laplace-Lagrange theory and direct :math:`N`-body: the amplitudes and 
-frequencies of eccentricity and, to a lesser extent, inclination oscillations roughly agree. 
+frequencies of eccentricity and inclination oscillations roughly agree. 
 There are two shortcomings of the Laplace-Lagrange secular theory that can generally explain differences 
 between analytic predictions and N-body integration results: 
-        (1) truncation of the equations of motion to leading order in inclination and eccentricity may not be sufficient and
-        (2) period ratios near a mean motion commensurability can invalidate the secular averaging approximation and  
-We'll describe ``celmech``'s options for addressing both of these issues below.
+
+(1) truncation of the equations of motion to leading order in inclination and eccentricity may not be sufficient and
+(2) period ratios near a mean motion commensurability can invalidate the secular averaging approximation and  
+We'll describe options for addressing both of these issues with ``celmech`` below.
 
 .. _secular-nonlinear:
 
@@ -237,8 +246,8 @@ which should produce something like:
 
 With higher-order terms in our secular equations of motion, we now have excellent agreement with :math:`N`-body!
 
-Integration methods
-*******************
+Integration via splitting method
+********************************
 Before going on, we should discuss the integration method used by :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
 and some of the corresponding options. 
 :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` relies on a second-order "splitting" method to solve Hamilton's equations. 
@@ -253,7 +262,7 @@ where :math:`H_\mathrm{NL}` containts all the terms of degree 4 and higher in th
 
 We can, of course, solve Hamilton's equations when the Hamiltonian is just :math:`H=H_\mathrm{LL}`-- this is simply the Laplace-Lagrange solution descibed :ref:`above <secular-ll>`.
 Let's suppose for the moment that we can also solve the equations of motion when our Hamiltonian is just :math:`H=H_\mathrm{NL}`.
-To continue, its helpful to introduce "operator notation" where :math:`\hat H(\tau)` denotes the operator advancing a system for time :math:`tau` under the influence of the Hamiltonain :math:`H`. 
+To continue, its helpful to introduce "operator notation" where :math:`\hat H(\tau)` denotes the operator advancing a system for time :math:`\tau` under the influence of the Hamiltonain :math:`H`. 
 In other words, 
 :math:`\hat H(\tau): \pmb{z}(0) \mapsto \pmb{z}(\tau)` where 
 :math:`\pmb{z}(\tau)` 
@@ -262,15 +271,25 @@ While we can't solve the equations of motion for :math:`H_\mathrm{sec}` exactly,
 
 .. math::
 
-        \hat{H_\mathrm{sec}}(\tau) \approx \hat{H_\mathrm{LL}}(\tau/2)\hat{H_\mathrm{NL}}(\tau)\hat{H_\mathrm{LL}}(\tau/2) + {\cal O}(\tau^2)
+        \hat{H_\mathrm{sec}}(\tau) \approx \hat{H_\mathrm{LL}}(\tau/2)\hat{H_\mathrm{NL}}(\tau)\hat{H_\mathrm{LL}}(\tau/2) + {\cal O}(\epsilon\tau^2)
 
-There is, however, a catch:  we don't have a closed-form solution for the equations of motion generated by :math:`{H_\mathrm{NL}}` (if you have one we'd love to hear it!).
-Therefore, instead of representing the operator :math:`\hat{H_\mathrm{NL}}(\tau)` exactly, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
- uses an approximate solution for this evolution operator. 
-In particular, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` solves the equations of motion generated by :math:`H_\mathrm{NL}` approximately
- using Runge-Kutta methods. 
-By default, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses a single mplicit midpoint step of size :math:`\tau` as an approximation for :math:`\hat{H_\mathrm{NL}}(\tau)`.
-There are, however, an array of options for exactly how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` approximates :math:`\hat{H_\mathrm{NL}}(\tau)`, which can be passed as a dictionary through the keyword argument :code:`DFOp_kwargs`.
+where :math:`\epsilon = |H_\mathrm{NL}|/|H_\mathrm{LL}|\sim e^2 + I^2`.
+In fact, by applying symplectic correctors, we can reduce the error of this integrator to :math:`{\cal O}(\epsilon\tau^4 + \epsilon^2\tau^2)` with relatively little computational expense.
+:class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` will apply correctors when the :meth:`integrate <celmech.secular.SecularSystemSimulation.integrate>` method is called
+with the keywoard argument :code:`corrector=True`.
+
+There is, however, a catch to the splitting method described above:  we don't have a closed-form solution for the equations of motion generated by :math:`{H_\mathrm{NL}}` (if you have one we'd love to hear it!).
+Therefore, instead of representing the operator :math:`\hat{H_\mathrm{NL}}(\tau)` exactly,
+:class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses an approximate solution for this evolution operator. 
+In particular, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` solves the equations of motion generated by :math:`H_\mathrm{NL}` approximately using Runge-Kutta methods. 
+By default, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses a single implicit midpoint step of size :math:`\tau` as an approximation for :math:`\hat{H_\mathrm{NL}}(\tau)`.
+There are, however, an array of options for exactly how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` approximates :math:`\hat{H_\mathrm{NL}}(\tau)`.
+These options are specified as a dictionary through the keyword argument :code:`DFOp_kwargs`.
+Details of avaliable options are described under the 
+
+Runge-Kutta Integration 
+***********************
+With the :class:`SecularRKIntegrator <celmech.secular.SecularSystemRKIntegrator>` class, you can forego splitting and simply integrate the equations of motion directly using a user-specified Runge-Kutta method.
 
 .. _secular-corrections:
 
@@ -283,7 +302,6 @@ API
 ---
 .. autoclass:: celmech.secular.LaplaceLagrangeSystem
         :members:
-        :special-members: __init__
 
 .. autoclass:: celmech.secular.SecularSystemSimulation
         :members:

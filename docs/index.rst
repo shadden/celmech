@@ -7,13 +7,15 @@ Welcome
 =======
 
 ``celmech`` is a Python package containing a variety of numerical tools for celestial mechanics and dynamical astronomy.
-THe packacge is designed to interface closely with the `REBOUND <https://rebound.readthedocs.io/en/latest/>`_ N-body integrator.
+The packacge is designed to interface closely with the `REBOUND <https://rebound.readthedocs.io/en/latest/>`_ N-body integrator.
 
 
 Getting Started!
 ----------------
 
-``celmech`` is written in Python (with some C source code).  For instructions on installation, see :ref:`install`. You can then check out :ref:`first_example`. You may also want to check out the `Git repository <https://github.com/shadden/celmech/>`_ its pyter notebook examples under celmech/ipython_examples. 
+``celmech`` is written in Python (with some C source code).  For instructions on installation, see :ref:`install`. 
+You can then check out :ref:`first_example`. 
+You may also want to check out the `Git repository <https://github.com/shadden/celmech/>`_ and its Jupyter notebook examples under celmech/ipython_examples. 
 
 
 .. toctree::
@@ -24,9 +26,6 @@ Getting Started!
     poincare
     disturbing_function
     secular
-    andoyer
     numerical_resonance_models   
-    nbody_simulation_utilities
+    andoyer
     miscellaneous 
-
-
