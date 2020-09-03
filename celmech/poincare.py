@@ -3,7 +3,8 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from celmech.hamiltonian import Hamiltonian
 from celmech.disturbing_function import get_fg_coeffs , laplace_b
 from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
-from celmech.transformations import masses_to_jacobi, masses_from_jacobi
+from celmech.transformations import masses_to_heliocentric,masses_from_heliocentric
+from celmech.nbody_simulation_utilities import get_canonical_heliocentric_orbits,add_canonical_heliocentric_elements_particle
 from celmech.resonances import resonance_jk_list
 from itertools import combinations
 import rebound
@@ -216,13 +217,13 @@ class Poincare(object):
     @classmethod
     def from_Simulation(cls, sim, average=True):
         masses = [p.m for p in sim.particles]
-        mjac, Mjac = masses_to_jacobi(masses)
+        mhelio, Mhelio  = masses_to_heliocentric(masses)
         pvars = Poincare(sim.G)
         ps = sim.particles
-        o = sim.calculate_orbits(jacobi_masses=True)
+        o = get_canonical_heliocentric_orbits(sim)
         for i in range(1,sim.N-sim.N_var):
-            M = Mjac[i]
-            m = mjac[i]
+            M = Mhelio[i]
+            m = mhelio[i]
             orb = o[i-1]
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (jacobi) a={1}, e={2}".format(i, orb.a, orb.e))
@@ -244,17 +245,19 @@ class Poincare(object):
             self.average_synodic_terms(inverse=True)
 
         if not masses:
-            mjac = [p.m for p in self.particles]
-            Mjac = [p.M for p in self.particles]
-            masses = masses_from_jacobi(mjac, Mjac)
+            mhelio = [p.m for p in self.particles]
+            Mhelio = [p.M for p in self.particles]
+            masses = masses_from_heliocentric(mhelio, Mhelio)
 
         sim = rebound.Simulation()
         sim.G = self.G
         sim.add(m=masses[0])
         ps = self.particles
-        #print(mjac, Mjac, masses)
         for i in range(1, self.N):
-            sim.add(m=masses[i], a=ps[i].a, e=ps[i].e,inc=ps[i].inc, pomega=-ps[i].gamma, l=ps[i].l,Omega=ps[i].Omega, jacobi_masses=True)
+            p = ps[i]
+            omega = p.pomega - p.Omega
+            elements = {'a':p.a,'e':p.e,'inc':p.inc,'lmbda':p.l,'omega':omega,'Omega':p.Omega}
+            add_canonical_heliocentric_elements_particle(masses[i],elements,sim)
         sim.move_to_com()
         return sim
     
