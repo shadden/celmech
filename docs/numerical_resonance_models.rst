@@ -17,7 +17,145 @@ However, `celmech` also allows users to derive equations governing mean motion r
 Planar Resonance Equations
 --------------------------
  
-:class:`celmech.numerical_resonance_models.PlanarResonanceEquations` provides equations of motion governing a mean-motion resonance between two coplanar planets.
+The :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` class
+provides equations of motion governing a :math:`j\mathrm{:}j-k` 
+mean-motion resonance between two coplanar planets.
+In order to do so, the class first constructs a 
+numerical Hamiltonian governing the system by means of numerical integration.
+
+Introduction
+************
+
+Starting from the full 3-body Hamiltonian governing a pair of planar planets, 
+
+.. math::
+        
+        \begin{align}
+                {\cal H}({\pmb \lambda},{\pmb \gamma};\pmb{\Lambda},\pmb{\Gamma}) &= H_\mathrm{Kep}(\pmb{\Lambda}) +  H_\mathrm{int}({\pmb \lambda},{\pmb \gamma};\pmb{\Lambda},\pmb{\Gamma})\\
+                H_\mathrm{Kep}(\Lambda_i) &= -\sum_{i=1}^2\frac{G^2(M_*+m_i)^2\mu_i^3}{2\Lambda_i^2} \\
+                H_\mathrm{int}(\lambda_i,\gamma_i;\Lambda_i,\Gamma_i) &= -\frac{Gm_1m_2}{|{\bf r}_1-{\bf r}_2|} + \frac{\tilde {\bf r}_1 \cdot \tilde {\bf r}_2}{M_*}~,
+         \end{align}
+
+the first step in constructing this Hamiltonian is to perform a canonical transformation
+to new canonical coordinates
+
+.. math::
+
+        \begin{align}
+        \begin{pmatrix}\sigma_1\\ \sigma_2 \\ Q \\ l \end{pmatrix}
+        =
+        \begin{pmatrix}
+        -s & 1+s & 1 & 0 \\
+        -s & 1+s & 0 & 1 \\
+        -1/k & 1/k & 0 & 0 \\
+        \frac{1}{2} & \frac{1}{2} & 0 & 0
+        \end{pmatrix}
+        \cdot
+        \begin{pmatrix}\lambda_1 \\ \lambda_2 \\ \gamma_1 \\ \gamma_2 \end{pmatrix}
+        \end{align}
+
+where :math:`s = (j-k)/{k}`, along with new conjugate momenta 
+defined implicitly in terms of the old momentum variables as
+
+.. math::
+
+        \begin{eqnarray}
+        \Gamma_i &=& I_i \nonumber\\
+        \Lambda_1 &=& \frac{L}{2} - P/k - s (I_1 + I_2) \nonumber \\
+        \Lambda_2 &=& \frac{L}{2} + P/k + (1+s) (I_1 + I_2)~.\label{eq:equations_of_motion:momenta}
+        \end{eqnarray}
+
+Conservation of angular momentum implies that the quantity
+
+.. math::
+   L = \Lambda_1 + \Lambda_2 + \Gamma_1 + \Gamma_2~,
+        
+conjugate to the angle :math:`l`, is conserved
+
+Next, we separate :math:`H_\mathrm{int}` into two pieces, 
+
+.. math::
+        H_\mathrm{int} &=  \bar{H}_\mathrm{int}(\sigma_i,I_i,P; L) + H_\mathrm{int,osc.}(\sigma_i,I_i,Q,P; L) \\
+        \bar{H}_\mathrm{int}(\sigma_i,I_i,P; L) &= \frac{1}{2\pi}\int_{0}^{2\pi} H_\mathrm{int} dQ\\
+        H_\mathrm{int,osc.} &= H_\mathrm{int} - \bar{H}_\mathrm{int}
+        
+The :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` class then models the dynamics of the resonant Hamiltonian,
+
+.. math::
+        {\cal H}_\mathrm{res}(\sigma_i,I_i;P , L) = H_\mathrm{Kep}(I_i ; P, L) + \bar{H}_\mathrm{int}(\sigma_i,I_i;P , L)
+
+where :math:`P` is now a conserved quantity because :math:`{\cal H}_\mathrm{res}` is independent of the coordinate :math:`Q`.
+
+Units and Dynamical Variables 
+*****************************
+
+As written, :math:`{\cal H}_\mathrm{res}(\sigma_i,I_i;P , L)` represents a two degree-of-freedom system that depends on two parameters :math:`P \mathrm{ and } L` (in addition to the planets' and star's masses).
+The :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` class reduces the number of free parameters by selecting appropriate units for action variables and time. 
+In particular, the units are chosen by first defining the reference semi-major axes, :math:`a_{i,0}`, so that
+
+.. math::
+        L = \tilde{m}_1 \sqrt{G\tilde{M}_1a_{1,0}} + \tilde{m}_2 \sqrt{G\tilde{M}_2a_{2,0}}\\
+        a_{1,0}/a_{2,0} = \left(\frac{j-k}{j}\right)^{2/3}\left(\frac{\tilde{M}_1}{\tilde{M}_2}\right)^{1/3}
+
+Next, the action variables are rescaled by 
+
+.. math::
+        I_i \rightarrow \frac{1}{(\tilde{m}_1 + \tilde{m}_2)\sqrt{GM_*a_{2,0}}}I_i
+        
+and time is measured in units such that :math:`\sqrt{\frac{GM_*}{a_{2,0}^{3}}}=1` (i.e., the orbital period at :math:`a=a_{2,0}` is equal to :math:`2\pi`).
+Finally, rather than specifying the conserved quantity :math:`P`,
+the equations of motion 
+used by :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` 
+are formulated in terms of 
+
+.. math::
+        {\cal D} = \frac{\Lambda_{2,0}-\Lambda_{1,0} - \Lambda_{2} + \Lambda_{1}}{s+1/2} + \Gamma_1 + \Gamma_2
+
+where :math:`\Lambda_{i,0} = \tilde{m}_i \sqrt{G\tilde{M}_ia_{i,0}}`.
+In terms of orbital elements, 
+
+.. math::
+        {\cal D}\approx
+        \beta_{1}\sqrt{\alpha_0}\left(1-\sqrt{1-e_1^2}\right)
+        +
+        \beta_{2}\left(1-\sqrt{1-e_2^2}\right)
+        -
+        \frac{k\beta_2\beta_1 \sqrt{\alpha_0} \Delta }{3 \left(\beta_1\sqrt{\alpha_0}  (s+1)+\beta_2 s\right)}
+
+where :math:`\Delta = \frac{j-k}{j}\frac{P_2}{P_1} - 1`,
+:math:`\beta_i = \frac{\tilde{m}_i}{\tilde{m}_1+\tilde{m}_2}\sqrt{\frac{\tilde{M}_i}{M_*}}` 
+and :math:`\alpha_0 = \frac{a_{1,0}}{a_{2,0}}`.
+
+Finally, :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>`
+uses canonical coordinate :math:`y_i = \sqrt{2I_i}\sin\sigma_i` and conjugate momenta :math:`x_i = \sqrt{2I_i}\cos\sigma_i` instead of :math:`(\sigma_i,I_i)` in order to formulate the equations of motion.
+
+Various methods of the :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` class take dynamical variables as a vector in the standardized form:
+
+.. math::
+        \pmb{z} = (y_1,y_2,x_1,x_2,{\cal D})
+
+when computing equations of motion and other quantities.
+
+
+
+Dissipative Forces
+******************
+
+ The :class:`PlanarResonanceEquations <celmech.numerical_resonance_models.PlanarResonanceEquations>` class includes capabilities to model dissipative forces inducing migration and eccentricity damping in addition to the conservative dynamics of resonant interactions.
+ Specifically, migration forces of the form
+
+.. math::
+        \begin{align}
+        \frac{d\ln a_i}{dt} &= -\frac{1}{\tau_{m,i}} - 2p\frac{e_i^2}{\tau_{e,i}}\\
+        \frac{d\ln e_i}{dt} &= -\frac{1}{\tau_{e,i}}
+        \end{align}
+
+These forces are specified by setting the attributes 
+:attr:`PlanarResonanceEquations.K1 <celmech.numerical_resonance_models.PlanarResonanceEquations.K1>`,
+:attr:`PlanarResonanceEquations.K2 <celmech.numerical_resonance_models.PlanarResonanceEquations.K2>`,
+:attr:`PlanarResonanceEquations.p <celmech.numerical_resonance_models.PlanarResonanceEquations.p>`,
+and
+:attr:`PlanarResonanceEquations.tau_alpha <celmech.numerical_resonance_models.PlanarResonanceEquations.tau_alpha>`.
 
 Spatial Resonance Equations
 ---------------------------

@@ -14,45 +14,46 @@ class LaplaceLagrangeSystem(Poincare):
     A class for representing the classical Laplace-Lagrange secular
     solution for a planetary system.
     
-    Attributes:
-        eccentricity_matrix : sympy.Matrix
-          The matrix :math:`\pmb{S}_e` appearing in the secular equations
-          of motion for the eccentricity variables, 
+    Attributes
+    ----------
+    eccentricity_matrix : sympy.Matrix
+      The matrix :math:`\pmb{S}_e` appearing in the secular equations
+      of motion for the eccentricity variables, 
 
-          .. math::
-                \frac{d}{dt}(\eta_i + i\kappa_i) = [\pmb{S}_e]_{ij} (\eta_j + i\kappa_j)~.
-        
-          or, equivalently,
+      .. math::
+            \frac{d}{dt}(\eta_i + i\kappa_i) = [\pmb{S}_e]_{ij} (\eta_j + i\kappa_j)~.
+    
+      or, equivalently,
 
-          .. math::
-                \frac{d}{dt}\pmb{x} = -i \pmb{S}_e \cdot \pmb{x}
+      .. math::
+            \frac{d}{dt}\pmb{x} = -i \pmb{S}_e \cdot \pmb{x}
 
-          The matrix is given in symbolic form.
-        inclination_matrix : sympy.Matrix
-          The matrix :math:`\pmb{S}_I` appearing in the secular equations
-          of motion for the eccentricity variables, 
+      The matrix is given in symbolic form.
+    inclination_matrix : sympy.Matrix
+      The matrix :math:`\pmb{S}_I` appearing in the secular equations
+      of motion for the eccentricity variables, 
 
-          .. math::
-                \frac{d}{dt}(\rho_i + i \sigma_i ) =[\pmb{S}_I]_{ij} (\rho_j + i \sigma_j)~.
-        
-          or, equivalently,
+      .. math::
+            \frac{d}{dt}(\rho_i + i \sigma_i ) =[\pmb{S}_I]_{ij} (\rho_j + i \sigma_j)~.
+    
+      or, equivalently,
 
-          .. math::
-                \frac{d}{dt}\pmb{y} = -i \pmb{S}_I \cdot \pmb{y}
+      .. math::
+            \frac{d}{dt}\pmb{y} = -i \pmb{S}_I \cdot \pmb{y}
 
-          The matrix is given in symbolic form.
-        Neccentricity_matrix : ndarray
-            Numerical value of the eccentricity matrix :math:`\pmb{S}_e`
-        Ninclination_matrix : ndarray
-            Numerical value of the inclination matrix :math:`\pmb{S}_I`
-        Tsec : float
-            The secular timescale of the system, defined as the shortest
-            secular period among the system's inclination and eccentricity
-            modes.
-        eccentricity_eigenvalues : ndarray
-            Array of the eccentricity mode eigenvalues  (i.e., secular frequencies)
-        inclination_eigenvalues : ndarray
-            Array of the inclination mode eigenvalues  (i.e., secular frequencies)
+      The matrix is given in symbolic form.
+    Neccentricity_matrix : ndarray
+        Numerical value of the eccentricity matrix :math:`\pmb{S}_e`
+    Ninclination_matrix : ndarray
+        Numerical value of the inclination matrix :math:`\pmb{S}_I`
+    Tsec : float
+        The secular timescale of the system, defined as the shortest
+        secular period among the system's inclination and eccentricity
+        modes.
+    eccentricity_eigenvalues : ndarray
+        Array of the eccentricity mode eigenvalues  (i.e., secular frequencies)
+    inclination_eigenvalues : ndarray
+        Array of the inclination mode eigenvalues  (i.e., secular frequencies)
     """
     def __init__(self,G,poincareparticles=[]):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
@@ -76,13 +77,15 @@ class LaplaceLagrangeSystem(Poincare):
         Initialize a Laplace-Lagrange system directly from a 
         :class:`celmech.poincare.Poincare` object.
         
-        Arguments:
-         pvars : :class:`celmech.poincare.Poincare` 
-             Instance of Poincare variables from which to initialize
-             Laplace-Lagrange system
+        Arguments
+        ---------
+        pvars : :class:`celmech.poincare.Poincare` 
+            Instance of Poincare variables from which to initialize
+            Laplace-Lagrange system
 
-        Returns:
-            :class:`celmech.secular.LaplaceLagrangeSystem`
+        Returns
+        -------
+        system : :class:`celmech.secular.LaplaceLagrangeSystem`
         """
         return cls(pvars.G,pvars.particles[1:])
 
@@ -92,14 +95,15 @@ class LaplaceLagrangeSystem(Poincare):
         Initialize a Laplace-Lagrange system directly from a 
         :class:`rebound.Simulation` object.
         
-        Arguments:
-        
-            pvars : :class:`rebound.Simulation` 
-                rebound simulation from which to initialize
-                Laplace-Lagrange system
+        Arguments
+        ---------
+        pvars : :class:`rebound.Simulation` 
+            rebound simulation from which to initialize
+            Laplace-Lagrange system
 
-        Returns:
-            sim : :class:`celmech.secular.LaplaceLagrangeSystem`
+        Returns
+        -------
+        sim : :class:`celmech.secular.LaplaceLagrangeSystem`
         """
         pvars = Poincare.from_Simulation(sim)
         return cls.from_Poincare(pvars)
@@ -143,17 +147,19 @@ class LaplaceLagrangeSystem(Poincare):
         secular equations of motion at the 
         user-specified times.
 
-        Arguments:
-            times : ndarray
-                Array of times at which to evaluate 
-                the solution to the equations of motion.
-            epoch : float, optional
-                Current time of system state. Default is 
-                t=0.
-        Returns:
-            soln : dict
-                The solution dictionary contains various dynamical
-                quantites computed at the input times. 
+        Arguments
+        ---------
+        times : ndarray
+            Array of times at which to evaluate 
+            the solution to the equations of motion.
+        epoch : float, optional
+            Current time of system state. Default is 
+            t=0.
+        Returns
+        -------
+        soln : dict
+            The solution dictionary contains various dynamical
+            quantites computed at the input times. 
         """
         e_soln = self.secular_eccentricity_solution(times,epoch)
         solution = {key:val.T for key,val in e_soln.items()}
@@ -333,13 +339,14 @@ class LaplaceLagrangeSystem(Poincare):
 
         Note-- corrections are not valid for planets in resonance!
     
-        Arguments:
-            indexIn : int
-                Index of inner planet near resonance.
-            indexOut : int
-                Index of inner planet near resonance.
-            jres : int
-                Specify the jres:jres-1 mean motion resonance.
+        Arguments
+        ---------
+        indexIn : int
+            Index of inner planet near resonance.
+        indexOut : int
+            Index of inner planet near resonance.
+        jres : int
+            Specify the jres:jres-1 mean motion resonance.
         """
         assert indexIn < indexOut, "Input 'indexIn' must be less than 'indexOut'."
         particleIn = self.particles[indexIn]
@@ -459,63 +466,66 @@ class SecularSystemSimulation():
         higher-order terms. The linear components are solved exactly while the higher-order
         terms are solved using the symplectic implicit midpoint method.
         
-        Arguments:
-            state : celmech.Poincare
-                The initial dynamical state of the system.
-            dt : float, optional
-                The timestep to use for the integration. Either dt or dtFraction must be
-                specified.
-            dtFraction : float, optional
-                Set the timestep to a constant fraction the period of shortest-period linear 
-                secular eigenmode.
-            max_order : int, optional
-                The maximum order of disturbing function terms to include in the integration. 
-                By default, the equations of motion include terms up to 4th order.
-            NsubB : int, optional
-                The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
-            resonances_to_include : dict, optional
-                A dictionary containing information that sets the list of MMRs for which the 
-                secular contribution will be accounted for (at second order on planet masses).
-                Dictionary key and value pairs are specified in the form
-                      
-                      .. code::
+        Arguments
+        ---------
+        state : :class:`celmech.poincare.Poincare`
+            The initial dynamical state of the system.
+        dt : float, optional
+            The timestep to use for the integration. Either dt or dtFraction must be
+            specified.
+        dtFraction : float, optional
+            Set the timestep to a constant fraction the period of shortest-period linear 
+            secular eigenmode.
+        max_order : int, optional
+            The maximum order of disturbing function terms to include in the integration. 
+            By default, the equations of motion include terms up to 4th order.
+        NsubB : int, optional
+            The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
+        resonances_to_include : dict, optional
+            A dictionary containing information that sets the list of MMRs for which the 
+            secular contribution will be accounted for (at second order on planet masses).
+            Dictionary key and value pairs are specified in the form
+                  
+                  .. code::
 
-                        {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-                     
-                include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
-                iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
-                if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-                **NOT** also appear; these terms' contributions will be added automatically when 
-                the (2,1) term is added.
-                By default, no MMRs are included.
+                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
+                 
+            include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
+            iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
+            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+            **NOT** also appear; these terms' contributions will be added automatically when 
+            the (2,1) term is added.
+            By default, no MMRs are included.
 
-            DFOp_kwargs : dict, optional
-                Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
-                Keywords include:
+        DFOp_kwargs : dict, optional
+            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
+            Keywords include:
 
-                    - :code:`rtol`: Sets relative tolerance for root-finding 
-                    in the implicit Runge-Kutta step. Default is machine precision.
+                - :code:`rtol`: Sets relative tolerance for root-finding 
+                in the implicit Runge-Kutta step. Default is machine precision.
 
-                    - :code:`atol`: Sets the absolute tolerance for root-finding
-                    in the implicit Runge-Kutta step. Default is 0 so that tolerance
-                    is only specified by :code:`rtol`.
+                - :code:`atol`: Sets the absolute tolerance for root-finding
+                in the implicit Runge-Kutta step. Default is 0 so that tolerance
+                is only specified by :code:`rtol`.
 
-                    - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
+                - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
 
-                    - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                        - 'ImplicitMidpoint'
-                        - 'LobattoIIIB'
-                        - 'GL4'
-                        - 'GL6'
-                        'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
-                        'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
+                - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
+                    - 'ImplicitMidpoint'
+                    - 'LobattoIIIB'
+                    - 'GL4'
+                    - 'GL6'
+                    'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
+                    'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
 
-                    - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                        - 'Newton'
-                        - 'fixed_point'
-                        'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
-                        Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
-
+                - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
+                    - 'Newton'
+                    - 'fixed_point'
+                    'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
+                    Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
+        Returns
+        -------
+        simulation : :class:`celmech.secular.SecularSystemSimulation`
         """
         assert max_order > 3, "'max_order' must be greater than or equal to 4."
         if not single_true([dt,dtFraction]):
@@ -559,66 +569,67 @@ class SecularSystemSimulation():
         Initialize a :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` object
         from a rebound simulation.
 
-        Arguments:
+        Arguments
+        ---------
+        sim : :class:`rebound.Simulation`
+            REBOUND simulation to convert to :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
+        dt : float, optional
+            The timestep to use for the integration. Either dt or dtFraction must be
+            specified.
+        dtFraction : float, optional
+            Set the timestep to a constant fraction the period of shortest-period linear 
+            secular eigenmode.
+        max_order : int, optional
+            The maximum order of disturbing function terms to include in the integration. 
+            By default, the equations of motion include terms up to 4th order.
+        NsubB : int, optional
+            The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
+        resonances_to_include : dict, optional
+            A dictionary containing information that sets the list of MMRs for which the 
+            secular contribution will be accounted for (at second order on planet masses).
+            Dictionary key and value pairs are specified in the form
+                  
+                  .. code::
+
+                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
+                 
+            include the resonances :math:`j_i` : :math`j_i-k_i` with :math:`i=0,...,N` between planets
+            iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
+            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+            *NOT* also appear; these terms' contributions will be added automatically when 
+            the (2,1) term is added.
+            By default, no MMRs are included.
+
+        DFOp_kwargs : dict, optional
+            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
+            Keywords include:
+                - :code:`rtol`: Sets relative tolerance for root-finding 
+                in the implicit Runge-Kutta step. Default is machine precision.
+
+                - :code:`atol`: Sets the absolute tolerance for root-finding
+                in the implicit Runge-Kutta step. Default is 0 so that tolerance
+                is only specified by :code:`rtol`.
+
+                - :code:`max_iter`: Maximum number of iterations for root-finding. 
+                Default is 10.
+
+                - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
+                    - 'ImplicitMidpoint'
+                    - 'LobattoIIIB'
+                    - 'GL4'
+                    - 'GL6'
+                'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
+                'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
+
+                - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
+                    - 'Newton'
+                    - 'fixed_point'
+                'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
+                Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
         
-            sim : :class:`rebound.Simulation`
-                REBOUND simulation to convert to :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
-            dt : float, optional
-                The timestep to use for the integration. Either dt or dtFraction must be
-                specified.
-            dtFraction : float, optional
-                Set the timestep to a constant fraction the period of shortest-period linear 
-                secular eigenmode.
-            max_order : int, optional
-                The maximum order of disturbing function terms to include in the integration. 
-                By default, the equations of motion include terms up to 4th order.
-            NsubB : int, optional
-                The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
-            resonances_to_include : dict, optional
-                A dictionary containing information that sets the list of MMRs for which the 
-                secular contribution will be accounted for (at second order on planet masses).
-                Dictionary key and value pairs are specified in the form
-                      
-                      .. code::
-
-                        {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-                     
-                include the resonances :math:`j_i` : :math`j_i-k_i` with :math:`i=0,...,N` between planets
-                iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
-                if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-                *NOT* also appear; these terms' contributions will be added automatically when 
-                the (2,1) term is added.
-                By default, no MMRs are included.
-
-            DFOp_kwargs : dict, optional
-                Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
-                Keywords include:
-                    - :code:`rtol`: Sets relative tolerance for root-finding 
-                    in the implicit Runge-Kutta step. Default is machine precision.
-
-                    - :code:`atol`: Sets the absolute tolerance for root-finding
-                    in the implicit Runge-Kutta step. Default is 0 so that tolerance
-                    is only specified by :code:`rtol`.
-
-                    - :code:`max_iter`: Maximum number of iterations for root-finding. 
-                    Default is 10.
-
-                    - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                        - 'ImplicitMidpoint'
-                        - 'LobattoIIIB'
-                        - 'GL4'
-                        - 'GL6'
-                    'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
-                    'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
-
-                    - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                        - 'Newton'
-                        - 'fixed_point'
-                    'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
-                    Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
-        
-        Returns:
-            sim : :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
+        Returns
+        -------
+        sim : :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
 
         """
         pvars = Poincare.from_Simulation(sim)
@@ -701,20 +712,25 @@ class SecularSystemSimulation():
         """
         Advance simulation by integrating to specified time.
 
-        Arguments:
-            time : float
-                Time to integrate to
-            exact_finish_time : bool, optional
-                **NOT CURRENTLY IMPLEMENTED**
-                If :code:`True`, system will be advanced to user-specified time exactly.
-                This is done by applying symplectic correctors to reach times
-                in between fixed multiples of the integrator's time step.
-                If :code:`False`, system will advance by a fixed number of time steps
-                to the first time after the user-specified `time` argument.
-                Default is :code:`False`.
-            corrector: bool, optional
-                If :code:`True`, symplectic correctors are applied at the beginning
-                and end of integration. Default is :code:`False`.
+        Arguments
+        ---------
+        time : float
+            Time to integrate to
+        exact_finish_time : bool, optional
+            **NOT CURRENTLY IMPLEMENTED**
+            If :code:`True`, system will be advanced to user-specified time exactly.
+            This is done by applying symplectic correctors to reach times
+            in between fixed multiples of the integrator's time step.
+            If :code:`False`, system will advance by a fixed number of time steps
+            to the first time after the user-specified `time` argument.
+            Default is :code:`False`.
+        corrector: bool, optional
+            If :code:`True`, symplectic correctors are applied at the beginning
+            and end of integration. Default is :code:`False`.
+
+        Returns
+        -------
+        None
         """
         assert time >= self.t, "Backward integration is currently not implemented."
         Nstep = int( np.ceil( (time-self.t) / self.dt) )
@@ -873,60 +889,60 @@ class SecularSystemRKIntegrator():
     A class for integrating the secular equations of motion governing a planetary system.
     The integrations are carried out using a user-specified Runge-Kutta method.    
 
-    Arguments:
-        state : celmech.Poincare
-            The initial dynamical state of the system.
-        dt : float, optional
-            The timestep to use for the integration. Either dt or dtFraction must be
-            specified.
-        dtFraction : float, optional
-            Set the timestep to a constant fraction the period of shortest-period linear 
-            secular eigenmode.
-        max_order : int, optional
-            The maximum order of disturbing function terms to include in the integration. 
-            By default, the equations of motion include terms up to 4th order.
-        resonances_to_include : dict, optional
-            A dictionary containing information that sets the list of MMRs for which the 
-            secular contribution will be accounted for (at second order on planet masses).
-            Dictionary key and value pairs are specified in the form
-                  
-                  .. code::
+    Arguments
+    ---------
+    state : :class:`celmech.poincare.Poincare`
+        The initial dynamical state of the system.
+    dt : float, optional
+        The timestep to use for the integration. Either dt or dtFraction must be
+        specified.
+    dtFraction : float, optional
+        Set the timestep to a constant fraction the period of shortest-period linear 
+        secular eigenmode.
+    max_order : int, optional
+        The maximum order of disturbing function terms to include in the integration. 
+        By default, the equations of motion include terms up to 4th order.
+    resonances_to_include : dict, optional
+        A dictionary containing information that sets the list of MMRs for which the 
+        secular contribution will be accounted for (at second order on planet masses).
+        Dictionary key and value pairs are specified in the form
+              
+              .. code::
     
-                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-                 
-            include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
-            iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
-            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-            **NOT** also appear; these terms' contributions will be added automatically when 
-            the (2,1) term is added.
-            By default, no MMRs are included.
+                {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
+             
+        include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
+        iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
+        if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+        **NOT** also appear; these terms' contributions will be added automatically when 
+        the (2,1) term is added.
+        By default, no MMRs are included.
     
-        DFOp_kwargs : dict, optional
-            Keyword arguments specifying options for the Runge-Kutta integrator.
-            Arguments include:
-                - :code:`rtol`: Sets relative tolerance for root-finding 
-                in the implicit Runge-Kutta step. Default is machine precision.
+    DFOp_kwargs : dict, optional
+        Keyword arguments specifying options for the Runge-Kutta integrator.
+        Arguments include:
+            - :code:`rtol`: Sets relative tolerance for root-finding 
+            in the implicit Runge-Kutta step. Default is machine precision.
     
-                - :code:`atol`: Sets the absolute tolerance for root-finding
-                in the implicit Runge-Kutta step. Default is 0 so that tolerance
-                is only specified by :code:`rtol`.
+            - :code:`atol`: Sets the absolute tolerance for root-finding
+            in the implicit Runge-Kutta step. Default is 0 so that tolerance
+            is only specified by :code:`rtol`.
     
-                - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
+            - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
     
-                - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                    - 'ImplicitMidpoint'
-                    - 'LobattoIIIB'
-                    - 'GL4'
-                    - 'GL6'
-                    'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
-                    'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
+            - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
+                - 'ImplicitMidpoint'
+                - 'LobattoIIIB'
+                - 'GL4'
+                - 'GL6'
+                'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
+                'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
     
-                - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                    - 'Newton'
-                    - 'fixed_point'
-                    'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
-                    Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
-    
+            - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
+                - 'Newton'
+                - 'fixed_point'
+                'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
+                Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
     """
     def __init__(self, state, dt = None, dtFraction = None, max_order = 4,NsubB=1, resonances_to_include={}, DFOp_kwargs = {}):
         assert max_order > 1, "'max_order' must be greater than or equal to 2."
@@ -991,6 +1007,24 @@ class SecularSystemRKIntegrator():
             p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho = vals
 
     def integrate(self,time,exact_finish_time = False):
+        """
+        Advance simulation by integrating to specified time.
+
+        Arguments
+        ---------
+        time : float
+            Time to integrate to
+        exact_finish_time : bool, optional
+            **NOT CURRENTLY IMPLEMENTED**
+            If :code:`True`, system will be advanced to user-specified time exactly.
+            If :code:`False`, system will advance by a fixed number of time steps
+            to the first time after the user-specified `time` argument.
+            Default is :code:`False`.
+
+        Returns
+        -------
+        None
+        """
         assert time >= self.t, "Backward integration is currently not implemented."
         Nstep = int( np.ceil( (time-self.t) / self.dt) )
         state_vec = self.state_vector
