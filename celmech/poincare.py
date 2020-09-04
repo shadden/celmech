@@ -226,7 +226,7 @@ class Poincare(object):
             m = mhelio[i]
             orb = o[i-1]
             if orb.a <= 0. or orb.e >= 1.:
-                raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (jacobi) a={1}, e={2}".format(i, orb.a, orb.e))
+                raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
             sLambda = np.sqrt(sim.G*M*orb.a)
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
             sQ = sLambda*np.sqrt(1.-orb.e**2) * (1 - np.cos(orb.inc))
@@ -237,8 +237,22 @@ class Poincare(object):
 
     def to_Simulation(self, masses=None, average=True):
         """ 
-        if masses is None, will calculate physical masses from the jacobi ones.
-        if masses is a list, will use those as the physical masses.
+        Convert Poincare object to a REBOUND simulation.
+
+        Arguments
+        --------
+        masses : array-like, optional
+            If masses is None, will calculate physical masses from the m and M 
+            parameters stored by the particles. If masses is a list, will use 
+            those as the physical masses. Default is None.
+        average : boole, optional
+            If True, semi-major axes of simulation planets will be computed
+            by converting 'mean' elements to 'osculating' ones to 0th order
+            in eccentricity.
+
+        Returns
+        -------
+        sim : rebound.Simulation
         """ 
 
         if average is True:
@@ -255,8 +269,7 @@ class Poincare(object):
         ps = self.particles
         for i in range(1, self.N):
             p = ps[i]
-            omega = p.pomega - p.Omega
-            elements = {'a':p.a,'e':p.e,'inc':p.inc,'lmbda':p.l,'omega':omega,'Omega':p.Omega}
+            elements = {element:getattr(p,element) for element in ['a','e','inc','l','pomega','Omega']}
             add_canonical_heliocentric_elements_particle(masses[i],elements,sim)
         sim.move_to_com()
         return sim
@@ -312,7 +325,7 @@ class PoincareHamiltonian(Hamiltonian):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
             pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
-            Hparams[symbols("m{0}".format(i))] = ps[i].m
+            Hparams[symbols("mu{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
@@ -381,7 +394,7 @@ class PoincareHamiltonian(Hamiltonian):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.
         """
-        G, M, m, Lambda = symbols('G, M{0}, m{0}, Lambda{0}'.format(index))
+        G, M, m, Lambda = symbols('G, M{0}, mu{0}, Lambda{0}'.format(index))
         #m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
         return H
@@ -397,8 +410,8 @@ class PoincareHamiltonian(Hamiltonian):
             warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
             return
         G = symbols('G')
-        mIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
-        mOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
+        mIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
+        mOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
         alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
 	# aIn = LambdaIn * LambdaIn / mIn / mIn / G / MIn
