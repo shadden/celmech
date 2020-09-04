@@ -40,8 +40,8 @@ which have the advantage of being well-defined for :math:`e_i\rightarrow 0` and 
 By default, ``celmech`` uses canonical heliocentric variables, in which the mass parameters are defined as
 
 .. math::
-        \tilde{m}_i = \frac{m_iM_*}{M_* + m_i}\\
-        \tilde{M}_i = {M_* + m_i}
+        {\mu}_i = \frac{m_iM_*}{M_* + m_i}\\
+        {M}_i = {M_* + m_i}
 
 .. _ch_coordinates:
 
