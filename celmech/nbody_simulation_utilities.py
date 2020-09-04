@@ -198,10 +198,12 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     sim : rebound.Simulation
         Simulation to add particle to.
     """
-    _sim = sim.copy()
-    star = _sim.particles[0]
+    star = sim.particles[0]
+    _sim = rb.Simulation()
+    _star = star.copy()
+    _sim.add(_star)
     _sim.add(
-            primary=star,
+            primary=_star,
             m=m,
             a = elements['a'],
             e = elements['e'],
@@ -210,14 +212,13 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
             omega = elements['omega'],
             Omega = elements['Omega']
         )
-    _p = _sim.particles[-1]
+    _p = _sim.particles[1]
     p = _p.copy()
     f = star.m / (p.m + star.m)
     p.vx = f * ( _p.vx - star.vx )
     p.vy = f * ( _p.vy - star.vy )
     p.vz = f * ( _p.vz - star.vz )
     sim.add(p)
-    star = sim.particles[0]
     star.vx -= p.m * p.vx / star.m
     star.vy -= p.m * p.vy / star.m
     star.vz -= p.m * p.vz / star.m
