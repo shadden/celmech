@@ -131,11 +131,6 @@ We can therefore rewrite it in terms of the canonical Delauney variables defined
 Heliocentric Orbital Elements
 *****************************
 
-In order convert a set of canonical variables used by ``celmech`` to 
-particle positions and velocities (e.g., when intializing a REBOUND simulations)
-it is critical to precisely define the orbital elements appearing in the 
-definitions of the Delauney variables.
-
 The Delauney variables, 
 derived via a canonical transformation from the canonical heliocentric coordinates,
 are defined in terms of a set of orbital elements.
@@ -147,6 +142,12 @@ heliocentric position, :math:`\pmb{r}_i` and the
 While this does not correspond to any physical velocity in the system, it ensures that 
 the transformation from the coordinate-momentum pairs :math:`(\pmb{r},\tilde{\pmb{r}}_i)` 
 to Delauney variables is canonical.
+
+``celmech`` provides the 
+functions :func:`nbody_simulation_utilities.get_canonical_heliocentric_orbits <celmech.nbody_simulation_utilities.get_canonical_heliocentric_orbits>` 
+to compute these 'canonical heliocentric' elements from 
+a REBOUND simulation along with 
+:func:`nbody_simulation_utilities.add_canonical_heliocentric_elements_particle <celmech.nbody_simulation_utilities.add_canonical_heliocentric_elements_particle>` to add particles to a REOBOUND simulation by specifying the particles orbit in terms of these elements.
 
 
 
