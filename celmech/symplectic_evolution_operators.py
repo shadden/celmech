@@ -78,9 +78,9 @@ class KeplerianEvolutionOperator(EvolutionOperator):
     def __init__(self,initial_state,dt):
         super(KeplerianEvolutionOperator,self).__init__(initial_state,dt)
         self.G =  self.state.G
-        self.m = np.array([p.m for p in self.state.particles[1:]]) 
+        self.mu = np.array([p.mu for p in self.state.particles[1:]]) 
         self.M = np.array([p.M for p in self.state.particles[1:]]) 
-        self.GGMMmmm = (self.G*self.M)**2 * self.m**3
+        self.GGMMmmm = (self.G*self.M)**2 * self.mu**3
 
     def apply(self):
         lambda_dot = self.get_lambda_dot()
@@ -1165,24 +1165,26 @@ def get_res_chain_reference_Lambdas_and_semimajor_axes(pvars,slist):
     alpha_inv[1] = 1    
     coeffs[1] = 1 + slist[0]
     ps = pvars.particles
-    m = np.array([p.m for p in ps])
+    mu = np.array([p.mu for p in ps])
     M = np.array([p.M for p in ps])
-    tot = coeffs[1] * m[1] * sqrt(M[1])
+    tot = coeffs[1] * mu[1] * sqrt(M[1])
     for i in range(2,len(coeffs)):
         coeffs[i] = coeffs[i-1] * slist[i-2] / (1 + slist[i-2])
         alpha_inv[i] = alpha_inv[i-1]  * ((1 + slist[i-2]) / slist[i-2])**(2/3)
-        tot += coeffs[i] * m[i] * sqrt(M[i] * alpha_inv[i])        
+        tot += coeffs[i] * mu[i] * sqrt(M[i] * alpha_inv[i])        
     Lvals = np.append([0],[p.Lambda for p in ps[1:]])
     C = coeffs @ Lvals
     a10 = (C / tot)**2
     a0 = a10 * alpha_inv 
-    L0 = m * sqrt(M * a0)
+    L0 = mu * sqrt(M * a0)
     return a0,L0
 
 def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
-    """
+    r"""
     Get matrix A and vector b that define the Hamiltonian terms
+
     .. math::
+
         H_{res} = \frac{e^{2i\theta}}{2} \left( \bar{x} \cdot A \cdot \bar{x} + b e^{-i\theta} \cdot \bar{x} \right)
 
     associated with a first-order MMR in the disturbing function expansion.
@@ -1198,9 +1200,9 @@ def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MO
     mOut : float
         Mass of outer planet
     MIn : float
-        Stellar mass for inner planet
+        Total mass of star + inner planet
     Mout : float
-        Stellar mass for outer planet
+        Total mass of star + outer planet
     Lambda0In : float
         Reference value of Lambda for inner planet
     Lambda0Out : float
@@ -1215,9 +1217,13 @@ def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MO
     """
 
     zs = [0,0,0,0]
-    aIn0 = (Lambda0In / mIn)**2 / MIn
-    aOut0 = (Lambda0Out / mOut)**2 / MOut
+    muIn = mIn * (MIn - mIn) / MIn
+    muOut = mOut * (MOut - mOut) / MOut
+    aIn0 = (Lambda0In / muIn)**2 / MIn / G
+    aOut0 = (Lambda0Out / muOut)**2 / MOut / G
     alpha0 = aIn0 / aOut0
+    aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+    prefactor = -G * mIn * mOut * aOut_inv
     A = get_second_order_eccentricity_resonance_matrix(2 * j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
     b = np.zeros(2)
     js = [j,1-j,-1,0,0,0]
@@ -1227,14 +1233,17 @@ def get_first_order_eccentricity_resonance_matrix_and_vector(j,G,mIn,mOut,MIn,MO
     # scale X --> x
     scaleMtrx = np.diag([sqrt(2/Lambda0In),sqrt(2/Lambda0Out)])
     b = scaleMtrx @ b
-    prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return  A, prefactor * b
 
 def get_second_order_eccentricity_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
     zs = [0,0,0,0]
-    aIn0 = (Lambda0In / mIn)**2 / MIn
-    aOut0 = (Lambda0Out / mOut)**2 / MOut
+    muIn = mIn * (MIn - mIn) / MIn
+    muOut = mOut * (MOut - mOut) / MOut
+    aIn0 = (Lambda0In / muIn)**2 / MIn / G
+    aOut0 = (Lambda0Out / muOut)**2 / MOut / G
     alpha0 = aIn0 / aOut0
+    aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+    prefactor = -G * mIn * mOut * aOut_inv
     params = dict()
     A = np.zeros((2,2))
 
@@ -1250,14 +1259,17 @@ def get_second_order_eccentricity_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0
     # scale X --> x
     scaleMtrx = np.diag([sqrt(2/Lambda0In),sqrt(2/Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
-    prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return prefactor * A
 
 def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
     zs = [0,0,0,0]
-    aIn0 = (Lambda0In / mIn)**2 / MIn
-    aOut0 = (Lambda0Out / mOut)**2 / MOut
+    muIn = mIn * (MIn - mIn) / MIn
+    muOut = mOut * (MOut - mOut) / MOut
+    aIn0 = (Lambda0In / muIn)**2 / MIn / G
+    aOut0 = (Lambda0Out / muOut)**2 / MOut / G
     alpha0 = aIn0 / aOut0
+    aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+    prefactor = -G * mIn * mOut * aOut_inv
     params = dict()
     A = np.zeros((2,2))
 
@@ -1273,6 +1285,6 @@ def get_second_order_inclination_resonance_matrix(j,G,mIn,mOut,MIn,MOut,Lambda0I
     # scale X --> x
     scaleMtrx = np.diag([sqrt(0.5 / Lambda0In),sqrt(0.5 / Lambda0Out)])
     A = scaleMtrx @ A @ scaleMtrx
-    prefactor = -G**2*MOut**2*mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
+    
     return prefactor * A
 

@@ -193,8 +193,8 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
         Mass of particle to add.
     elements : dict
         Dictionary of orbital elements for particle.
-        Dictionary must contain keys:
-            a,e,inc,lmbda,omega,Omega
+        Dictionary must contain valid set
+        of orbital elements accepted by REBOUND.
     sim : rebound.Simulation
         Simulation to add particle to.
     """
@@ -205,13 +205,8 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     _sim.add(
             primary=_star,
             m=m,
-            a = elements['a'],
-            e = elements['e'],
-            inc = elements['inc'],
-            l = elements['lmbda'],
-            omega = elements['omega'],
-            Omega = elements['Omega']
-        )
+            **elements
+    )
     _p = _sim.particles[1]
     p = _p.copy()
     f = star.m / (p.m + star.m)

@@ -824,11 +824,14 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
           complex conjugate
       appearing in the interaction Hamiltonian between a pair of planets.
     """
-    aOut0 = ( Lambda0Out / mOut )**2 / MOut / G
-    aIn0 = ( Lambda0In / mIn )**2 / MIn / G
-    alpha = aIn0/aOut0
+    muIn = mIn * (MIn - mIn) / MIn
+    muOut = mOut * (MOut - mOut) / MOut
+    aIn0 = (Lambda0In / muIn)**2 / MIn / G
+    aOut0 = (Lambda0Out / muOut)**2 / MOut / G
+    alpha0 = aIn0 / aOut0
+    aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+    prefactor = -G * mIn * mOut * aOut_inv
     assert alpha < 1, "Particles are not in order by semi-major axis."
-    prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
     return {
         (kvec,zvec):prefactor*eval_DFCoeff_dict(DFCoeff_C(*kvec,*zvec),alpha)
         for kvec,zvec in terms_list
@@ -975,9 +978,11 @@ def resonant_terms_list_to_secular_contribution_dictionary(terms_list,j,k,Nmin,N
       entries in the form
        {(kvec,zvec):Coeff}
     """
+    muIn = mIn * (MIn - mIn) / MIn
+    muOut = mOut * (MOut - mOut) / MOut
     omega_vec = G * G * np.array([
-        MIn * MIn * mIn * mIn * mIn / Lambda0In / Lambda0In / Lambda0In,
-        MOut * MOut * mOut * mOut * mOut / Lambda0Out / Lambda0Out / Lambda0Out
+        MIn * MIn * muIn * muIn * muIn / Lambda0In / Lambda0In / Lambda0In,
+        MOut * MOut * muOut * muOut * muOut / Lambda0Out / Lambda0Out / Lambda0Out
     ])
     Domega = np.diag(-3 * omega_vec / np.array([Lambda0In,Lambda0Out]))
     res_kvec = np.array([k-j,j])
