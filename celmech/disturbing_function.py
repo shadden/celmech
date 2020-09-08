@@ -268,7 +268,7 @@ def eccentricity_type_resonance_coefficient(j,k,l,alpha):
     return ncoeff
 
 # Vector of resonance coefficients
-def get_res_coeff_vector(j,k,include_indirect_terms = True):
+def get_res_coeff_vector(j,k):
     r"""
     Get a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance.
 
@@ -292,9 +292,6 @@ def get_res_coeff_vector(j,k,include_indirect_terms = True):
     alpha = res_pratio**(2./3.)
     Cjkl = eccentricity_type_resonance_coefficient
     vals = np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
-    if j==k + 1 and include_indirect_terms:
-        correction = Nto1_indirect_term_correction(j)
-        vals[0] += correction
     return vals
 
 def get_fg_coeffs(res_j,res_k):
