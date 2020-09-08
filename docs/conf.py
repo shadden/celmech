@@ -17,6 +17,12 @@
 # sys.path.insert(0, os.path.abspath('.'))
 from datetime import datetime
 
+autodoc_mock_imports = [
+    "sympy",
+    "rebound",
+    "reboundx",
+    "theano"
+]
 # -- Project information -----------------------------------------------------
 project = 'celmech'
 year = datetime.now().year
