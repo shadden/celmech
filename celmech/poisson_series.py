@@ -141,11 +141,11 @@ class DFTermSeries(object):
         aIn0 = (Lambda0In / muIn)**2 / MIn / G
         aOut0 = (Lambda0Out / muOut)**2 / MOut / G
         alpha0 = aIn0 / aOut0
-        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+        aOut_inv = G*MOut*muOut*muOut / Lambda0Out / Lambda0Out  
         prefactor = -G * mIn * mOut * aOut_inv
-        assert alpha < 1, "Particles are not in order by semi-major axis."
+        assert alpha0 < 1, "Particles are not in order by semi-major axis."
         resterm_dictionary  = {
-                (ks,zs):prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),alpha)
+                (ks,zs):prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),alpha0)
                 for ks,zs in resterm_list
                 }
         return cls(resterm_dictionary,Lambda0In,Lambda0Out)
