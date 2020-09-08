@@ -35,8 +35,15 @@ def single_true(iterable): # Returns true if only one element in the iterable is
 class PoincareParticle(object):
     """
     A class representing an individual member  (star, planet, or test particle) of a planetary system.
+
+    Attributes
+    ----------
+    m : float
+      Mass of particle.
+    Mstar : float
+      Mass of central body.
     """
-    def __init__(self, m, M, l, gamma, q, G=1., sLambda=None, sGamma=None, sQ=None, Lambda=None, Gamma=None, Q=None,  a=None, e=None, inc=None):
+    def __init__(self, m, Mstar, l, gamma, q, G=1., sLambda=None, sGamma=None, sQ=None, Lambda=None, Gamma=None, Q=None,  a=None, e=None, inc=None):
         """
         We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
         """
@@ -47,11 +54,12 @@ class PoincareParticle(object):
         if not single_true([sQ, Q, inc]):
             raise AttributeError("Can only pass one of Q, sQ (specific Q, i.e. per unit mass), or inc (inclination)")
         
+        mu = m * Mstar / (m + Mstar)
         if sLambda:
             self.sLambda = sLambda
         elif Lambda:
             try:
-                self.sLambda = Lambda/m
+                self.sLambda = Lambda/mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif a:
@@ -59,7 +67,7 @@ class PoincareParticle(object):
 
         if Gamma:
             try:
-                sGamma = Gamma/m
+                sGamma = Gamma/mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif e:
@@ -67,7 +75,7 @@ class PoincareParticle(object):
 
         if Q:
             try:
-                sQ = Q/m
+                sQ = Q/mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif inc:
@@ -80,10 +88,17 @@ class PoincareParticle(object):
         self.srho = np.sqrt(2.*sQ)*np.sin(q)
 
         self.m = m 
-        self.M = M
+        self.Mstar = Mstar
         self.G = G
         self.l = l
         
+    @property
+    def mu(self):
+        return self.m * self.M / (self.M + self.m)
+    @property 
+    def M(self):
+        return self.Mstar + self.m
+
     @property
     def x(self):
         return (self.kappa - 1j * self.eta) / np.sqrt(2)
@@ -112,51 +127,51 @@ class PoincareParticle(object):
 
     @property
     def kappa(self):
-        return np.sqrt(self.m)*self.skappa
+        return np.sqrt(self.mu)*self.skappa
     @kappa.setter
     def kappa(self, value):
-        self.skappa = value/np.sqrt(self.m)
+        self.skappa = value/np.sqrt(self.mu)
     @property
     def eta(self):
-        return np.sqrt(self.m)*self.seta
+        return np.sqrt(self.mu)*self.seta
     @eta.setter
     def eta(self, value):
-        self.seta = value/np.sqrt(self.m)
+        self.seta = value/np.sqrt(self.mu)
 
     @property
     def sigma(self):
-        return np.sqrt(self.m)*self.ssigma
+        return np.sqrt(self.mu)*self.ssigma
     @sigma.setter
     def sigma(self, value):
-        self.ssigma = value/np.sqrt(self.m)
+        self.ssigma = value/np.sqrt(self.mu)
 
     @property
     def rho(self):
-        return np.sqrt(self.m)*self.srho
+        return np.sqrt(self.mu)*self.srho
     @rho.setter
     def rho(self, value):
-        self.srho = value/np.sqrt(self.m)
+        self.srho = value/np.sqrt(self.mu)
 
     @property
     def Lambda(self):
-        return self.m*self.sLambda
+        return self.mu*self.sLambda
     @Lambda.setter
     def Lambda(self, value):
-        self.sLambda = value/self.m
+        self.sLambda = value/self.mu
 
     @property
     def Gamma(self):
-        return self.m*(self.skappa**2+self.seta**2)/2.
+        return self.mu*(self.skappa**2+self.seta**2)/2.
     @Gamma.setter
     def Gamma(self, value):
-        self.sGamma = value/self.m
+        self.sGamma = value/self.mu
 
     @property
     def Q(self):
-        return self.m*(self.ssigma**2+self.srho**2)/2.
+        return self.mu*(self.ssigma**2+self.srho**2)/2.
     @Q.setter
     def Q(self, value):
-        self.sQ = value/self.m
+        self.sQ = value/self.mu
 
     @property
     def sGamma(self):
@@ -207,30 +222,30 @@ class Poincare(object):
     def __init__(self, G, poincareparticles=[]):
         self.G = G
         self.t = 0
-        self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
+        self.particles = [PoincareParticle(m=np.nan, Mstar=np.nan, G=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:
-                self.add(m=p.m, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ = p.sQ,q=p.q, M=p.M)
+                self.add(m=p.m, Mstar=p.Mstar, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ = p.sQ,q=p.q)
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
     @classmethod
     def from_Simulation(cls, sim, average=True):
         masses = [p.m for p in sim.particles]
-        mhelio, Mhelio  = masses_to_heliocentric(masses)
+        Mstar = masses[0]
         pvars = Poincare(sim.G)
         ps = sim.particles
         o = get_canonical_heliocentric_orbits(sim)
         for i in range(1,sim.N-sim.N_var):
-            M = Mhelio[i]
-            m = mhelio[i]
             orb = o[i-1]
+            M = Mstar + masses[i]
+            m = masses[i]
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
             sLambda = np.sqrt(sim.G*M*orb.a)
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
             sQ = sLambda*np.sqrt(1.-orb.e**2) * (1 - np.cos(orb.inc))
-            pvars.add(m=m, sLambda=sLambda, l=orb.l, sGamma=sGamma, sQ = sQ, gamma=-orb.pomega,q=-orb.Omega ,M=M)
+            pvars.add(m=m,Mstar=Mstar, sLambda=sLambda, l=orb.l, sGamma=sGamma, sQ = sQ, gamma=-orb.pomega,q=-orb.Omega)
         if average is True:
             pvars.average_synodic_terms()
         return pvars
@@ -259,9 +274,8 @@ class Poincare(object):
             self.average_synodic_terms(inverse=True)
 
         if not masses:
-            mhelio = [p.m for p in self.particles]
-            Mhelio = [p.M for p in self.particles]
-            masses = masses_from_heliocentric(mhelio, Mhelio)
+            p1 = self.particles[1]
+            masses = [p1.Mstar] + [p.m for p in self.particles]
 
         sim = rebound.Simulation()
         sim.G = self.G
@@ -325,19 +339,12 @@ class PoincareHamiltonian(Hamiltonian):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
             pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
-            Hparams[symbols("mu{0}".format(i))] = ps[i].m
+            Hparams[symbols("mu{0}".format(i))] = ps[i].mu
+            Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
         super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
-        # Create polar hamiltonian for display/familiarity for user
-        self.Hpolar = S(0)
-        for i in range(1, pvars.N):
-            self.Hpolar = self.add_Hkep_term(self.Hpolar, i)
-
-        # Don't re-compute secular DF terms, save a dictionary
-        # of secular DF expansions indexed by order:
-        self.secular_terms = {0:S(0)}
     
     @property
     def particles(self):
@@ -382,21 +389,21 @@ class PoincareHamiltonian(Hamiltonian):
         ps = state.particles
         vpp = 6 # vars per particle
         for i in range(1, state.N):
-            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].m)
-            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
-            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].m
+            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].mu)
+            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].mu)
+            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].mu
             ps[i].l = y[vpp*(i-1)+3]
-            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].m) 
-            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].m) 
+            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].mu) 
+            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].mu) 
             
     
     def add_Hkep_term(self, H, index):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.
         """
-        G, M, m, Lambda = symbols('G, M{0}, mu{0}, Lambda{0}'.format(index))
+        G, M, mu, Lambda = symbols('G, M{0}, mu{0}, Lambda{0}'.format(index))
         #m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
-        H +=  -G**2*M**2*m**3 / (2 * Lambda**2)
+        H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
     def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
         """
@@ -410,8 +417,8 @@ class PoincareHamiltonian(Hamiltonian):
             warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
             return
         G = symbols('G')
-        mIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
-        mOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
+        mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
+        mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
         alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
 	# aIn = LambdaIn * LambdaIn / mIn / mIn / G / MIn
@@ -446,7 +453,8 @@ class PoincareHamiltonian(Hamiltonian):
         incOut_sq_term = ( QOut / LambdaOut / 2 )**z2
         
         # Update internal Hamiltonian
-        prefactor1 = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
+        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+        prefactor1 = -G * mIn * mOut * aOut_inv
         prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
         trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
         

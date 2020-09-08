@@ -60,8 +60,8 @@ class LaplaceLagrangeSystem(Poincare):
         self.params = {S('G'):self.G}
         for i,particle in enumerate(self.particles):
             if i is not 0:
-                m,M,Lambda = symbols('m{0},M{0},Lambda{0}'.format(i)) 
-                self.params.update({m:particle.m,M:particle.M,Lambda:particle.Lambda})
+                m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i)) 
+                self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float).eps
@@ -300,11 +300,12 @@ class LaplaceLagrangeSystem(Poincare):
                 particleIn = self.particles[indexIn]
                 particleOut = self.particles[indexOut]
                 alpha = particleIn.a / particleOut.a
-                mIn,MIn,LambdaIn = symbols('m{0},M{0},Lambda{0}'.format(indexIn)) 
-                mOut,MOut,LambdaOut = symbols('m{0},M{0},Lambda{0}'.format(indexOut)) 
+                mIn,muIn,MIn,LambdaIn = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexIn)) 
+                mOut,muOut,MOut,LambdaOut = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexOut)) 
                 Cecc_diag = get_DFCoeff_symbol(*[0 for _ in range(6)],0,0,1,0,indexIn,indexOut)
                 Cinc_diag = get_DFCoeff_symbol(*[0 for _ in range(6)],1,0,0,0,indexIn,indexOut)
-                prefactor = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
+                aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+                prefactor = -G * mIn * mOut * aOut_inv
                 self.params[Cecc_diag] = eval_DFCoeff_dict(ecc_diag_coeff,alpha)
                 self.params[Cinc_diag] = eval_DFCoeff_dict(inc_diag_coeff,alpha)
                 if i > j:
@@ -353,18 +354,19 @@ class LaplaceLagrangeSystem(Poincare):
         particleOut = self.particles[indexOut]
         alpha = particleIn.a / particleOut.a
         G = symbols('G')
-        mIn,MIn,LambdaIn = symbols('m{0},M{0},Lambda{0}'.format(indexIn)) 
-        mOut,MOut,LambdaOut = symbols('m{0},M{0},Lambda{0}'.format(indexOut)) 
+        mIn,muIn,MIn,LambdaIn = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexIn)) 
+        mOut,muOut,MOut,LambdaOut = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexOut)) 
         
         CIn = get_DFCoeff_symbol(*[jres,1-jres,-1,0,0,0],0,0,0,0,indexIn,indexOut)
         COut = get_DFCoeff_symbol(*[jres,1-jres,0,-1,0,0],0,0,0,0,indexIn,indexOut)
         self.params[CIn] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,-1,0,0,0],0,0,0,0),alpha)
         self.params[COut] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,0,-1,0,0],0,0,0,0),alpha)
-        eps = -G**2*MOut**2*mOut**3 *( mIn / MIn) / (LambdaOut**2)
-        omegaIn = G * G * MIn * MIn * mIn**3 / (LambdaIn**3)
-        omegaOut = G * G * MOut * MOut * mOut **3 / (LambdaOut**3)
-        domegaIn = -3 * G * G * MIn * MIn * mIn**3 / (LambdaIn**4)
-        domegaOut = -3 * G * G * MOut * MOut * mOut**3 / (LambdaOut**4)
+        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+        eps = -G * mIn * mOut * aOut_inv
+        omegaIn = G * G * MIn * MIn * muIn**3 / (LambdaIn**3)
+        omegaOut = G * G * MOut * MOut * muOut **3 / (LambdaOut**3)
+        domegaIn = -3 * G * G * MIn * MIn * muIn**3 / (LambdaIn**4)
+        domegaOut = -3 * G * G * MOut * MOut * muOut**3 / (LambdaOut**4)
         kIn = 1 - jres
         kOut = jres
         k_Domega_k = kIn**2 * domegaIn + kOut**2 * domegaOut

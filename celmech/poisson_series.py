@@ -136,11 +136,14 @@ class DFTermSeries(object):
 
     @classmethod
     def from_resonance_list(cls,resterm_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
-        aOut0 = ( Lambda0Out / mOut )**2 / MOut / G 
-        aIn0 = ( Lambda0In / mIn )**2 / MIn / G 
-        alpha = aIn0/aOut0
+        muIn = mIn * (MIn - mIn) / MIn
+        muOut = mOut * (MOut - mOut) / MOut
+        aIn0 = (Lambda0In / muIn)**2 / MIn / G
+        aOut0 = (Lambda0Out / muOut)**2 / MOut / G
+        alpha0 = aIn0 / aOut0
+        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+        prefactor = -G * mIn * mOut * aOut_inv
         assert alpha < 1, "Particles are not in order by semi-major axis."
-        prefactor = -G**2 * MOut**2 * mOut**3 * ( mIn / MIn) / (Lambda0Out**2)
         resterm_dictionary  = {
                 (ks,zs):prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),alpha)
                 for ks,zs in resterm_list
