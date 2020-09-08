@@ -22,11 +22,10 @@ where :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*`
 the exact definitions of  :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*` depend on canonical Cartesian coordinate system from which the variables are derived (e.g., heliocentric, Jacobi, etc.).
 ``celmech`` uses :ref:`canonical heliocentric coordinates <ch_coordinates>`, described in greater detail below.
 The associated canonical conjugate coordinates 
-are the mean longitudes :math:`\lambda_i, \gamma_i=-\varpi_i, 
-\mathrm{ and } q_i=-\Omega_i` where 
+are the mean longitudes :math:`\lambda_i, \gamma_i=-\varpi_i,~\mathrm{and}~q_i=-\Omega_i` where 
 :math:`\varpi_i` is the longitude of periapse and 
 :math:`\Omega_i` is the longitude of ascending node.
-Instead of the variables :math:`(q_i,Q_i) \mathrm{ and } (\gamma_i,\Gamma_i)`, ``celmech`` formulates equations of motion in terms of 'cartesian-style' canonical coordinate-momentum pairs
+Instead of the variables :math:`(q_i,Q_i)~\mathrm{and}~(\gamma_i,\Gamma_i)`, ``celmech`` formulates equations of motion in terms of 'cartesian-style' canonical coordinate-momentum pairs
 
 .. math::
         \begin{eqnarray}
@@ -43,6 +42,30 @@ By default, ``celmech`` uses canonical heliocentric variables, in which the mass
         {\mu}_i = \frac{m_iM_*}{M_* + m_i}\\
         {M}_i = {M_* + m_i}
 
+``celmech`` uses the :class:`Poincare <celmech.poincare.Poincare>` class to represent a set of canonical Poincare variables for a planetary system.
+The :meth:`Poincare.from_Simulation <celmech.poincare.Poincare.from_Simulation>` and :meth:`Poincare.to_Simulation <celmech.poincare.Poincare.to_Simulation>` methods provide easy integration with REBOUND.
+
+
+
+Constructing A Hamiltonian
+--------------------------
+
+The :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` class is used to construct Hamiltonians or  normal forms governing the dynamics of a system as well as integrate the corresponding equations of motion.
+A :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` instance is initialized 
+by passing the :class:`Poincare <celmech.poincare.Poincare>` instance whose dynamics will be governed by the resulting Hamiltonian.
+
+Upon intialization, a :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` consists only of the Keplerian components of the Hamiltonian, I.e., 
+
+.. math::
+        H =  -\sum_{i=1}^{N}\frac{G^2M_i^2\mu^3}{2\Lambda_i^2}
+
+Individual disturbing funtion terms from planet pairs' interactions can then be added
+with the :meth:`Poincare.add_monomial_term <celmech.poincare.PoincareHamiltonian.add_monomial_term>` method.
+:class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` also has numerous methods that can be used to conveniently add multiple disturbing function terms at once. These include:
+        - :meth:`Poincare.add_all_MMR_and_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_MMR_and_secular_terms>`
+        - :meth:`Poincare.add_eccentricity_MMR_terms <celmech.poincare.PoincareHamiltonian.add_eccentricity_MMR_terms>`
+        - :meth:`Poincare.add_all_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_secular_terms>`
+        
 .. _ch_coordinates:
 
 Canonical Heliocentric Coordinates
