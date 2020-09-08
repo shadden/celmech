@@ -3,7 +3,6 @@ import reboundx
 import numpy as np
 import theano
 import theano.tensor as T
-from exoplanet.theano_ops.kepler import KeplerOp
 from warnings import warn
 from scipy.optimize import lsq_linear
 from scipy.integrate import odeint
