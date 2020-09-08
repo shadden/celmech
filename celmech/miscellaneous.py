@@ -146,6 +146,162 @@ def getOmegaMatrix(n):
     )
 
 ######################################################
+################ AMD Calculation #####################
+######################################################
+from scipy.optimize import brenth
+def _F(e,alpha,gamma):
+    """Equation 35 of Laskar & Petit (2017)"""
+    denom = np.sqrt(alpha*(1-e*e)+gamma*gamma*e*e)
+    return alpha*e -1 + alpha + gamma*e / denom
+def critical_relative_AMD(alpha,gamma):
+    r"""
+    The critical value of 'relative AMD', :math:`{\cal C} = C/\Lambda_\mathrm{out}`,
+    of a planet pair above which intersecting orbits are allowed.
+
+    See Equation 29 of 
+    `Laskar & Petit (2017) <https://ui.adsabs.harvard.edu/abs/2017A%26A...605A..72L/abstract>`_
+
+    Arguments
+    ---------
+    alpha : float
+        The semi-major axis ratio, :math:`\alpha=a_\mathrm{in}/a_\mathrm{out}` of the planet pair.
+    gamma : float
+        The mass ratio of the planet pair, :math:`\gamma = m_\mathrm{in}/m_\mathrm{out}`.
+
+    Returns
+    -------
+    Ccrit : float
+        The value of the the critical AMD
+        (:math:`C_c(\alpha,\gamma)` in the notation of 
+        `Laskar & Petit (2017) 
+        <https://ui.adsabs.harvard.edu/abs/2017A%26A...605A..72L/abstract>`_
+    """
+    e0 = np.min((1,1/alpha-1))
+    ec = brenth(_F,0,e0,args=(alpha,gamma))
+    e1c = np.sin(np.arctan(gamma*ec / np.sqrt(alpha*(1-ec*ec))))
+    curlyC = gamma*np.sqrt(alpha) * (1-np.sqrt(1-ec*ec)) + (1 - np.sqrt(1-e1c*e1c))
+    return curlyC
+
+def compute_AMD(sim):
+    """
+    Compute total AMD of a planetary system.
+    
+    The angular momentum deficit (AMD) of a 
+    planetary system is the difference between
+    the angular momentum of a hypothetical system
+    with the same masses and semi-major axes but with
+    circular, coplanar orbits and the actual 
+    angular momentum of a planetary system.
+    It is a conserved quantity of the purely
+    secular dynamics of a system.
+
+    Arguments
+    ---------
+    sim : :class:`rebound.Simulation`
+        A REBOUND simulation of a planetary system.
+
+    Returns
+    -------
+    AMD : float
+        The value of the systems angular momentum 
+        deficit.
+    """
+
+    pstar = sim.particles[0]
+    Ltot = pstar.m * np.cross(pstar.xyz,pstar.vxyz)
+    ps = sim.particles[1:]
+    Lmbda=np.zeros(len(ps))
+    G = np.zeros(len(ps))
+    Lhat = np.zeros((len(ps),3))
+    for k,p in enumerate(sim.particles[1:]):
+        orb = p.calculate_orbit(primary=pstar)
+        Lmbda[k] = p.m * np.sqrt(p.a)
+        G[k] = Lmbda[k] * np.sqrt(1-p.e*p.e)
+        hvec = np.cross(p.xyz,p.vxyz)
+        Lhat[k] = hvec / np.linalg.norm(hvec)
+        Ltot = Ltot + p.m * hvec
+    cosi = np.array([Lh.dot(Ltot) for Lh in Lhat]) / np.linalg.norm(Ltot)
+    return np.sum(Lmbda) - np.sum(G * cosi)
+
+def AMD_stable_Q(sim):
+    """
+    Test the AMD-stability of a planetary system.
+    Returns :code:`True` if a planetary system is AMD-stable
+    and :code:`False` if not. 
+
+    Arguments
+    ---------
+    sim : :class:`rebound.Simulation`
+     Simulation object to copmute stability criterion for.
+     
+    Returns
+    -------
+    bool : 
+     :code:`True` if the sytem is AMD-stable, otherwise :code:`False`.
+    """
+    AMD = compute_AMD(sim)
+    pstar = sim.particles[0]
+    ps = sim.particles[1:]
+    for i in range(len(ps)-1):
+        pIn = ps[i]
+        pOut = ps[i+1]
+        orbIn = pIn.calculate_orbit(pstar)
+        orbOut = pOut.calculate_orbit(pstar)
+        alpha = orbIn.a / orbOut.a
+        gamma = pIn.m / pOut.m
+        LmbdaOut = pOut.m * np.sqrt(orbOut.a)
+        Ccrit = critical_relative_AMD(alpha,gamma)
+        C = AMD / LmbdaOut
+        if C>Ccrit:
+            return False
+    return True
+
+def AMD_stability_coefficients(sim):
+    r"""
+    Compute AMD stability coefficients 
+    of the successive adjacent planet pairs 
+    of a planetary system.
+
+    A planet pair's AMD stability coefficicent 
+    is defined as the total planetary system's
+    AMD divided by the critical AMD required
+    for the pair's orbits to cross.
+    (Equation 58 of `Laskar & Petit (2017) 
+    <https://ui.adsabs.harvard.edu/abs/2017A%26A...605A..72L/abstract>`_)
+
+    
+    Arguments
+    ---------
+    sim : rebound.Simulation
+      Simulation object to copmute AMD coefficients for.
+     
+    Returns
+    -------
+    ndarray : 
+      Values of :math:`\beta = \frac{C}{\Lambda'C_c}`
+      for planet pairs.
+    """
+    AMD = compute_AMD(sim)
+    pstar = sim.particles[0]
+    ps = sim.particles[1:]
+    coeffs = np.zeros(len(ps)-1)
+    for i in range(len(ps)-1):
+        pIn = ps[i]
+        pOut = ps[i+1]
+        orbIn = pIn.calculate_orbit(pstar)
+        orbOut = pOut.calculate_orbit(pstar)
+        alpha = orbIn.a / orbOut.a
+        gamma = pIn.m / pOut.m
+        LmbdaOut = pOut.m * np.sqrt(orbOut.a)
+        Ccrit = critical_relative_AMD(alpha,gamma)
+        C = AMD / LmbdaOut
+        coeffs[i] = C / Ccrit
+    return coeffs
+
+
+
+
+######################################################
 ######################## FMFT ########################
 ######################################################
 p2d = np.ctypeslib.ndpointer(dtype = np.float,ndim = 2,flags = 'C')
