@@ -60,6 +60,44 @@ with the :meth:`Poincare.add_monomial_term <celmech.poincare.PoincareHamiltonian
         - :meth:`Poincare.add_eccentricity_MMR_terms <celmech.poincare.PoincareHamiltonian.add_eccentricity_MMR_terms>`
         - :meth:`Poincare.add_all_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_secular_terms>`
         
+Generating functions
+********************
+
+Constructing a Hamiltonian with a finite number of disturbing function terms
+implicitly assumes that an infinite number of other terms can be ignored 
+because they are rapdily oscillating such that there average effect on the
+dynamics is negligible. 
+
+Generating function
+
+.. math:: 
+        \begin{eqnarray}
+        \bar{H}(\bar{\pmb{p}},\bar{\pmb{q}}) &=& \exp[L_{\chi_1}]{H}(\bar{\pmb{p}},\bar{\pmb{q}})\\
+         &=&{H}_0(\bar{\pmb{p}}) + H_1(\bar{\pmb{p}},\bar{\pmb{q}}) + \{{H}_0(\bar{\pmb{p}}), {\chi_1} \} + {\cal O}(\epsilon^2)
+         \end{eqnarray}
+
+
+Choosing 
+
+.. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
+
+eliminates oscliating terms to first order in $\epsilon$.
+
+To zeroth order in eccentricity, 
+
+.. math:: H_{1,\mathrm{osc}} = -\frac{Gm_1m_2}{a_2}\left(\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\lambda_2 - \lambda_1})} - \frac{1}{2}b^{(0)}_{1/2}(\alpha) - \frac{\cos\psi}{\sqrt{\alpha}}\right)
+
+Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \lambda_2-\lambda_1`,
+
+.. math:: 
+        \frac{\partial \chi_1}{\partial\psi} = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}f(\psi,\alpha)
+
+with the solution 
+
+.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({F\left(\frac{\psi}{2}\bigg| \alpha^2 \right)} - \frac{\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
+
+where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
+
 .. _ch_coordinates:
 
 Canonical Heliocentric Coordinates
