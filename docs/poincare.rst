@@ -67,8 +67,9 @@ Constructing a Hamiltonian with a finite number of disturbing function terms
 implicitly assumes that an infinite number of other terms can be ignored 
 because they are rapdily oscillating such that there average effect on the
 dynamics is negligible. 
+[blah blah blah]  :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` [blah blah blah]
 
-Generating function
+Generating function [DO SOME STUFF]
 
 .. math:: 
         \begin{eqnarray}
