@@ -1,5 +1,16 @@
 from sympy import S, diff, lambdify, symbols 
 from scipy.integrate import ode
+import scipy.special
+def _my_elliptic_e(*args):
+    if len(args) == 1:
+        return scipy.special.ellipe(*args)
+    else:
+        return scipy.special.ellipeinc(*args)
+_lambdify_kwargs = {'modules':['numpy', {
+    'elliptic_k': scipy.special.ellipk,
+    'elliptic_f': scipy.special.ellipkinc,
+    'elliptic_e': _my_elliptic_e
+    }]} 
 
 class Hamiltonian(object):
     """
@@ -68,11 +79,10 @@ class Hamiltonian(object):
             pass
         if not hasattr(self, 'Nderivs'):
             self._update()
-        if time > self.integrator.t:
-            try:
-                self.integrator.integrate(time,**integrator_kwargs)
-            except:
-                raise AttributeError("Need to initialize Hamiltonian")
+        try:
+            self.integrator.integrate(time,**integrator_kwargs)
+        except:
+            raise AttributeError("Need to initialize Hamiltonian")
         self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
@@ -97,8 +107,8 @@ class Hamiltonian(object):
             q = pqpair[1]
             self.derivs[p] = -diff(self.H, q)
             self.derivs[q] = diff(self.H, p)
-            self.Nderivs.append(lambdify(self.varsymbols, -diff(self.NH, q), 'numpy'))
-            self.Nderivs.append(lambdify(self.varsymbols, diff(self.NH, p), 'numpy'))
+            self.Nderivs.append(lambdify(self.varsymbols, -diff(self.NH, q), **_lambdify_kwargs))
+            self.Nderivs.append(lambdify(self.varsymbols, diff(self.NH, p), **_lambdify_kwargs))
 
         def diffeq(t, y):
             dydt = [deriv(*y) for deriv in self.Nderivs]
