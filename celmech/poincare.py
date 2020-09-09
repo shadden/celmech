@@ -1,11 +1,10 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
-from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs , laplace_b
-from celmech.disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
-from celmech.transformations import masses_to_heliocentric,masses_from_heliocentric
-from celmech.nbody_simulation_utilities import get_canonical_heliocentric_orbits,add_canonical_heliocentric_elements_particle
-from celmech.resonances import resonance_jk_list
+from .hamiltonian import Hamiltonian
+from .disturbing_function import get_fg_coeffs , laplace_b
+from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .transformations import masses_to_heliocentric,masses_from_heliocentric
+from .nbody_simulation_utilities import get_canonical_heliocentric_orbits,add_canonical_heliocentric_elements_particle
 from itertools import combinations
 import rebound
 import warnings

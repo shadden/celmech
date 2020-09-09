@@ -18,9 +18,9 @@ These canonical variables are related to the Delauney elliptic variable,
             Q_i &=& \mu_i\sqrt{{M}_ia_i}\sqrt{1-e_i^2}(1-\cos(I_i))
         \end{eqnarray}
 
-where :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*`
-the exact definitions of  :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*` depend on canonical Cartesian coordinate system from which the variables are derived (e.g., heliocentric, Jacobi, etc.).
-``celmech`` uses :ref:`canonical heliocentric coordinates <ch_coordinates>`, described in greater detail below.
+where :math:`\mu_i\sim m_i` and  :math:`M_i\sim M_*`.
+(The exact definitions of  :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*` 
+are described in greater detail :ref:`below <ch_coordinates>`.)
 The associated canonical conjugate coordinates 
 are the mean longitudes :math:`\lambda_i, \gamma_i=-\varpi_i,~\mathrm{and}~q_i=-\Omega_i` where 
 :math:`\varpi_i` is the longitude of periapse and 
@@ -35,12 +35,6 @@ Instead of the variables :math:`(q_i,Q_i)~\mathrm{and}~(\gamma_i,\Gamma_i)`, ``c
 
 which have the advantage of being well-defined for :math:`e_i\rightarrow 0` and :math:`I_i\rightarrow 0`.
 
-
-By default, ``celmech`` uses canonical heliocentric variables, in which the mass parameters are defined as
-
-.. math::
-        {\mu}_i = \frac{m_iM_*}{M_* + m_i}\\
-        {M}_i = {M_* + m_i}
 
 ``celmech`` uses the :class:`Poincare <celmech.poincare.Poincare>` class to represent a set of canonical Poincare variables for a planetary system.
 The :meth:`Poincare.from_Simulation <celmech.poincare.Poincare.from_Simulation>` and :meth:`Poincare.to_Simulation <celmech.poincare.Poincare.to_Simulation>` methods provide easy integration with REBOUND.
@@ -141,8 +135,16 @@ In the new coordinates, the Hamiltonian becomes
         \begin{eqnarray}
         H &=& \sum_{i=1}^{N-1}H_{\mathrm{kep},i} + \sum_{i=1}^{N-1} \sum_{j=1}^{i} H_{\mathrm{int.}}^{(i,j)} \\
         H_{\mathrm{kep},i} &=& \frac{1}{2}\frac{\tilde{r}_i^2}{\mu_i}   - \frac{GM_i\mu_i}{r_i} \\
-        H_{\mathrm{int.}}^{(i,j)} &=& -\frac{Gm_im_j}{|\pmb{r}_i - \pmb{r}_j|} + \frac{\tilde{\pmb{r}}_i \cdot \tilde{\pmb{r}}_j }{m_0}
+        H_{\mathrm{int.}}^{(i,j)} &=& -\frac{Gm_im_j}{|\pmb{r}_i - \pmb{r}_j|} + \frac{\tilde{\pmb{r}}_i \cdot \tilde{\pmb{r}}_j }{M_*}
         \end{eqnarray}
+
+where the parameters 
+
+.. math::
+        {\mu}_i = \frac{m_iM_*}{M_* + m_i}\\
+        {M}_i = {M_* + m_i}~.
+
+are the same as those that appear in the definitions of ``celmech``'s canonical variables. 
 
 Above, each :math:`H_{\mathrm{kep},i}` is the Hamiltonian of a two-body probelm with reduced mass :math:`\mu_i`.
 We can therefore rewrite it in terms of the canonical Delauney variables defined :ref:`above <poincare_intro>` as
