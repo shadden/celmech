@@ -3,7 +3,6 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from .hamiltonian import Hamiltonian
 from .disturbing_function import get_fg_coeffs , laplace_b
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
-from .transformations import masses_to_heliocentric,masses_from_heliocentric
 from .nbody_simulation_utilities import get_canonical_heliocentric_orbits,add_canonical_heliocentric_elements_particle
 from itertools import combinations
 import rebound
@@ -328,6 +327,23 @@ class PoincareHamiltonian(Hamiltonian):
     """
     A class representing the Hamiltonian governing the dynamical evolution of a system of particles,
     stored as a :class:`celmech.poincare.Poincare` instance.
+
+    Attributes
+    ----------
+    H : sympy expression
+        Symbolic expression for the Hamiltonian.
+    NH : sympy expression
+        Symbolic expression for the Hamiltonian with 
+        numerical values of parameters substituted
+        where applicable.
+    N : int
+        Number of particles
+    particles : list
+        List of :class:`celmech.poincare.PoincareParticle`s 
+        making up the system.
+    state : :class:`celmech.poincare.Poincare`
+        A set of Poincare variables to which 
+        transformations are applied.
     """
     def __init__(self, pvars):
         Hparams = {symbols('G'):pvars.G}
@@ -524,7 +540,7 @@ class PoincareHamiltonian(Hamiltonian):
         # Finish with update
         self._update()
 
-    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2):
+    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,update=True):
         """
         Add all eccentricity-type disturbing function terms associated with a p:p-q mean
         motion resonance up to a given order.
@@ -558,7 +574,8 @@ class PoincareHamiltonian(Hamiltonian):
                 kvec = [k1,k2,k3,k4,0,0]
                 self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,update=False)
         # Finish with update
-        self._update()
+        if update:
+            self._update()
 
 
     def add_all_secular_terms(self,max_order,indexIn = 1, indexOut = 2):

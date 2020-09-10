@@ -82,7 +82,7 @@ Choosing
 
 .. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
 
-eliminates oscliating terms to first order in $\epsilon$.
+eliminates oscliating terms to first order in :math:`\epsilon`.
 
 To zeroth order in eccentricity, 
 
@@ -95,7 +95,7 @@ Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \la
 
 with the solution 
 
-.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({F\left(\frac{\psi}{2}\bigg| \alpha^2 \right)} - \frac{\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
+.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({\frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg| -\frac{4\alpha}{(1-\alpha)^2} \right)} - \frac{2\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
 
 where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
 
@@ -222,3 +222,6 @@ API
 .. automodule:: celmech.poincare
         :members:
         :special-members: __init__
+
+.. autoclass:: celmech.generating_functions.FirstOrderGeneratingFunction
+        :members:

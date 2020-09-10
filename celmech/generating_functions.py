@@ -2,8 +2,43 @@ from .poincare import PoincareHamiltonian
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
-
+from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .poincare import get_re_im_components
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
+    """
+    A class representing a generating function that maps 
+    from the 'osculating' canonical variables of the full 
+    :math:`N`-body problem to 'mean' variables of an 
+    'averaged' Hamiltonian or normal form.  
+
+    The generating function is constructed to first order in 
+    planet-star mass ratios by specifying indivdual monomial
+    terms to be eliminated from the full Hamiltonian.
+
+    This class is a sub-class of 
+    :class:`celmech.poincare.PoincareHamiltonian`
+    and disturbing function terms to be eliminated are added 
+    in the same manner that disturbing function terms can be
+    added to 
+    :class:`celmech.poincare.PoincareHamiltonian`.
+
+    Attributes
+    ----------
+    chi : sympy expression
+        Symbolic expression for the generating function.
+    Nchi : sympy expression
+        Symbolic expression for the generating function 
+        with numerical values of parameters substituted
+        where applicable.
+    state : :class:`celmech.poincare.Poincare`
+        A set of Poincare variables to which 
+        transformations are applied.
+    N : int
+        Number of particles
+    particles : list
+        List of :class:`celmech.poincare.PoincareParticle`s 
+        making up the system.
+    """
     def __init__(self,pvars):
         super(FirstOrderGeneratingFunction,self).__init__(pvars)
         self.H = S(0)
@@ -15,7 +50,80 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     def Nchi(self):
         return self.NH
 
-    def add_zeroth_order_term(self,indexIn,indexOut,update=True):
+    def osculating_to_mean_state_vector(self,y,**integrator_kwargs):
+        """
+        Convert a state vector of canonical variables of the 
+        the un-averaged :math:`N`-body Hamiltonian to a state
+        vector of mean variables used by a normal form.
+
+        Arguments
+        ---------
+        y : array-like
+          State vector of un-averaged variables.
+
+        Returns
+        -------
+        ymean : array-like
+          State vector of transformed (averaged) variables.
+        """
+        self.integrator.set_initial_value(y,t=0)
+        self.integrator.integrate(-1,**integrator_kwargs)
+        return self.integrator.y
+
+    def mean_to_osculating_state_vector(self,y,**integrator_kwargs):
+        """
+        Convert a state vector of canonical variables of mean 
+        variables used by a normal form to un-averaged variables
+        of the full :math:`N`-body Hamiltonian.
+
+        Arguments
+        ---------
+        y : array-like
+          State vector of 'averaged' canonical variables.
+
+        Returns
+        -------
+        yosc : array-like
+          State vector of osculating canonical variables.
+        """
+        self.integrator.set_initial_value(y,t=0)
+        self.integrator.integrate(+1,**integrator_kwargs)
+        return self.integrator.y
+
+    def osculating_to_mean(self,**integrator_kwargs):
+        """
+        Convert the :attr:`state <celmech.generating_functions.FirstOrderGeneratingFunction.state>`'s
+        variables from osculating
+        to mean canonical variables.
+        """
+        y_osc = self.state_to_list(self.state)
+        y_mean = self.osculating_to_mean_state_vector(y_osc)
+        self.update_state_from_list(self.state,y_mean)
+
+    def add_zeroth_order_term(self,indexIn=1,indexOut=2,update=True):
+        r"""
+        Add generating function term that elimiates 
+        planet-planet interactions to 0th order in 
+        inclinations and eccentricities.
+        
+        The added generating function term cancels the term
+
+        .. math:: 
+            -\frac{Gm_im_j}{a_j}\left(\frac{1}{\sqrt{1+\alpha^2-2\cos(\lambda_j-\lambda_i)}} - \frac{1}{2}b_{1/2}^{(0)}(\alpha) -\frac{\cos(\lambda_j-\lambda_i)}{\sqrt{\alpha}} \right)
+
+        from the Hamiltonian to first order in planet-star mass ratios.
+
+        Arguments
+        ---------
+        indexIn : int, optional
+          Index of inner planet
+        indexOut : int, optional
+          Index of outer planet
+        update : bool, optional
+          Whether the numerical values of the generating function
+          should be updated. It may be desirable to this option
+          to :code:`False` when numerous terms are being added.
+        """
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexOut)) 
@@ -27,7 +135,10 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         alpha = aIn/aOut
         omega_syn = self.kvec_to_omega((1,-1,0,0,0,0),indexIn,indexOut)
         m = alpha*alpha
-        psi_integral = elliptic_f(psi / 2, m ) - psi * elliptic_k(m) / pi - sin(psi) / sqrt(alpha)
+        om_alpha = 1-alpha
+        om_alpha_sq = om_alpha * om_alpha
+        F = elliptic_f(psi/2,-4 * alpha / om_alpha_sq) / om_alpha
+        psi_integral = 2 * F - 2 * psi * elliptic_k(m) / pi - sin(psi) / sqrt(alpha)
         term = prefactor * psi_integral / omega_syn
         self.H += term
         if update:
@@ -44,7 +155,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
 
     def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
         """
-        Add individual monomial term to Hamiltonian. The term 
+        Add individual monomial term to generating function. The term 
         is specified by 'kvec', which specifies the cosine argument
         and 'zvec', which specfies the order of inclination and
         eccentricities in the Taylor expansion of the 
@@ -105,3 +216,4 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
 
         if update:
             self._update()
+    
