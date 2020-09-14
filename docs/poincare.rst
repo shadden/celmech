@@ -19,13 +19,13 @@ These canonical variables are related to the Delauney elliptic variable,
         \end{eqnarray}
 
 where :math:`\mu_i\sim m_i` and  :math:`M_i\sim M_*`.
-(The exact definitions of  :math:`\mu_i\sim m_i` and  :math:`{\tilde m_i}\sim M_*` 
+(The exact definitions of  :math:`\mu_i\sim m_i` and  :math:`M_i\sim M_*` 
 are described in greater detail :ref:`below <ch_coordinates>`.)
 The associated canonical conjugate coordinates 
 are the mean longitudes :math:`\lambda_i, \gamma_i=-\varpi_i,~\mathrm{and}~q_i=-\Omega_i` where 
 :math:`\varpi_i` is the longitude of periapse and 
 :math:`\Omega_i` is the longitude of ascending node.
-Instead of the variables :math:`(q_i,Q_i)~\mathrm{and}~(\gamma_i,\Gamma_i)`, ``celmech`` formulates equations of motion in terms of 'cartesian-style' canonical coordinate-momentum pairs
+Instead of the variables :math:`(q_i,Q_i)~\mathrm{and}~(\gamma_i,\Gamma_i)`, ``celmech`` formulates equations of motion in terms of 'Cartesian-style' canonical coordinate-momentum pairs
 
 .. math::
         \begin{eqnarray}
@@ -60,44 +60,6 @@ with the :meth:`Poincare.add_monomial_term <celmech.poincare.PoincareHamiltonian
         - :meth:`Poincare.add_eccentricity_MMR_terms <celmech.poincare.PoincareHamiltonian.add_eccentricity_MMR_terms>`
         - :meth:`Poincare.add_all_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_secular_terms>`
         
-Generating functions
-********************
-
-Constructing a Hamiltonian with a finite number of disturbing function terms
-implicitly assumes that an infinite number of other terms can be ignored 
-because they are rapdily oscillating such that there average effect on the
-dynamics is negligible. 
-[blah blah blah]  :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` [blah blah blah]
-
-Generating function [DO SOME STUFF]
-
-.. math:: 
-        \begin{eqnarray}
-        \bar{H}(\bar{\pmb{p}},\bar{\pmb{q}}) &=& \exp[L_{\chi_1}]{H}(\bar{\pmb{p}},\bar{\pmb{q}})\\
-         &=&{H}_0(\bar{\pmb{p}}) + H_1(\bar{\pmb{p}},\bar{\pmb{q}}) + \{{H}_0(\bar{\pmb{p}}), {\chi_1} \} + {\cal O}(\epsilon^2)
-         \end{eqnarray}
-
-
-Choosing 
-
-.. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
-
-eliminates oscliating terms to first order in :math:`\epsilon`.
-
-To zeroth order in eccentricity, 
-
-.. math:: H_{1,\mathrm{osc}} = -\frac{Gm_1m_2}{a_2}\left(\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\lambda_2 - \lambda_1})} - \frac{1}{2}b^{(0)}_{1/2}(\alpha) - \frac{\cos\psi}{\sqrt{\alpha}}\right)
-
-Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \lambda_2-\lambda_1`,
-
-.. math:: 
-        \frac{\partial \chi_1}{\partial\psi} = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}f(\psi,\alpha)
-
-with the solution 
-
-.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({\frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg| -\frac{4\alpha}{(1-\alpha)^2} \right)} - \frac{2\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
-
-where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
 
 .. _ch_coordinates:
 
@@ -212,6 +174,45 @@ functions :func:`nbody_simulation_utilities.get_canonical_heliocentric_orbits <c
 to compute these 'canonical heliocentric' elements from 
 a REBOUND simulation along with 
 :func:`nbody_simulation_utilities.add_canonical_heliocentric_elements_particle <celmech.nbody_simulation_utilities.add_canonical_heliocentric_elements_particle>` to add particles to a REOBOUND simulation by specifying the particles orbit in terms of these elements.
+
+Lie Transformations
+-------------------
+
+Constructing a Hamiltonian with a finite number of disturbing function terms
+implicitly assumes that an infinite number of other terms can be ignored 
+because they are rapdily oscillating such that there average effect on the
+dynamics is negligible. 
+[blah blah blah]  :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` [blah blah blah]
+
+Generating function [DO SOME STUFF]
+
+.. math:: 
+        \begin{eqnarray}
+        \bar{H}(\bar{\pmb{p}},\bar{\pmb{q}}) &=& \exp[L_{\chi_1}]{H}(\bar{\pmb{p}},\bar{\pmb{q}})\\
+         &=&{H}_0(\bar{\pmb{p}}) + H_1(\bar{\pmb{p}},\bar{\pmb{q}}) + \{{H}_0(\bar{\pmb{p}}), {\chi_1} \} + {\cal O}(\epsilon^2)
+         \end{eqnarray}
+
+
+Choosing 
+
+.. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
+
+eliminates oscliating terms to first order in :math:`\epsilon`.
+
+To zeroth order in eccentricity, 
+
+.. math:: H_{1,\mathrm{osc}} = -\frac{Gm_1m_2}{a_2}\left(\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\lambda_2 - \lambda_1})} - \frac{1}{2}b^{(0)}_{1/2}(\alpha) - \frac{\cos\psi}{\sqrt{\alpha}}\right)
+
+Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \lambda_2-\lambda_1`,
+
+.. math:: 
+        \frac{\partial \chi_1}{\partial\psi} = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}f(\psi,\alpha)
+
+with the solution 
+
+.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({\frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg| -\frac{4\alpha}{(1-\alpha)^2} \right)} - \frac{2\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
+
+where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
 
 API
 ---
