@@ -828,10 +828,10 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
     muOut = mOut * (MOut - mOut) / MOut
     aIn0 = (Lambda0In / muIn)**2 / MIn / G
     aOut0 = (Lambda0Out / muOut)**2 / MOut / G
-    alpha0 = aIn0 / aOut0
-    aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
-    prefactor = -G * mIn * mOut * aOut_inv
+    alpha = aIn0 / aOut0
     assert alpha < 1, "Particles are not in order by semi-major axis."
+    aOut_inv = G*MOut*muOut*muOut / Lambda0Out / Lambda0Out  
+    prefactor = -G * mIn * mOut * aOut_inv
     return {
         (kvec,zvec):prefactor*eval_DFCoeff_dict(DFCoeff_C(*kvec,*zvec),alpha)
         for kvec,zvec in terms_list
