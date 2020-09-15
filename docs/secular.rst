@@ -136,8 +136,9 @@ frequencies of eccentricity and inclination oscillations roughly agree.
 There are two shortcomings of the Laplace-Lagrange secular theory that can generally explain differences 
 between analytic predictions and N-body integration results: 
 
-(1) truncation of the equations of motion to leading order in inclination and eccentricity may not be sufficient and
-(2) period ratios near a mean motion commensurability can invalidate the secular averaging approximation and  
+        (1) Truncating the equations of motion at leading order in inclination and eccentricity may not be sufficient 
+        (2) Period ratios near a mean motion commensurability can invalidate the secular averaging approximation 
+
 We'll describe options for addressing both of these issues with ``celmech`` below.
 
 .. _secular-nonlinear:
