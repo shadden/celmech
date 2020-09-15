@@ -7,12 +7,12 @@ Introduction
 ------------
 
 The secular module provides numerical tools to represent the secular or "orbit-averaged" dynamics of planetary systems. 
-Secular dynamics are captured by :ref:`disturbing function <disturbing_function>` terms independent of 
+Secular dynamics are captured by :ref:`disturbing function <disturbing_function>` terms independent 
 of the planets' mean longitudes.
 
 
 ``celmech`` provides two basic approaches to modeling a system's secular dynamics: the first is an analytic solution to the Laplace-Lagrange system, described below in :ref:`secular-ll`.
-The second, descrbied in :ref:`secular-nonlinear`, involves numerical integration of non-linear differential equations derived from an expansion of the equations of motion in inclinations and eccentricities.
+The second, described in :ref:`secular-nonlinear`, involves numerical integration of nonlinear differential equations derived from an expansion of the equations of motion up to a user-specified maximum order in inclinations and eccentricities.
 Both methods can incorporate corrections to the equations of motion that are second order in planet-star mass ratios. 
 These corrections are most important near low-order mean-motion resonances and are discussed below in :ref:`secular-corrections`.
 
