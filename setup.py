@@ -71,11 +71,11 @@ setup(name='celmech',
     ],
     keywords='astronomy astrophysics celestial-mechanics orbits orbital-mechanics',
     packages=['celmech'],
-    install_requires=['sympy>=1.1.1', 'numpy', 'scipy==1.2.0'],
+    install_requires=[],
     tests_require=['mpmath>=1.0.0', 'sympy>=1.1.1', 'rebound>=3.5.11', 'reboundx>=3.1.0', 'numpy', 'scipy==1.2.0'],
     test_suite="celmech.test",
     ext_modules = [libcelmechmodule],
     zip_safe=False)
 
 if not os.getenv('READTHEDOCS'):
-    install_requires.append('reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0')
+    install_requires.append('sympy>=1.1.1', 'numpy', 'scipy==1.2.0', 'reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0')
