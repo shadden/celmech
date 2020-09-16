@@ -21,7 +21,8 @@ autodoc_mock_imports = [
     "sympy",
     "rebound",
     "reboundx",
-    "theano"
+    "theano",
+    "mpmath",
 ]
 # -- Project information -----------------------------------------------------
 project = 'celmech'
