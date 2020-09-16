@@ -1,0 +1,8 @@
+numpy
+scipy
+numpydoc
+sympy
+rebound
+reboundx
+theano
+mpmath
