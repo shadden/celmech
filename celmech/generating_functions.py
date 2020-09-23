@@ -4,7 +4,8 @@ from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .poincare import get_re_im_components
-from warnings import warn
+import warnings
+
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
     """
     A class representing a generating function that maps 
@@ -163,7 +164,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         cosine coefficient. 
         """
         if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
-            warn("Monomial term alread included Hamiltonian; no new term added.")
+            warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
