@@ -4,6 +4,8 @@ from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .poincare import get_re_im_components
+import warnings
+
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
     """
     A class representing a generating function that maps 
