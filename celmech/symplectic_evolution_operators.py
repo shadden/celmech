@@ -1039,6 +1039,23 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
         ynew = y + h * b @ k
         return ynew
+    def _implicit_step_root_eqn(self,K,y):
+        h = self._dt
+        a = self.rk_a
+        s = self.rk_s
+        Ndim = self.Ndim
+        f_and_Df = self.deriv_and_jacobian_from_qp_vec
+        k = K.reshape((s,Ndim))
+        knew = np.zeros((s,Ndim))
+        Dkdy = np.zeros((s,Ndim,Ndim))
+        ytemps = y + h * a @ k
+        Imtrx = np.eye(s * Ndim)
+        for i,ytemp in enumerate(ytemps):
+            knew[i],Dkdy[i] = f_and_Df(ytemp)
+        fOfK=np.hstack(knew)
+        g = K - fOfK
+        Dg = Imtrx - h * np.block([[ a[i,j] * Dkdy[i] for j in range(s)] for i in range(s)])
+        return g,Dg
 
     def _implicit_rk_step_jacobian(self,qp_vec):
         """
@@ -1078,23 +1095,18 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         ktemp,Dktemp = f_and_Df(qp_vec)
         d2ydt2 = Dktemp @ ktemp
         k = np.array([ktemp + ci*h*d2ydt2 for ci in c])
-
         # Main loop
+        # Use qausi-Newton's method for improved performance???
         K = np.hstack(k)
-        for itr in xrange(max_iter):
-            ytemps = y + h * a @ k 
-            for i,ytemp in enumerate(ytemps):
-                k[i],Dkdy[i] = f_and_Df(ytemp)
-            fOfK=np.hstack(k)
-            g = K - fOfK
-            Dg = Imtrx - h * np.block([[ a[i,j] * Dkdy[i] for j in range(s)] for i in range(s)])
-            dK = lin_solve(Dg,-1*g)
-            K+=dK
-            k=K.reshape(s,Ndim)
+        for itr in range(max_iter):
+            g,Dg = self._implicit_step_root_eqn(K,y)
+            dK = -1 * lin_solve(Dg,g)
+            K += dK
             if np.alltrue( np.abs(dK) < rtol * np.abs(K) + atol ):
                 break
         else:
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
+        k = K.reshape(s,Ndim) 
         ynew = y + h * b @ k
         return ynew
 
