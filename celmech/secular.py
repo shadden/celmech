@@ -760,7 +760,7 @@ class SecularSystemSimulation():
         nlOp = self.nonlinearSecOp
         qp = nlOp.state_vec_to_qp_vec(state_vec)
         for _ in xrange(self.NsubB):
-            qp = nlOp.implicit_rk_step(qp)
+            qp = nlOp.rk_step(qp)
         for i in xrange(nlOp.Npl):
             # eta
             state_vec[6*i+1] = qp[i]
@@ -1033,7 +1033,7 @@ class SecularSystemRKIntegrator():
         nlOp = self.nonlinearSecOp
         qp = nlOp.state_vec_to_qp_vec(state_vec)
         for _ in xrange(Nstep):
-            qp = nlOp.implicit_rk_step(qp)
+            qp = nlOp.rk_step(qp)
 
         if exact_finish_time:
            warnings.warn("Exact finish time is not currently implemented.")

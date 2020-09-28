@@ -48,7 +48,24 @@ _GL6 = {
     'c':np.array([1/2 - 1/10*sqrt(15), 1/2, 1/2 + 1/10*sqrt(15)]),
     'b':np.array([5/18,  4/9,  5/18])
 }
-_rk_methods = {'ImplicitMidpoint':_ImplicitMidpoint,'LobattoIIIB':_LobattoIIIB,'GL4':_GL4,'GL6':_GL6}
+
+_RK4 = {
+        'a':np.array([
+            [0.,0.,0.,0.],
+            [0.5,0.,0.,0.],
+            [0,0.5,0.,0.],
+            [0,0,1,0]
+            ]),
+        'c':np.array([0.,0.5,0.5,1.]),
+        'b':np.array([1/6,1/3,1/3,1/6])
+}
+_rk_methods = {
+        'ImplicitMidpoint':_ImplicitMidpoint,
+        'LobattoIIIB':_LobattoIIIB,
+        'GL4':_GL4,
+        'GL6':_GL6,
+        'RK4':_RK4
+}
 
 class EvolutionOperator(ABC):
     def __init__(self,initial_state,dt):
@@ -706,11 +723,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.max_iter = max_iter
         self._rk_root_method=rk_root_method
         if rk_root_method == 'Newton':
-            self.implicit_rk_step = self._implicit_rk_step_jacobian
+            self.rk_step = self._implicit_rk_step_jacobian
         elif rk_root_method == 'fixed_point':
-            self.implicit_rk_step = self._implicit_rk_step_fixed_point
+            self.rk_step = self._implicit_rk_step_fixed_point
+        elif rk_root_method == 'explicit':
+            self.rk_step = self._explicit_rk_step
         else:
-            raise ValueError("'rk_root_method' must be either 'Newton' or 'fixed_point'")
+            raise ValueError("'rk_root_method' must be either 'Newton', 'fixed_point', or 'explicit'")
         # Generate DFTermsSeries objects for each planet pair
         self.DFSeries_dict = dict()       
         for iPair, pair_terms in terms_dict.items():
@@ -745,11 +764,13 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
     @rk_root_method.setter
     def rk_root_method(self,rk_root_method):
         if rk_root_method == 'Newton':
-            self.implicit_rk_step = self._implicit_rk_step_jacobian
+            self.rk_step = self._implicit_rk_step_jacobian
         elif rk_root_method == 'fixed_point':
-            self.implicit_rk_step = self._implicit_rk_step_fixed_point
+            self.rk_step = self._implicit_rk_step_fixed_point
+        elif rk_root_method == 'explicit':
+            self.rk_step = self._explicit_rk_step
         else:
-            raise ValueError("'rk_root_method' must be either 'Newton' or 'fixed_point'")
+            raise ValueError("'rk_root_method' must be either 'Newton', 'fixed_point', or 'explicit'")
         self._rk_root_method = rk_root_method
 
     @property
@@ -768,6 +789,10 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         else:
             methods_list = "\n".join(["\t{:s}".format(method) for method in _rk_methods.keys()])
             raise ValueError("'rkmethod' must be one of:\n" + methods_list) 
+
+        if self.rk_root_method=='explicit':
+            for i,ai  in enumerate(self.rk_a):
+                assert np.alltrue(ai[i:]==0), "RK tableau cannot be solved explicitly"
 
     @classmethod
     def fromOrderRange(cls,initial_state, dt,Nmin,Nmax,resonances_to_include={}, **kwargs):
@@ -1001,6 +1026,19 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         yout = y + h * (k1 + 2*k2 + 2*k3 + k4) / 6.
         return yout,f(yout)
 
+    def _explicit_rk_step(self,qp_vec):
+        h = self._dt
+        a = self.rk_a
+        b = self.rk_b
+        s = self.rk_s
+        f = self.deriv_from_qp_vec
+        y = qp_vec
+        k = np.zeros((s,self.Ndim))
+        for i,ai in enumerate(a):
+            k[i] = f(y + h * ai @ k)
+        ynew = y + h * b @ k
+        return ynew
+
     def _implicit_rk_step_fixed_point(self,qp_vec):
         """
         Advance ODE for input qpve for a timestep h
@@ -1134,7 +1172,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
           Updated state vector of the system.
         """
         qp_vec = self.state_vec_to_qp_vec(state_vec)
-        qp_vec_new = self.implicit_rk_step(qp_vec)
+        qp_vec_new = self.rk_step(qp_vec)
         for i in xrange(self.Npl):
             # eta
             state_vec[6*i+1] = qp_vec_new[i]
