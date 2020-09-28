@@ -5,8 +5,9 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
 from .poincare import single_true
+
 _rt2 = np.sqrt(2)
-_rt2_inv = 1 / _rt2 
+_rt2_inv = 1. / _rt2 
 _machine_eps = np.finfo(np.float64).eps
 
 class LaplaceLagrangeSystem(Poincare):
