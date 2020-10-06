@@ -48,6 +48,7 @@ _GL6 = {
     'c':np.array([1/2 - 1/10*sqrt(15), 1/2, 1/2 + 1/10*sqrt(15)]),
     'b':np.array([5/18,  4/9,  5/18])
 }
+# Explicit methods
 
 _RK4 = {
         'a':np.array([
@@ -59,12 +60,21 @@ _RK4 = {
         'c':np.array([0.,0.5,0.5,1.]),
         'b':np.array([1/6,1/3,1/3,1/6])
 }
+_ExplicitMidpoint = {
+        'a':np.array([
+            [0,0],
+            [0.5,0]
+            ]),
+        'b':np.array([0,1]),
+        'c':np.array([0,0.5])
+        }
 _rk_methods = {
         'ImplicitMidpoint':_ImplicitMidpoint,
         'LobattoIIIB':_LobattoIIIB,
         'GL4':_GL4,
         'GL6':_GL6,
-        'RK4':_RK4
+        'RK4':_RK4,
+        'ExplicitMidpoint':_ExplicitMidpoint
 }
 
 class EvolutionOperator(ABC):
@@ -703,6 +713,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         # Set Lambda0 constants in secular Hamiltonian.
         if Lambda0 is None:
             Lambda0 = [p.Lambda for p in initial_state.particles]
+        self.Lambda0 = np.array(Lambda0[1:])
         self.rtLambda0_inv = 1 / sqrt(Lambda0[1:])
         self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
 
