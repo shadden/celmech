@@ -1085,7 +1085,8 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
         # These come from the  ~{pbar,p} / omega_res
         # term in the transformed Hamiltonian so they're
         # subdominant but we'll add them for completeness.
-        Mmax = 1 + (Nmax - 2 * k1)//2
+        #Mmax = 1 + (Nmax - 2 * k1)//2
+        Mmax = (Nmax - 2 * k1)//2
         for M in range(0,Mmax+1):
             # print(j1,k1,k1 + 2 * M)
             res_args += _resonance_arguments_of_fixed_order(j1,k1,k1 + 2 * M)
