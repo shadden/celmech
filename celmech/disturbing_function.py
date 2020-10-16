@@ -694,6 +694,9 @@ def deriv_DFCoeff(coeff):
     """
     dcoeff = defaultdict(float)
     for key,val in coeff.items():
+        if key=='indirect':
+            # Fix!
+            continue
         p,sjn= key
         s,j,n = sjn
         dcoeff[(p-1,sjn)] += p * val
@@ -780,7 +783,7 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     if k2 + k3 == -1:
         return _Cindirect_type1(k1,k2,k5,z1,z2,z3,z4)
     elif k2 + k3 == 1:
-        return _Cindirect_type1(k1,k2,k6-1,z1,z2,z3,z4)
+        return _Cindirect_type2(k1,k2,k6-1,z1,z2,z3,z4)
     else:
         return 0
 
@@ -1001,7 +1004,8 @@ def resonant_terms_list_to_secular_contribution_dictionary(terms_list,j,k,Nmin,N
                 newk,newz = xx1yy1_powers_to_kz(powsnew)
                 result[(newk,newz)] += res_factor*coeff1*coeff2
             if Nmin<=tot_pow-2<=Nmax:
-                _add_ppbar_bracket_terms((+0.25/res_omega) * coeff1,kz1,coeff2,kz2,result,Lambda0In,Lambda0Out)
+                pass
+                #_add_ppbar_bracket_terms((+0.25/res_omega) * coeff1,kz1,coeff2,kz2,result,Lambda0In,Lambda0Out)
     return _consolidate_dictionary_terms(result)
 
 def _add_dicts(*dicts):

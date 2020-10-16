@@ -656,7 +656,7 @@ class PlanarResonanceEquations():
         sim.add(m=1)
         for i in range(1,3):
             els={'a':orbels['a{}'.format(i)],'e':orbels['e{}'.format(i)],'inc':inc}
-            els['lmbda']=[l1,l2][i-1]
+            els['l']=[l1,l2][i-1]
             els['omega']=[pomega1,pomega2][i-1]
             els['Omega']=0.
             m = [self.m1,self.m2][i-1]
