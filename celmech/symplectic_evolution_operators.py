@@ -734,13 +734,15 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         self.max_iter = max_iter
         self._rk_root_method=rk_root_method
         if rk_root_method == 'Newton':
-            self.rk_step = self._implicit_rk_step_jacobian
+            self.rk_step = self._implicit_rk_step_newton
+        elif rk_root_method == 'quasi-Newton':
+            self.rk_step = self._implicit_rk_step_quasi_newton
         elif rk_root_method == 'fixed_point':
             self.rk_step = self._implicit_rk_step_fixed_point
         elif rk_root_method == 'explicit':
             self.rk_step = self._explicit_rk_step
         else:
-            raise ValueError("'rk_root_method' must be either 'Newton', 'fixed_point', or 'explicit'")
+            raise ValueError("'rk_root_method' must be either 'Newton', 'quasi-Newton', 'fixed_point', or 'explicit'")
         # Generate DFTermsSeries objects for each planet pair
         self.DFSeries_dict = dict()       
         for iPair, pair_terms in terms_dict.items():
@@ -775,13 +777,15 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
     @rk_root_method.setter
     def rk_root_method(self,rk_root_method):
         if rk_root_method == 'Newton':
-            self.rk_step = self._implicit_rk_step_jacobian
+            self.rk_step = self._implicit_rk_step_newton
+        elif rk_root_method == 'quasi-Newton':
+            self.rk_step = self._implicit_rk_step_quasi_newton
         elif rk_root_method == 'fixed_point':
             self.rk_step = self._implicit_rk_step_fixed_point
         elif rk_root_method == 'explicit':
             self.rk_step = self._explicit_rk_step
         else:
-            raise ValueError("'rk_root_method' must be either 'Newton', 'fixed_point', or 'explicit'")
+            raise ValueError("'rk_root_method' must be either 'Newton', 'quasi-Newton', 'fixed_point', or 'explicit'")
         self._rk_root_method = rk_root_method
 
     @property
@@ -1106,7 +1110,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         Dg = Imtrx - h * np.block([[ a[i,j] * Dkdy[i] for j in range(s)] for i in range(s)])
         return g,Dg
 
-    def _implicit_rk_step_jacobian(self,qp_vec):
+    def _implicit_rk_step_newton(self,qp_vec):
         """
         Advance ODE for input qpve for a timestep h
         using an implicit Runge-Kutta method defined by the
@@ -1145,7 +1149,7 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         d2ydt2 = Dktemp @ ktemp
         k = np.array([ktemp + ci*h*d2ydt2 for ci in c])
         # Main loop
-        # Use qausi-Newton's method for improved performance???
+        # Use quasi-Newton's method for improved performance???
         K = np.hstack(k)
         for itr in range(max_iter):
             g,Dg = self._implicit_step_root_eqn(K,y)
@@ -1156,6 +1160,51 @@ class SecularDFTermsEvolutionOperator(EvolutionOperator):
         else:
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
         k = K.reshape(s,Ndim) 
+        ynew = y + h * b @ k
+        return ynew
+
+    def _implicit_rk_step_quasi_newton(self,qp_vec):
+        """
+        Advance ODE for input qpve for a timestep h
+        using an implicit Runge-Kutta method defined by the
+        Butcher tableau [a,b,c].
+
+        Arguments
+        ---------
+        qp_vec
+        """
+        h = self._dt
+        a = self.rk_a
+        b = self.rk_b
+        c = self.rk_c
+        s = self.rk_s
+        Ndim = self.Ndim
+        f = self.deriv_from_qp_vec
+        f_and_Df = self.deriv_and_jacobian_from_qp_vec
+        y = qp_vec
+        Imtrx = np.eye(s * Ndim)
+        max_iter = self.max_iter
+        rtol = self.rtol
+        atol = self.atol
+
+        # set up method
+        k = np.zeros((s,Ndim))
+        ktemp,Dkdy0 = f_and_Df(y)
+        d2ydt2 = Dkdy0 @ ktemp
+        k = np.array([ktemp + ci*h*d2ydt2 for ci in c])
+        Dgdy0 = Imtrx - h * np.block([[ a[i,j] * Dkdy0 for j in range(s)] for i in range(s)])
+        Dgdy0_inv = np.linalg.inv(Dgdy0)
+        # Main loop
+        for itr in range(max_iter):
+            ytemps = y + h * a @ k
+            g = np.hstack(k-np.array([f(ytemp) for ytemp in ytemps]))
+            dK = -1 * Dgdy0_inv @ g
+            dk = dK.reshape(s,Ndim)
+            k += dk
+            if np.alltrue( np.abs(dk) < rtol * np.abs(k) + atol ):
+                break
+        else:
+            warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
         ynew = y + h * b @ k
         return ynew
 
