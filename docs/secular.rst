@@ -303,7 +303,75 @@ Corrections to Secular Dynamics Near Resonance
 ----------------------------------------------
 
 The secular dynamics of a multiplanet system can be significantly modified when one or more pairs of planets in the system lie near a low-order mean motion resonance. 
+These corrections can be derived by applying canonical perturbation theory to second order in planet masses. 
+In particular consider a system with a pair of planets, planets :math:`i` and :math:`j`, near (but not in) a :math:`p:p-q` MMR. 
+A normal form Hamiltonian approximating the dynamics of the system is given by 
 
+.. math::
+ H=H_\mathrm{Kep}(\pmb{\Lambda}) + \epsilon H_\mathrm{sec}(\pmb{z},\bar{\pmb{z}},\pmb{\Lambda}) + \epsilon H_\mathrm{res}(\pmb{z},\bar{\pmb{z}},\pmb{\Lambda},\pmb{k}\cdot\pmb{\lambda})\\
+
+where 
+
+.. math::
+ H_\mathrm{res} = \sum_{n=1}^\infty e^{\mathrm{i} n \pmb{k}\cdot\pmb{\lambda} } p_n(\pmb{z},\bar{\pmb{z}},\pmb{\Lambda}) + c.c.
+
+and :math:`\pmb{k}\cdot\pmb{\lambda} = p\lambda_{j} - (p-q)\lambda_j`.
+In order to derive a normal form governing the secular evolution of the system, we seek a canonical transformation that eliminates the the :math:`\lambda` dependence from our Hamiltonian.
+In other words, we would like to find a Lie transformation such that :math:`H' = \exp[\epsilon{\cal L}_{\chi}] H` is independent of :math:`\pmb{\lambda}`.
+To second order in :math:`\epsilon`, we have
+
+.. math::
+  H'= H_\mathrm{Kep}(\pmb{\Lambda}') +\epsilon\left(H_\mathrm{sec} + H_\mathrm{res} + \{H_\mathrm{Kep},\chi\}\right)\\
+  + \epsilon^2\left(\{H_\mathrm{sec} + H_\mathrm{res},\chi\} + \frac{1}{2}\{\{H_\mathrm{Kep},\chi_1\},\chi\}\right)
+    
+In order to eliminate :math:`\pmb{\lambda}` to first order in :math:`\epsilon`, we can choose
+
+.. math::
+ \chi(\pmb{z}',\bar{\pmb{z}}',\pmb{\Lambda}',\pmb{\lambda}') = \sum_{n=1}^\infty e^{\mathrm{i} n\pmb{k}\cdot\pmb{\lambda}' } \frac{p_n(\pmb{z}',\bar{\pmb{z}}',\pmb{\Lambda}')}{\mathrm{i} n\pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')} + c.c.
+
+where we have defined :math:`\pmb{\omega}(\pmb{\Lambda}')\equiv \nabla_{\pmb{\Lambda}'}H_\mathrm{Kep}(\pmb{\Lambda}')`.
+Inserting this into the expression for :math:`H'`, we have
+
+.. math::
+  H'= H_\mathrm{Kep}(\pmb{\Lambda}') + \epsilon H_\mathrm{sec}+ \epsilon^2\{H_\mathrm{sec},\chi\}+ \frac{\epsilon^2}{2}\{H_\mathrm{res},\chi\} + {\cal O}(\epsilon^3)
+
+The terms appearing at second order in :math:`\epsilon` in the expression above are a mix of oscillating terms that depend on :math:`\pmb{k}\cdot\pmb{\lambda}`
+and secular terms that depend only on the variables :math:`\pmb{z}',\bar{\pmb{z}}',\pmb{\Lambda}'`.
+It is straightforward to show that :math:`{\cal O}(\epsilon^2)` secular terms arise from the term :math:`\frac{\epsilon^2}{2}\{H_\mathrm{res},\chi\}`.
+In particular, the secular terms are given by 
+
+.. math::
+  \sum_{n=1}^{\infty}\{e^{-\mathrm{i} n\pmb{k}\cdot\pmb{\lambda}'}\bar{p}_n(\pmb{z}',\bar{\pmb{z}}',\pmb{\Lambda}'), 
+  \frac{
+  e^{\mathrm{i} n\pmb{k}\cdot\pmb{\lambda}'}
+  }{
+  \mathrm{i} n\pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')
+  } p_n(\pmb{z}',\bar{\pmb{z}}',\pmb{\Lambda}')
+ \} + c.c. =\\
+
+
+ \frac{1}{2} \frac{1}{\pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')}
+ \left({
+    \frac{
+        \pmb{k}^{\mathrm{T}}
+         \cdot
+         \frac{\partial\pmb{\omega}(\pmb{\Lambda}')}{\partial\pmb{\Lambda}'}
+         \cdot
+         \pmb{k}
+    }{
+        \pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')
+    }
+    p_n\bar{p}_n 
+    - 
+    \pmb{k}\cdot \frac{\partial}{\partial\pmb{\Lambda}'}(p_n\bar{p}_n)
+    -
+    \frac{1}{n}\left(
+    \frac{\partial\bar{p}_n}{\partial\pmb{z}}\cdot\frac{\partial{p}_n}{\partial\bar{\pmb{z}}}
+    -  
+    \frac{\partial{p}_n}{\partial\pmb{z}}\cdot\frac{\partial\bar{p}_n}{\partial\bar{\pmb{z}}}
+    \right)
+ }\right) + c.c.
+  
 API
 ---
 .. autoclass:: celmech.secular.LaplaceLagrangeSystem
