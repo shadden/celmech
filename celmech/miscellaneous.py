@@ -153,6 +153,18 @@ def _F(e,alpha,gamma):
     """Equation 35 of Laskar & Petit (2017)"""
     denom = np.sqrt(alpha*(1-e*e)+gamma*gamma*e*e)
     return alpha*e -1 + alpha + gamma*e / denom
+
+def _F_for_res_overlap(e,alpha,gamma,mutot):
+    """Equation 35 of Laskar & Petit (2017)"""
+    fByg = alpha**(0.825)
+    ecross = 1/alpha - 1
+    daBya= 1 - alpha
+    ecrit = ecross * np.exp(-2.2 * mutot**(1/3) * daBya**(-4/3)) 
+    denom = np.sqrt( (1 - e*e) * fByg**2 + e*e*alpha*gamma*gamma )
+    e1 = gamma * np.sqrt(alpha) * e / denom 
+
+    return fByg * e + e1 - fByg  * ecrit 
+
 def critical_relative_AMD(alpha,gamma):
     r"""
     The critical value of 'relative AMD', :math:`{\cal C} = C/\Lambda_\mathrm{out}`,
@@ -179,6 +191,38 @@ def critical_relative_AMD(alpha,gamma):
     e0 = np.min((1,1/alpha-1))
     ec = brenth(_F,0,e0,args=(alpha,gamma))
     e1c = np.sin(np.arctan(gamma*ec / np.sqrt(alpha*(1-ec*ec))))
+    curlyC = gamma*np.sqrt(alpha) * (1-np.sqrt(1-ec*ec)) + (1 - np.sqrt(1-e1c*e1c))
+    return curlyC
+
+def critical_relative_AMD_resonance_overlap(alpha,gamma,mutot):
+    r"""
+    The critical value of 'relative AMD', :math:`{\cal C} = C/\Lambda_\mathrm{out}`,
+    of a planet pair above which resonance overlap can occur based
+    on the resonance overlap criterion of Hadden & Lithwick (2018)
+
+    Arguments
+    ---------
+    alpha : float
+        The semi-major axis ratio, :math:`\alpha=a_\mathrm{in}/a_\mathrm{out}` of the planet pair.
+    gamma : float
+        The mass ratio of the planet pair, :math:`\gamma = m_\mathrm{in}/m_\mathrm{out}`.
+    mutot : float
+        The total mass of the planet pair relative to the star, i.e., 
+        :math:`(\mu_\mathrm{in} + \mu_\mathrm{out}) / M_*`
+
+    Returns
+    -------
+    Ccrit : float
+        The value of the the critical AMD
+        (:math:`C_c(\alpha,\gamma)` in the notation of 
+        `Laskar & Petit (2017) 
+        <https://ui.adsabs.harvard.edu/abs/2017A%26A...605A..72L/abstract>`_
+    """
+    e0 = np.min((1,1/alpha-1))
+    ec = brenth(_F_for_res_overlap,0,e0,args=(alpha,gamma,mutot))
+    fByg = alpha**(0.825)
+    denom = np.sqrt( (1 - ec*ec) * fByg**2 + ec*ec*alpha*gamma*gamma )
+    e1c = gamma * np.sqrt(alpha) * ec / denom 
     curlyC = gamma*np.sqrt(alpha) * (1-np.sqrt(1-ec*ec)) + (1 - np.sqrt(1-e1c*e1c))
     return curlyC
 
@@ -256,7 +300,7 @@ def AMD_stable_Q(sim):
             return False
     return True
 
-def AMD_stability_coefficients(sim):
+def AMD_stability_coefficients(sim,overlap=False):
     r"""
     Compute AMD stability coefficients 
     of the successive adjacent planet pairs 
@@ -274,6 +318,11 @@ def AMD_stability_coefficients(sim):
     ---------
     sim : rebound.Simulation
       Simulation object to copmute AMD coefficients for.
+    overlap : bool, optional
+      If True, planet pairs' critical AMD values are computed
+      as the critical AMD value for resonance overlap. By default 
+      the critical values are computed as the value required
+      for orbit crossing. 
      
     Returns
     -------
@@ -293,13 +342,14 @@ def AMD_stability_coefficients(sim):
         alpha = orbIn.a / orbOut.a
         gamma = pIn.m / pOut.m
         LmbdaOut = pOut.m * np.sqrt(orbOut.a)
-        Ccrit = critical_relative_AMD(alpha,gamma)
+        if overlap:
+            mutot = (pIn.m + pOut.m) / pstar.m
+            Ccrit = critical_relative_AMD_resonance_overlap(alpha,gamma,mutot)
+        else:
+            Ccrit = critical_relative_AMD(alpha,gamma)
         C = AMD / LmbdaOut
         coeffs[i] = C / Ccrit
     return coeffs
-
-
-
 
 ######################################################
 ######################## FMFT ########################
