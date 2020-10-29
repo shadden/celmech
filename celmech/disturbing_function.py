@@ -787,7 +787,7 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     else:
         return 0
 
-def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
+def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,include_alpha_derivs=False):
     """
     Retrieve the a dictionary with the coefficient values of terms appearing in the Hamiltonian.
     
@@ -811,14 +811,20 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
       Lambda of inner planet for evaluating coefficient.
     Lambda0Out : float
       Lambda of outer planet for evaluating coefficient.
+    include_alpha_derivs : bool, optional
+      If True, dictionary values are tuple containing
+      both the coefficient values and their derivatives
+      with respect to alpha = aIn/aOut.
     
     Returns
     -------
     coeff_dictionary : dict
       Coefficients given in dictionary where entries are given in the form
         {(kvec,zvec):Coeff}
+      or, if include_alpha_derivs=True, in the form
+        {(kvec,zvec):(Coeff,dCoeff/dalpha}
       where 'Coeff' represents the coefficient the term
-        (1/2) * Coeff * exp[i * (k[0] *\lambda_{out} + k[1] *\lambda_{in})] * 
+        (1/2) * Coeff * \exp[i * (k[0] *\lambda_{out} + k[1] *\lambda_{in})] * 
           X_{in}^{|kvec[2]| + zvec[2]} * 
           X_{out}^{|kvec[3]| + zvec[3]} * 
           Y_{in}^{|kvec[4]| + zvec[0]} * 
@@ -826,6 +832,7 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
           +
           complex conjugate
       appearing in the interaction Hamiltonian between a pair of planets.
+      
     """
     muIn = mIn * (MIn - mIn) / MIn
     muOut = mOut * (MOut - mOut) / MOut
@@ -835,10 +842,18 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
     assert alpha < 1, "Particles are not in order by semi-major axis."
     aOut_inv = G*MOut*muOut*muOut / Lambda0Out / Lambda0Out  
     prefactor = -G * mIn * mOut * aOut_inv
-    return {
-        (kvec,zvec):prefactor*eval_DFCoeff_dict(DFCoeff_C(*kvec,*zvec),alpha)
-        for kvec,zvec in terms_list
-    }
+    result = dict()
+    for kvec,zvec in terms_list:
+        C = DFCoeff_C(*kvec,*zvec)
+        coeff = prefactor * eval_DFCoeff_dict(C,alpha)
+        if include_alpha_derivs:
+            ind = C.pop('indirect')
+            dC = deriv_DFCoeff(C)
+            dcoeff = prefactor * ( eval_DFCoeff_dict(dC,alpha) - 0.5 * ind / np.sqrt(alpha*alpha*alpha))
+            result[(kvec,zvec)] = coeff,dcoeff
+        else:
+            result[(kvec,zvec)] = coeff
+    return result
 
 def kz_to_xx1yy1_powers(kz):
     """
@@ -908,7 +923,8 @@ def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut)
             v[i]-=1
             v[4+i]-=1
             coeff = p1bar * p2 * coeff1 * coeff2 * LmbdaInv_factors[i]
-            results[xx1yy1_powers_to_kz(v)] -= coeff
+            kznew = xx1yy1_powers_to_kz(v)
+            results[kznew] -= coeff
     p1p2conj = pows1 + pows2conj
     for i,p1,p2bar in zip(range(4),pows1[:4],pows2conj[4:]):
         if p1 > 0 and p2bar > 0:
@@ -916,9 +932,8 @@ def _add_ppbar_bracket_terms(coeff1,k1z1,coeff2,k2z2,results,LambdaIn,LambdaOut)
             v[i]-=1
             v[4+i]-=1
             coeff = p1 * p2bar * coeff1 * coeff2 * LmbdaInv_factors[i]
-            newk,newz=xx1yy1_powers_to_kz(v)
-            newk = tuple(np.array(newk))
-            results[(newk,newz)] += coeff
+            kznew = xx1yy1_powers_to_kz(v)
+            results[kznew] += coeff
 
 def _consolidate_dictionary_terms(d):
     """
@@ -990,22 +1005,37 @@ def resonant_terms_list_to_secular_contribution_dictionary(terms_list,j,k,Nmin,N
     Domega = np.diag(-3 * omega_vec / np.array([Lambda0In,Lambda0Out]))
     res_kvec = np.array([k-j,j])
     res_omega = res_kvec @ omega_vec
+    
     res_factor = 0.25 * (res_kvec @ Domega @ res_kvec) / res_omega / res_omega
-    p = terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+    p = terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,include_alpha_derivs=True)
+    aIn0 = (Lambda0In / muIn)**2 / MIn / G
+    aOut0 = (Lambda0Out / muOut)**2 / MOut / G
+    alpha = aIn0 / aOut0
+    dalpha_dLambdaIn = 2 * alpha / Lambda0In
+    dalpha_dLambdaOut = -2 * alpha / Lambda0Out
     result = defaultdict(int)
-    for kz1,coeff1 in p.items():
-        for kz2, coeff2 in p.items():
+    for kz1,coeffs1 in p.items():
+        coeff1,dcoeff1 = coeffs1
+        for kz2, coeffs2 in p.items():
+            coeff2,dcoeff2 = coeffs2
             pows1 = kz_to_xx1yy1_powers(kz1)
             pows2 = kz_to_xx1yy1_powers(kz2)
             pows2conj = xx1yy1_powers_conj(pows2)
             powsnew = pows1 + pows2conj
             tot_pow = np.sum(powsnew)
             if Nmin<=tot_pow<=Nmax:
+                rtLambda_inv_pow_In = powsnew[0] + powsnew[2]
+                rtLambda_inv_pow_Out = powsnew[1] + powsnew[3]
                 newk,newz = xx1yy1_powers_to_kz(powsnew)
-                result[(newk,newz)] += res_factor*coeff1*coeff2
+                # term 1 part
+                val = res_factor*coeff1*coeff2
+                # term 2 part
+                d_ppbar_dLambdaIn =  (dcoeff1 * coeff2 + coeff1 * dcoeff2) * dalpha_dLambdaIn  - 0.5 * rtLambda_inv_pow_In  * coeff1 * coeff2 / Lambda0In 
+                d_ppbar_dLambdaOut = (dcoeff1 * coeff2 + coeff1 * dcoeff2) * dalpha_dLambdaOut - 0.5 * rtLambda_inv_pow_Out * coeff1 * coeff2 / Lambda0Out
+                val -= 0.25 * res_kvec @ np.array([d_ppbar_dLambdaIn,d_ppbar_dLambdaOut]) / res_omega
+                result[(newk,newz)] += val
             if Nmin<=tot_pow-2<=Nmax:
-                pass
-                #_add_ppbar_bracket_terms((+0.25/res_omega) * coeff1,kz1,coeff2,kz2,result,Lambda0In,Lambda0Out)
+                _add_ppbar_bracket_terms((+0.25/res_omega) * coeff1,kz1,coeff2,kz2,result,Lambda0In,Lambda0Out)
     return _consolidate_dictionary_terms(result)
 
 def _add_dicts(*dicts):
