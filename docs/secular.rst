@@ -350,7 +350,7 @@ In particular, the secular terms are given by
  \} + c.c. =\\
 
 
- \frac{1}{2} \frac{1}{\pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')}
+ \sum_{n=1}^{\infty}\frac{1}{2} \frac{1}{\pmb{k}\cdot\pmb{\omega}(\pmb{\Lambda}')}
  \left({
     \frac{
         \pmb{k}^{\mathrm{T}}
