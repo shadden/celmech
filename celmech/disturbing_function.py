@@ -1005,7 +1005,6 @@ def resonant_terms_list_to_secular_contribution_dictionary(terms_list,j,k,Nmin,N
     Domega = np.diag(-3 * omega_vec / np.array([Lambda0In,Lambda0Out]))
     res_kvec = np.array([k-j,j])
     res_omega = res_kvec @ omega_vec
-    
     res_factor = 0.25 * (res_kvec @ Domega @ res_kvec) / res_omega / res_omega
     p = terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,include_alpha_derivs=True)
     aIn0 = (Lambda0In / muIn)**2 / MIn / G
@@ -1104,8 +1103,8 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
     all_dicts = []
     
     # highest harmonic of j:j-k resonance to include
-    nmax = (Nmax + 2) // (2*k)
-    
+    #nmax = (Nmax + 2) // (2*k)
+    nmax = (Nmax) // (2*k)
     # loop over harmonics
     for n in range(1,nmax+1):
         j1 = n * j
@@ -1122,7 +1121,7 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
         #Mmax = 1 + (Nmax - 2 * k1)//2
         Mmax = (Nmax - 2 * k1)//2
         for M in range(0,Mmax+1):
-            # print(j1,k1,k1 + 2 * M)
+            # 
             res_args += _resonance_arguments_of_fixed_order(j1,k1,k1 + 2 * M)
         dres = resonant_terms_list_to_secular_contribution_dictionary(
             res_args,
