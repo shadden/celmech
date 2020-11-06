@@ -21,8 +21,9 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
 
     Arguments
     ---------
-    sa : rebound.SimulationArchive 
-     The simulation archive to read. Can also be a reboundx simulation archive
+    sa : rebound.SimulationArchive or str
+     The simulation archive to read or the file name of the simulation
+     archive file. Can also be a reboundx simulation archive.
     coordinates : str
         The coordinate system to use for calculating orbital elements. 
         This can be:
@@ -37,6 +38,9 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
         Dictionary containing time and orbital elements at each 
         snapshot of the simulation archive.
     """
+    if type(sa) == str:
+        sa = rb.SimulationArchive(sa)
+
     if type(sa) == rb.simulationarchive.SimulationArchive:
         return _get_rebound_simarchive_integration_results(sa,coordinates)
     elif type(sa) == rbx.simulationarchive.SimulationArchive:

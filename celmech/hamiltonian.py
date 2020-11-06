@@ -80,7 +80,7 @@ class Hamiltonian(object):
         if not hasattr(self, 'Nderivs'):
             self._update()
         try:
-            self.integrator.integrate(time,**integrator_kwargs)
+            self.integrator.integrate(time)
         except:
             raise AttributeError("Need to initialize Hamiltonian")
         self.update_state_from_list(self.state, self.integrator.y)
