@@ -991,6 +991,19 @@ class SecularSystemRKIntegrator():
         )
 
     @property
+    def atol(self):
+        return self.nonlinearSecOp.atol
+    @atol.setter
+    def atol(self,value):
+        self.nonlinearSecOp.atol = value
+    @property
+    def rtol(self):
+        return self.nonlinearSecOp.rtol
+    @rtol.setter
+    def rtol(self,value):
+        self.nonlinearSecOp.rtol = value
+
+    @property
     def state_vector(self):
         state_vec = []
         for p in self.state.particles[1:]:
