@@ -75,6 +75,3 @@ setup(name='celmech',
     test_suite="celmech.test",
     ext_modules = [libcelmechmodule],
     zip_safe=False)
-
-if not os.getenv('READTHEDOCS'):
-    install_requires.append('theano', 'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0')
