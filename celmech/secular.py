@@ -5,10 +5,17 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
 from .poincare import single_true
+from .rk_integrator import RKIntegrator, _rk_methods 
+from scipy.linalg import expm
+from celmech.miscellaneous import getOmegaMatrix, _machine_eps
 
-_rt2 = np.sqrt(2)
-_rt2_inv = 1. / _rt2 
-_machine_eps = np.finfo(np.float64).eps
+from celmech.disturbing_function import SecularTermsList
+from celmech.disturbing_function import DFCoeff_C, _add_dicts,_consolidate_dictionary_terms
+from celmech.disturbing_function import terms_list_to_HamiltonianCoefficients_dict
+from celmech.disturbing_function import resonant_secular_contribution_dictionary
+from celmech.poisson_series import DFTermSeries
+
+
 
 class LaplaceLagrangeSystem(Poincare):
     r"""
@@ -386,581 +393,432 @@ class LaplaceLagrangeSystem(Poincare):
         self.ecc_entries[(indexOut,indexIn)] += InOut
         self.ecc_entries[(indexOut,indexOut)] += OutOut
         
-from .symplectic_evolution_operators import EvolutionOperator
-from .symplectic_evolution_operators import SecularDFTermsEvolutionOperator as DFOp
-class LinearSecularEvolutionOperator(EvolutionOperator):
-    def __init__(self,initial_state,dt,first_order_resonances={}):
-        super(LinearSecularEvolutionOperator,self).__init__(initial_state,dt)
-        LL_system = LaplaceLagrangeSystem.from_Poincare(self.state)
-        for pair,res_j_list in first_order_resonances.items():
-            for j in res_j_list:
-                LL_system.add_first_order_resonance_term(*pair,j)
-        self.ecc_matrix = LL_system.Neccentricity_matrix
-        self.inc_matrix = LL_system.Ninclination_matrix
-        self.ecc_operator_matrix = expm(-1j * self.dt * self.ecc_matrix)
-        self.inc_operator_matrix = expm(-1j * self.dt * self.inc_matrix)
+def _get_pair_SecularHamiltonian_coefficients(Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,res_jk_list=[]):
+    """
+    Calculate the coefficients appearing in secular Hamiltonian expansion.
+    """
+    terms = SecularTermsList(Nmin,Nmax)
+    extra_args = G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out
+    dsec = terms_list_to_HamiltonianCoefficients_dict(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
+    for j,k in res_jk_list:
+        dres = resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,*extra_args)
+        dsec = _add_dicts(dsec,dres)
+        dsec = _consolidate_dictionary_terms(dsec)
+    return _consolidate_dictionary_terms(dsec)
+    
+class _SecularDerivativesSystem():
+    """
+    A class for calculating the derivatives of a secular system.
+    """
+    def __init__(self,N,Hamiltonian_coefficients_dictionary,Lambda0):
 
+        self.Lambda0 = np.array(Lambda0[1:])
+        self.rtLambda0_inv = 1 / np.sqrt(Lambda0[1:])
+        self.qp_to_XY_factors = np.concatenate((self.rtLambda0_inv,0.5*self.rtLambda0_inv))
+        self.N=N
+        self.Npl = self.N-1
+        self.Ndim = 4*self.Npl
+
+        self.DFSeries_dict=dict()
+        for key,term_coeff_dict in Hamiltonian_coefficients_dictionary.items():
+            i,j=key
+            Lambda0In = self.Lambda0[i-1]
+            Lambda0Out = self.Lambda0[j-1]
+            self.DFSeries_dict[key] = DFTermSeries(term_coeff_dict,Lambda0In,Lambda0Out)
+
+    def Hamiltonian_from_qp_vec(self,qp_vec):
+        """
+        Compute Hamiltonian of the operator from the
+        equations of motion for the 'qp_vec' variables
+        returned by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        Hamiltonian : float
+          The value of the Hamiltonian (i.e., the sum of the disturbing
+          function terms modeled by the operator)
+        """
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        Hamiltonian = 0.
+        for iPair,series in self.DFSeries_dict.items():
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            dH = series._evaluate(l,XYvec)
+            Hamiltonian += dH
+        return Hamiltonian
+
+    def deriv_from_qp_vec(self,qp_vec):
+        """
+        Compute the time derivatives from the
+        equations of motion for the 'qp_vec'
+        variables returned by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        qp_vec_dot : ndarray
+          Time derivative of qp_vec.
+        """
+        derivs = np.zeros(self.Ndim)
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        for iPair,series in self.DFSeries_dict.items():
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            _, _deriv= series._evaluate_with_derivs(l,XYvec)
+            index_list = np.array([
+                iIn,iOut,
+                iIn + self.Npl,iOut + self.Npl,
+                iIn + 2*self.Npl,iOut + 2*self.Npl,
+                iIn + 3*self.Npl,iOut + 3*self.Npl
+                ]) - 1
+            for i,I in enumerate(index_list):
+                derivs[I] += _deriv[i]
+        return derivs
+
+    def deriv_and_jacobian_from_qp_vec(self,qp_vec):
+        """
+        Compute the time derivatives and Jacobian from the
+        equations of motion for the 'qp_vec' variables returned
+        by method 'state_vec_to_qp_vec'.
+
+        Arguments
+        ---------
+        qp_vec : ndarray shape (4 * Nplanet,)
+          Input variable vector in the from
+           [eta1,eta2,...,etaN,rho1,...,rhoN,kappa1,...,kappaN,sigma1,...sigmaN]
+
+        Returns
+        -------
+        qp_vec_dot : ndarray, shape (4 * Nplanet,)
+          Time derivative of qp_vec.
+
+        qp_vec_dot_jac : ndarray, shape (4 * Nplanet, 4 * Nplanet)
+          Jacobian matrix of the equations of motion for the
+          variables contained in qp_vec.
+        """
+        derivs = np.zeros(self.Ndim)
+        jac = np.zeros((self.Ndim,self.Ndim))
+        l = np.zeros(2)
+        eta,rho,kappa,sigma = qp_vec.reshape(-1,self.Npl)
+        H = eta * self.rtLambda0_inv
+        K = kappa * self.rtLambda0_inv
+        R = 0.5 * rho * self.rtLambda0_inv
+        S = 0.5 * sigma * self.rtLambda0_inv
+        for iPair,series in self.DFSeries_dict.items():
+            iIn, iOut = iPair
+            indices = np.array(iPair) - 1
+            X = K[indices] - 1j * H[indices]
+            Y = S[indices] - 1j * R[indices]
+            XYvec = np.concatenate((X,Y))
+            _, _deriv, _jac, _ = series._evaluate_with_jacobian(l,XYvec)
+            index_list = np.array([
+                iIn,iOut,
+                iIn + self.Npl,iOut + self.Npl,
+                iIn + 2*self.Npl,iOut + 2*self.Npl,
+                iIn + 3*self.Npl,iOut + 3*self.Npl
+                ]) - 1
+            for i,I in enumerate(index_list):
+                derivs[I] += _deriv[i]
+                for j,J in enumerate(index_list):
+                    jac[I,J] += _jac[i,j]
+        return derivs, jac
+
+class SecularRKIntegrator(RKIntegrator):
+    """
+    Integrator for direct integration of secular equations of motion.
+    """
+    def __init__(self,N,hamiltonian_coefficients_dictionary,Lambda0s,dt,
+                 rtol=_machine_eps,
+                 atol=0,
+                 rk_method='ImplicitMidpoint',
+                 rk_root_method='Newton',
+                 max_iter=10
+                ):
+        self._derivatives = _SecularDerivativesSystem(N,hamiltonian_coefficients_dictionary,Lambda0s)
+        Ndim = 4 * (N-1)
+        super(SecularRKIntegrator,self).__init__(
+            self._derivatives.deriv_from_qp_vec,
+            self._derivatives.deriv_and_jacobian_from_qp_vec,
+            Ndim, dt, rtol, atol, rk_method, rk_root_method, max_iter
+        )
+    
+        self.step = self.rk_step
+        
+    def init_step(self,qpvec):
+        return qpvec
+    
+    def final_step(self,qpvec):
+        return qpvec
+    
+    def calculate_energy(self,qp):
+        return self._derivatives.Hamiltonian_from_qp_vec(qp)
+
+class SecularSplittingIntegrator(RKIntegrator):
+    """
+    Integrator for applying splitting method to secular equations of motion.
+    """
+    def __init__(self,N,hamiltonian_coefficients_dictionary,Lambda0s,dt,
+                 rtol=_machine_eps,
+                 atol=0,
+                 rk_method='ImplicitMidpoint',
+                 rk_root_method='Newton',
+                 max_iter=10
+                ):
+        
+        all_hcoeffs = hamiltonian_coefficients_dictionary.copy()
+        Npl = N-1
+        Ndim = 4 * Npl
+        self.Se = np.zeros((Npl,Npl))
+        self.SI = np.zeros((Npl,Npl))
+        for i in range(Npl):
+            for j in range(i+1,Npl):
+                hcoeffs=all_hcoeffs[(i+1,j+1)]
+                # Get second-order eccentricity terms and add them to Laplace-Lagrange matrix
+                self.Se[i,i] += hcoeffs.pop(((0,0,0,0,0,0),(0,0,1,0)),0)
+                self.Se[j,j] += hcoeffs.pop(((0,0,0,0,0,0),(0,0,0,1)),0)
+                term = hcoeffs.pop(((0,0,1,-1,0,0),(0,0,0,0)),0)
+                self.Se[i,j] += 0.5 * term
+                self.Se[j,i] += 0.5 * term
+                # Get second-order inclination terms and add them to Laplace-Lagrange matrix
+                self.SI[i,i] += hcoeffs.pop(((0,0,0,0,0,0),(1,0,0,0)),0)
+                self.SI[j,j] += hcoeffs.pop(((0,0,0,0,0,0),(0,1,0,0)),0)
+                term = hcoeffs.pop(((0,0,0,0,1,-1),(0,0,0,0)),0)
+                self.SI[i,j] += 0.5 * term
+                self.SI[j,i] += 0.5 * term
+        rtLambda0s_inv = 1/np.sqrt(Lambda0s[1:])
+        
+        self.Se = 2 * np.diag(rtLambda0s_inv) @ self.Se @ np.diag(rtLambda0s_inv)
+        self.SI = 0.5 * np.diag(rtLambda0s_inv) @ self.SI @ np.diag(rtLambda0s_inv)                
+        self._derivatives = _SecularDerivativesSystem(N,all_hcoeffs,Lambda0s)
+        Se,SI = self.Se,self.SI
+        Zeros = np.zeros((Npl,Npl))
+        self.generator_matrix = np.block([
+            [Zeros,Zeros,Se,Zeros],
+            [Zeros,Zeros,Zeros,SI],
+            [-Se,Zeros,Zeros,Zeros],
+            [Zeros,-SI,Zeros,Zeros],
+        ])
+        self._update_A_step_matrices(dt)
+        self.corrector= False
+        
+        super(SecularSplittingIntegrator,self).__init__(
+            self._derivatives.deriv_from_qp_vec,
+            self._derivatives.deriv_and_jacobian_from_qp_vec,
+            Ndim, dt, rtol, atol, rk_method, rk_root_method, max_iter
+        )
+        
+        self.Bstep = self.rk_step
+    
+    def _update_A_step_matrices(self,dt):
+        gen_matrix = self.generator_matrix
+        self.A_half_step_forward_matrix = expm(0.5 * dt * gen_matrix)
+        self.A_half_step_backward_matrix = expm(-0.5 * dt * gen_matrix)
+        self.A_full_step_forward_matrix = self.A_half_step_forward_matrix @ self.A_half_step_forward_matrix
+
+  
     @property
     def dt(self):
-        return super().dt
-    @dt.setter
-    def dt(self,val):
-        self._dt = val
-        self.ecc_operator_matrix = expm(-1j * self.dt * self.ecc_matrix)
-        self.inc_operator_matrix = expm(-1j * self.dt * self.inc_matrix)
-
-    def _get_x_vector(self):
-        eta = np.array([p.eta for p in self.particles[1:]])
-        kappa = np.array([p.kappa for p in self.particles[1:]])
-        x =  (kappa - 1j * eta) * _rt2_inv
-        return x
-
-    def _get_y_vector(self):
-        rho = np.array([p.rho for p in self.particles[1:]])
-        sigma = np.array([p.sigma for p in self.particles[1:]])
-        y =  (sigma - 1j * rho) * _rt2_inv
-        return y
-
-    def _set_x_vector(self,x):
-        for p,xi in zip(self.particles[1:],x):
-            p.kappa = _rt2 * np.real(xi)
-            p.eta =  _rt2 * np.real(1j * xi)
-
-    def _set_y_vector(self,y):
-        for p,yi in zip(self.particles[1:],y):
-            p.sigma = _rt2 * np.real(yi)
-            p.rho =  _rt2 * np.real(1j * yi)
-
-    def apply(self):
-        x = self._get_x_vector()
-        y = self._get_y_vector()
-        xnew = self.ecc_operator_matrix @ x
-        ynew = self.inc_operator_matrix @ y
-        self._set_x_vector(xnew)
-        self._set_y_vector(ynew)
-        
-    def apply_to_state_vector(self,state_vector):
-        vecs = self._state_vector_to_individual_vectors(state_vector)
-        x_by_rt2 = (vecs[:,0] - 1j * vecs[:,1]) 
-        y_by_rt2 = (vecs[:,4] - 1j * vecs[:,5]) 
-        xnew_by_rt2 = self.ecc_operator_matrix @ x_by_rt2
-        ynew_by_rt2 = self.inc_operator_matrix @ y_by_rt2
-        vecs[:,0] = np.real(xnew_by_rt2)
-        vecs[:,1] = -1 * np.imag(xnew_by_rt2)
-        vecs[:,4] = np.real(ynew_by_rt2)
-        vecs[:,5] = -1 * np.imag(ynew_by_rt2)
-        return vecs.reshape(-1)
+        return self._dt
     
-    def calculate_Hamiltonian(self,state_vector):
-        vecs = self._state_vector_to_individual_vectors(state_vector)
-        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
-        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
-        H = np.conj(x) @ self.ecc_matrix @ x + np.conj(y) @ self.inc_matrix @ y
-        return np.real(H)
+    @dt.setter
+    def dt(self,dt):
+        self._update_A_step_matrices(dt)
+        self._dt = dt
+        
+    def init_step(self,qpvec):
+        if self.corrector:
+                qpvec = self.corrector3(qpvec)
+        return self.A_half_step_forward_matrix @ qpvec
+    
+    def step(self,qpvec):
+        qpvec = self.Bstep(qpvec)
+        return self.A_full_step_forward_matrix @ qpvec
+    
+    def final_step(self,qpvec):
+        qpvec = self.A_half_step_backward_matrix @ qpvec
+        if self.corrector:
+            qpvec = self.corrector3inv(qpvec)
+        return qpvec
+    
+    def _apply_A_step_for_dt(self,qpvec,h):
+        return expm(h * self.generator_matrix) @ qpvec
+    
+    def _apply_B_step_for_dt(self,qpvec,h):
+        h0 = self.dt
+        self.dt = h
+        qpvec1 = self.rk_step(qpvec)
+        self.dt = h0
+        return qpvec1
+        
+    def X(self, qpvec, a, b, h):
+        qpvec = self._apply_A_step_for_dt(qpvec,-a*h)
+        qpvec = self._apply_B_step_for_dt(qpvec,b*h)
+        qpvec = self._apply_A_step_for_dt(qpvec,a*h)
+        return qpvec
+
+    def Z(self, qpvec, a, b, h):
+        qpvec = self.X(qpvec, -a, -b, h)
+        qpvec = self.X(qpvec, a, b, h)
+        return qpvec
+
+    def corrector3(self, qpvec, h):
+        alpha = (7./40.)**0.5
+        beta = 1/48./alpha
+        a1 = -alpha
+        a2 = alpha
+        b2 = beta/2.
+        b1 = -beta/2.
+        
+        qpvec = self.Z(qpvec, a2, b2, h)
+        qpvec = self.Z(qpvec, a1, b1, h)
+        return qpvec
+
+    def corrector3inv(self, qpvec, h):
+        alpha = (7./40.)**0.5
+        beta = 1/48./alpha
+        a1 = -alpha
+        a2 = alpha
+        b2 = beta/2.
+        b1 = -beta/2.
+        
+        qpvec = self.Z(qpvec, a1, -b1, h)
+        qpvec = self.Z(qpvec, a2, -b2, h)
+        return qpvec
+
+    def calculate_energy(self,qp):
+        Epert = self._derivatives.Hamiltonian_from_qp_vec(qp)
+        Omega = getOmegaMatrix(self.Ndim//2)
+        E0 = -0.5 * qp @ Omega @ self.generator_matrix @ qp
+        return E0 + Epert
+
+
+
 
 class SecularSystemSimulation():
-    def __init__(self, state, dt = None, dtFraction = None, max_order = 4,NsubB=1, resonances_to_include={}, DFOp_kwargs = {}):
-        """
-        A class for integrating the secular equations of motion governing a planetary system.
-
-        The integrations are carried out using a symplectic splitting scheme. The scheme
-        separates the equations of motion into an (integrable) linear component equivalent
-        to the Laplace-Largange equations of motion, and a component containing all 
-        higher-order terms. The linear components are solved exactly while the higher-order
-        terms are solved using the symplectic implicit midpoint method.
-        
-        Arguments
-        ---------
-        state : :class:`celmech.poincare.Poincare`
-            The initial dynamical state of the system.
-        dt : float, optional
-            The timestep to use for the integration. Either dt or dtFraction must be
-            specified.
-        dtFraction : float, optional
-            Set the timestep to a constant fraction the period of shortest-period linear 
-            secular eigenmode.
-        max_order : int, optional
-            The maximum order of disturbing function terms to include in the integration. 
-            By default, the equations of motion include terms up to 4th order.
-        NsubB : int, optional
-            The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
-        resonances_to_include : dict, optional
-            A dictionary containing information that sets the list of MMRs for which the 
-            secular contribution will be accounted for (at second order on planet masses).
-            Dictionary key and value pairs are specified in the form
-                  
-                  .. code::
-
-                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-                 
-            include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
-            iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
-            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-            **NOT** also appear; these terms' contributions will be added automatically when 
-            the (2,1) term is added.
-            By default, no MMRs are included.
-
-        DFOp_kwargs : dict, optional
-            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
-            Keywords include:
-
-                - :code:`rtol`: Sets relative tolerance for root-finding 
-                in the implicit Runge-Kutta step. Default is machine precision.
-
-                - :code:`atol`: Sets the absolute tolerance for root-finding
-                in the implicit Runge-Kutta step. Default is 0 so that tolerance
-                is only specified by :code:`rtol`.
-
-                - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
-
-                - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                    - 'ImplicitMidpoint'
-                    - 'LobattoIIIB'
-                    - 'GL4'
-                    - 'GL6'
-                    'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
-                    'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
-
-                - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                    - 'Newton'
-                    - 'fixed_point'
-                    'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
-                    Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
-        Returns
-        -------
-        simulation : :class:`celmech.secular.SecularSystemSimulation`
-        """
-        assert max_order > 3, "'max_order' must be greater than or equal to 4."
-        if not single_true([dt,dtFraction]):
-            raise AttributeError("Can only pass one of dt or dtFraction")
-        llsys = LaplaceLagrangeSystem.from_Poincare(state)
-        first_order_resonances_to_include = {}
-        for pair,res_list in resonances_to_include.items():
-            first_order_js = [ j for j,k in res_list if k==1]
-            first_order_resonances_to_include.update({pair:first_order_js})
-            for j in first_order_js:
-                llsys.add_first_order_resonance_term(*pair,j)
-        Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
-        Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
-        self.Tsec = min(Tsec_e,Tsec_inc)
-        self._NsubB = NsubB
-        if dt:
-            self._dtA = dt
-        elif dtFraction:
-            self._dtA = dtFraction * self.Tsec
-        else:
-            raise AttributeError("Must specify either 'dt' or 'dtFraction'")
-        self._dtB = self._dtA / self._NsubB
-        self.linearSecOp = LinearSecularEvolutionOperator(state,self._dtA,first_order_resonances = first_order_resonances_to_include)
-        self.nonlinearSecOp = DFOp.fromOrderRange(
-                state,
-                self._dtB,
-                4,max_order,
-                resonances_to_include=resonances_to_include,
-                **DFOp_kwargs
-        )
-        self.state = state
-        self._half_step_forward_e_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
-        self._half_step_backward_e_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.ecc_matrix)
-        self._half_step_forward_inc_matrix = expm(-1j * 0.5 * self.dt * self.linearSecOp.inc_matrix)
-        self._half_step_backward_inc_matrix = expm(+1j * 0.5 * self.dt * self.linearSecOp.inc_matrix)
-        self.t = 0
-
-    @classmethod
-    def from_Simulation(cls,sim, dt = None, dtFraction = None, max_order = 4,NsubB=1,resonances_to_include={}, DFOp_kwargs = {}):
-        """
-        Initialize a :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` object
-        from a rebound simulation.
-
-        Arguments
-        ---------
-        sim : :class:`rebound.Simulation`
-            REBOUND simulation to convert to :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
-        dt : float, optional
-            The timestep to use for the integration. Either dt or dtFraction must be
-            specified.
-        dtFraction : float, optional
-            Set the timestep to a constant fraction the period of shortest-period linear 
-            secular eigenmode.
-        max_order : int, optional
-            The maximum order of disturbing function terms to include in the integration. 
-            By default, the equations of motion include terms up to 4th order.
-        NsubB : int, optional
-            The 'B' step in the splitting scheme is divided in NsubB sub-steps which each integrate for a time dt/NsubB.  By default, NsubB = 1.
-        resonances_to_include : dict, optional
-            A dictionary containing information that sets the list of MMRs for which the 
-            secular contribution will be accounted for (at second order on planet masses).
-            Dictionary key and value pairs are specified in the form
-                  
-                  .. code::
-
-                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-                 
-            include the resonances :math:`j_i` : :math`j_i-k_i` with :math:`i=0,...,N` between planets
-            iIn and iOut. Note that harmonics should *NOT* be explicitly included. I.e.,
-            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-            *NOT* also appear; these terms' contributions will be added automatically when 
-            the (2,1) term is added.
-            By default, no MMRs are included.
-
-        DFOp_kwargs : dict, optional
-            Keyword arguments to use when initialzing the operator used to evolve the non-linear terms. 
-            Keywords include:
-                - :code:`rtol`: Sets relative tolerance for root-finding 
-                in the implicit Runge-Kutta step. Default is machine precision.
-
-                - :code:`atol`: Sets the absolute tolerance for root-finding
-                in the implicit Runge-Kutta step. Default is 0 so that tolerance
-                is only specified by :code:`rtol`.
-
-                - :code:`max_iter`: Maximum number of iterations for root-finding. 
-                Default is 10.
-
-                - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                    - 'ImplicitMidpoint'
-                    - 'LobattoIIIB'
-                    - 'GL4'
-                    - 'GL6'
-                'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
-                'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
-
-                - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                    - 'Newton'
-                    - 'fixed_point'
-                'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
-                Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
-        
-        Returns
-        -------
-        sim : :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
-
-        """
-        pvars = Poincare.from_Simulation(sim)
-        return cls(
-                pvars,
-                max_order = max_order,
-                NsubB=NsubB,
-                dt = dt,
-                dtFraction = dtFraction,
-                resonances_to_include=resonances_to_include,
-                DFOp_kwargs = DFOp_kwargs
-        )
-
-    @property
-    def state_vector(self):
-        state_vec = []
-        for p in self.state.particles[1:]:
-            state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
-        return np.array(state_vec)
-    @property
-    def NsubB(self):
-        return self._NsubB
-    @NsubB.setter
-    def NsubB(self,N):
-        self._NsubB = N
-        self._dtB = self._dtA / N
-        self.nonlinearSecOp.dt = self._dtB
-    @property
-    def dt(self):
-        return self._dtA
-    @dt.setter
-    def dt(self,value):
-        self._dtA = value
-        self._dtB = self._dtA / self._NsubB
-        self.linearSecOp.dt = self._dtA
-        self.nonlinearSecOp.dt = self._dtB
-        self._half_step_forward_e_matrix = expm(-1j * 0.5 * value * self.linearSecOp.ecc_matrix)
-        self._half_step_backward_e_matrix = expm(+1j * 0.5 * value * self.linearSecOp.ecc_matrix)
-        self._half_step_forward_inc_matrix = expm(-1j * 0.5 * value * self.linearSecOp.inc_matrix)
-        self._half_step_backward_inc_matrix = expm(+1j * 0.5 * value *  self.linearSecOp.inc_matrix)
-
-    def _linearOp_half_step_forward(self,state_vec):
-        """
-        Advance state vector a half timestep forward with the 
-        linear secular evolution operator.
-        """
-        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
-        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
-        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
-        xnew = self._half_step_forward_e_matrix @ x
-        ynew = self._half_step_forward_inc_matrix @ y
-        vecs[:,0] = _rt2 * np.real(xnew)
-        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
-        vecs[:,4] = _rt2 * np.real(ynew)
-        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
-        return vecs.reshape(-1)
-        
-    def _linearOp_half_step_backward(self,state_vec):
-        """
-        Advance state vector a half timestep backward with the 
-        linear secular evolution operator.
-        """
-        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
-        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
-        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
-        xnew = self._half_step_backward_e_matrix @ x
-        ynew = self._half_step_backward_inc_matrix @ y
-        vecs[:,0] = _rt2 * np.real(xnew)
-        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
-        vecs[:,4] = _rt2 * np.real(ynew)
-        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
-        return vecs.reshape(-1)
-    
-    def update_state_from_vector(self,state_vec):
-        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
-        for vals,p in zip(vecs,self.state.particles[1:]):
-            p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho = vals
-
-    def integrate(self,time,exact_finish_time = False, corrector=False):
-        """
-        Advance simulation by integrating to specified time.
-
-        Arguments
-        ---------
-        time : float
-            Time to integrate to
-        exact_finish_time : bool, optional
-            **NOT CURRENTLY IMPLEMENTED**
-            If :code:`True`, system will be advanced to user-specified time exactly.
-            This is done by applying symplectic correctors to reach times
-            in between fixed multiples of the integrator's time step.
-            If :code:`False`, system will advance by a fixed number of time steps
-            to the first time after the user-specified `time` argument.
-            Default is :code:`False`.
-        corrector: bool, optional
-            If :code:`True`, symplectic correctors are applied at the beginning
-            and end of integration. Default is :code:`False`.
-
-        Returns
-        -------
-        None
-        """
-        assert time >= self.t, "Backward integration is currently not implemented."
-        Nstep = int( np.ceil( (time-self.t) / self.dt) )
-        state_vec = self.state_vector
-        if corrector is True:
-            state_vec = self.corrector3(state_vec, self.dt)
-        state_vec = self._linearOp_half_step_forward(state_vec)
-        for _ in xrange(Nstep):
-
-            # B step
-            state_vec = self._Bstep(state_vec)
-            
-            # A step
-            state_vec = self.linearSecOp.apply_to_state_vector(state_vec)
-
-        if exact_finish_time:
-           warnings.warn("Exact finish time is not currently implemented.")
-        state_vec = self._linearOp_half_step_backward(state_vec)
-        if corrector is True:
-            state_vec = self.corrector3inv(state_vec, self.dt)
-        self.update_state_from_vector(state_vec)
-        self.t += Nstep * self.dt
-
-    def _Bstep(self,state_vec):
-        nlOp = self.nonlinearSecOp
-        qp = nlOp.state_vec_to_qp_vec(state_vec)
-        for _ in xrange(self.NsubB):
-            qp = nlOp.rk_step(qp)
-        for i in xrange(nlOp.Npl):
-            # eta
-            state_vec[6*i+1] = qp[i]
-            # kappa
-            state_vec[6*i] = qp[i + 2 * nlOp.Npl]
-            # rho
-            state_vec[6*i+5] = qp[i + nlOp.Npl]
-            # sigma
-            state_vec[6*i+4] = qp[i + 3 * nlOp.Npl]
-
-        return state_vec
-    def calculate_energy(self):
-        """
-        Calculate the value of the system's Hamiltonian (i.e., the energy)
-
-        Returns:
-            energy : float
-        """
-        sv = self.state_vector
-        E = self.linearSecOp.calculate_Hamiltonian(sv)
-        E += self.nonlinearSecOp.calculate_Hamiltonian(sv)
-        return E
-
-    def calculate_AMD(self):
-        """
-        Calculate the value of the system's angular momentum deficit.
-        """
-        return np.sum([p.Q + p.Gamma for p in self.state.particles[1:]])
-
-    def X(self, state_vec, a, b, h):
-        state_vec = self._apply_A_step_for_dt(state_vec,-a*h)
-        state_vec = self._apply_B_step_for_dt(state_vec,b*h)
-        state_vec = self._apply_A_step_for_dt(state_vec,a*h)
-        return state_vec
-
-    def Z(self, state_vec, a, b, h):
-        state_vec = self.X(state_vec, -a, -b, h)
-        state_vec = self.X(state_vec, a, b, h)
-        return state_vec
-
-    def corrector3(self, state_vec, h):
-        alpha = (7./40.)**0.5
-        beta = 1/48./alpha
-        a1 = -alpha
-        a2 = alpha
-        b2 = beta/2.
-        b1 = -beta/2.
-        
-        state_vec = self.Z(state_vec, a2, b2, h)
-        state_vec = self.Z(state_vec, a1, b1, h)
-        return state_vec
-
-    def corrector3inv(self, state_vec, h):
-        alpha = (7./40.)**0.5
-        beta = 1/48./alpha
-        a1 = -alpha
-        a2 = alpha
-        b2 = beta/2.
-        b1 = -beta/2.
-        
-        state_vec = self.Z(state_vec, a1, -b1, h)
-        state_vec = self.Z(state_vec, a2, -b2, h)
-        return state_vec
-
-    def _apply_A_step_for_dt(self,state_vec,dt):
-        """
-        Apply the linear secular evolution operator for a time
-        'dt' to a state vector.
-
-        Argruments:
-        
-            state_vec : ndarray
-              State vector of planetary system.
-            dt : float
-              Timestep to apply operator for.
-
-        Returns:
-            state_vec : ndarray
-              Updated state vector after application of operator.
-        """
-        opMtrx_ecc = expm(-1j *  dt * self.linearSecOp.ecc_matrix)
-        opMtrx_inc = expm(-1j *  dt * self.linearSecOp.inc_matrix)
-
-        vecs = self.linearSecOp._state_vector_to_individual_vectors(state_vec)
-        x = (vecs[:,0] - 1j * vecs[:,1]) * _rt2_inv
-        y = (vecs[:,4] - 1j * vecs[:,5]) * _rt2_inv
-        xnew = opMtrx_ecc @ x
-        ynew = opMtrx_inc @ y
-        vecs[:,0] = _rt2 * np.real(xnew)
-        vecs[:,1] = -1 * _rt2 * np.imag(xnew)
-        vecs[:,4] = _rt2 * np.real(ynew)
-        vecs[:,5] = -1 * _rt2 * np.imag(ynew)
-        return vecs.reshape(-1)
-
-    def _apply_B_step_for_dt(self,state_vec,dt):
-        """
-        Apply the secular evolution operator for the non-linear (4th and higher order)
-        secular terms for a time 'dt' to a state vector.
-
-        Argruments
-        ----------
-        state_vec : ndarray
-          State vector of planetary system.
-        dt : float
-          Timestep to apply operator for.
-
-        Returns
-        -------
-        state_vec : ndarray
-          Updated state vector after application of operator.
-        """
-
-        # change time-step
-        self.nonlinearSecOp.dt = dt/self._NsubB
-
-        # apply
-        for _ in xrange(self.NsubB):
-            state_vec = self.nonlinearSecOp.apply_to_state_vector(state_vec)
-        
-        # set time-step back to default
-        self.nonlinearSecOp.dt = self._dtB
-        
-        # return result
-        return state_vec
-
-class SecularSystemRKIntegrator():
     """
     A class for integrating the secular equations of motion governing a planetary system.
-    The integrations are carried out using a user-specified Runge-Kutta method.    
 
     Arguments
     ---------
     state : :class:`celmech.poincare.Poincare`
         The initial dynamical state of the system.
+
     dt : float, optional
         The timestep to use for the integration. Either dt or dtFraction must be
         specified.
+
     dtFraction : float, optional
-        Set the timestep to a constant fraction the period of shortest-period linear 
+        Set the timestep to a constant fraction the period of shortest-period linear
         secular eigenmode.
+
     max_order : int, optional
-        The maximum order of disturbing function terms to include in the integration. 
+        The maximum order of disturbing function terms to include in the integration.
         By default, the equations of motion include terms up to 4th order.
+
+    method : str
+        Integration method to use. Options include:
+            - 'RK' - Direct integration of equations of motion using an Runge-Kutta integration method.
+            - 'splitting' - Applies splitting to the flow generated by the system's Hamiltonian.
+
     resonances_to_include : dict, optional
-        A dictionary containing information that sets the list of MMRs for which the 
+        A dictionary containing information that sets the list of MMRs for which the
         secular contribution will be accounted for (at second order on planet masses).
         Dictionary key and value pairs are specified in the form
-              
+
               .. code::
-    
+
                 {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
-             
+
         include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
         iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
         if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
-        **NOT** also appear; these terms' contributions will be added automatically when 
+        **NOT** also appear; these terms' contributions will be added automatically when
         the (2,1) term is added.
         By default, no MMRs are included.
-    
-    DFOp_kwargs : dict, optional
-        Keyword arguments specifying options for the Runge-Kutta integrator.
-        Arguments include:
-            - :code:`rtol`: Sets relative tolerance for root-finding 
-            in the implicit Runge-Kutta step. Default is machine precision.
-    
-            - :code:`atol`: Sets the absolute tolerance for root-finding
-            in the implicit Runge-Kutta step. Default is 0 so that tolerance
-            is only specified by :code:`rtol`.
-    
-            - :code:`max_iter`: Maximum number of iterations for root-finding. Default is 10.
-    
-            - :code:`rkmethod`: Runge-Kutta method to use. Available options include:
-                - 'ImplicitMidpoint'
-                - 'LobattoIIIB'
-                - 'GL4'
-                - 'GL6'
+
+    rk_kwargs : dict, optional
+        Keyword arguments that determine details of the Runge-Kutta scheme used to integrate
+        equations of motion. Keywoards include:
+             - :code:`rtol`: float
+                Relative tolerance of root-finding step in the implicit Runge-Kutta scheme.
+                Default is set to machine precision.
+
+            - :code:`atol`: float
+                Absolute tolerance of the root-finding step in the implicit Runge-Kutta scheme.
+                Default is 0 so that tolerance is set solely by :code:`rtol` argument.
+
+            - :code:`rk_method`: str
+                Runge-Kutta method to use.  Available options include:
+                    - 'ImplicitMidpoint'
+                    - 'LobattoIIIB'
+                    - 'GL4'
+                    - 'GL6'
+                    - 'ExplicitMidpoint'
+                    - 'RK4'
                 'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
                 'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
-    
-            - :code:`rk_root_method`: Method to use for root-finding during implicit RK step. Available options are:
-                - 'Newton'
-                - 'fixed_point'
-                'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method. 
+                'ExplicitMidpoint' and 'RK4' are explicit methods that are neither symplectic nor time-reversible.
+
+            -:code:`rk_root_method` : str
+                Method to use for root-finding during implicit RK step. Available options are:
+                        - 'Newton'
+                        - 'qausi-Newton'
+                        - 'fixed_point'
+                        - 'explicit'
+                'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method.
                 Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
     """
-    def __init__(self, state, dt = None, dtFraction = None, max_order = 4,NsubB=1, resonances_to_include={}, DFOp_kwargs = {}):
-        assert max_order > 1, "'max_order' must be greater than or equal to 2."
-        if not single_true([dt,dtFraction]):
-            raise AttributeError("Can only pass one of dt or dtFraction")
-        llsys = LaplaceLagrangeSystem.from_Poincare(state)
-        first_order_resonances_to_include = {}
-        for pair,res_list in resonances_to_include.items():
-            first_order_js = [ j for j,k in res_list if k==1]
-            first_order_resonances_to_include.update({pair:first_order_js})
-            for j in first_order_js:
-                llsys.add_first_order_resonance_term(*pair,j)
-        Tsec_e = np.min(np.abs(2 * np.pi / llsys.eccentricity_eigenvalues()))
-        Tsec_inc = np.min(np.abs(2 * np.pi / llsys.inclination_eigenvalues()[1:]))
-        self.Tsec = min(Tsec_e,Tsec_inc)
+
+    def __init__(self,
+                 state,
+                 dt=None,dtFraction=None,
+                 max_order=4,integrator='RK',
+                 resonances_to_include={},
+                 rk_kwargs = {}
+               ):
+
+        self.state = state
+        self._hamiltonian_coefficients_dictionary = dict()
+        Npl = self.N-1
+
+        self.resonances_to_include = resonances_to_include
+        self._hamiltonian_coefficients_dictionary = {(i+1,j+1):{} for i in range(Npl) for j in range(i+1,Npl)}
+        self._max_order = 0
+        self._update_matrcies_and_coefficient_dictionary(max_order)
+
+        ecc_eigenvalues = np.linalg.eigvals(self.Se)
+        inc_eigenvalues = np.linalg.eigvals(self.SI)
+        self.Tsec_e = np.abs(2 * np.pi / ecc_eigenvalues)
+        self.Tsec_inc = np.abs(2 * np.pi / inc_eigenvalues)
+        self.Tsec = min(np.min(self.Tsec_e),np.min(self.Tsec_inc))
+        self.t = 0
 
         if dt:
             self._dt = dt
@@ -968,40 +826,138 @@ class SecularSystemRKIntegrator():
             self._dt = dtFraction * self.Tsec
         else:
             raise AttributeError("Must specify either 'dt' or 'dtFraction'")
-        self.nonlinearSecOp = DFOp.fromOrderRange(
-                state,
-                self._dt,
-                2,max_order,
-                resonances_to_include=resonances_to_include,
-                **DFOp_kwargs
+
+        self.secular_rk_integrator = SecularRKIntegrator(
+            self.N,
+            self.Hamiltonian_coefficients_dictionary,
+            self.Lambda0s,
+            self.dt,
+            **rk_kwargs
         )
-        self.state = state
-        self.t = 0
+
+        self.secular_splitting_integrator = SecularSplittingIntegrator(
+            self.N,
+            self.Hamiltonian_coefficients_dictionary,
+            self.Lambda0s,
+            self.dt,
+            **rk_kwargs
+        )
+
+        self.integrator = integrator
+
+    @property
+    def integrator(self):
+        return self._integrator_name
+
+    @integrator.setter
+    def integrator(self,integrator):
+        if integrator is 'RK':
+            self._integrator_name = 'RK'
+            self._integrator = self.secular_rk_integrator
+        elif integrator is 'splitting':
+            self._integrator_name = 'splitting'
+            self._integrator = self.secular_splitting_integrator
+        else:
+            raise ValueError("{} is not a valid integrator option.".format(integrator))
+
+    @property
+    def dt(self):
+        return self._dt
+
+    @dt.setter
+    def dt(self,h):
+        self._dt = h
+        self.secular_rk_integrator.dt = h
+        self.secular_splitting_integrator.dt = h
 
     @classmethod
-    def from_Simulation(cls,sim, dt = None, dtFraction = None, max_order = 4,NsubB=1,resonances_to_include={}, DFOp_kwargs = {}):
-        pvars = Poincare.from_Simulation(sim)
-        return cls(
-                pvars,
-                max_order = max_order,
-                dt = dt,
-                dtFraction = dtFraction,
-                resonances_to_include=resonances_to_include,
-                DFOp_kwargs = DFOp_kwargs
-        )
+    def from_Simulation(cls,sim,
+                        dt=None,dtFraction=None,
+                        max_order=4,method='RK',
+                        resonances_to_include={},
+                        rtol=_machine_eps, atol=0,max_iter=10,
+                        rk_method='ImplicitMidpoint',rk_root_method='Newton'
+                       ):
+        """
+        Initialize a :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` object
+        from a rebound simulation.
+
+        Arguments
+        ---------
+        sim : :class:`rebound.Simulation`
+            REBOUND simulation to convert to :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
+
+        dt : float, optional
+            The timestep to use for the integration. Either dt or dtFraction must be
+            specified.
+
+        dtFraction : float, optional
+            Set the timestep to a constant fraction the period of shortest-period linear
+            secular eigenmode.
+
+        max_order : int, optional
+            The maximum order of disturbing function terms to include in the integration.
+            By default, the equations of motion include terms up to 4th order.
+
+        method : str
+            Integration method to use. Options include:
+                - 'RK' - Direct integration of equations of motion using an Runge-Kutta integration method.
+                - 'splitting' - Applies splitting to the flow generated by the system's Hamiltonian.
+
+        resonances_to_include : dict, optional
+            A dictionary containing information that sets the list of MMRs for which the
+            secular contribution will be accounted for (at second order on planet masses).
+            Dictionary key and value pairs are specified in the form
+
+                  .. code::
+
+                    {(iIn,iOut) : [(j_0,k_0),...(j_N,k_N)]}
+
+            include the resonances :math:`j_i` : :math:`j_i-k_i` with :math:`i=0,...,N` between planets
+            iIn and iOut. Note that harmonics should **NOT** be explicitly included. I.e.,
+            if (2,1) appears in the list [(j_0,k_0),...(j_N,k_N)] then the term (4,2) should
+            **NOT** also appear; these terms' contributions will be added automatically when
+            the (2,1) term is added.
+            By default, no MMRs are included.
+
+        rk_kwargs : dict, optional
+            Keyword arguments that determine details of the Runge-Kutta scheme used to integrate
+            equations of motion. Keywoards include:
+                 - :code:`rtol`: float
+                    Relative tolerance of root-finding step in the implicit Runge-Kutta scheme.
+                    Default is set to machine precision.
+
+                - :code:`atol`: float
+                    Absolute tolerance of the root-finding step in the implicit Runge-Kutta scheme.
+                    Default is 0 so that tolerance is set solely by :code:`rtol` argument.
+
+                - :code:`rk_method`: str
+                    Runge-Kutta method to use.  Available options include:
+                        - 'ImplicitMidpoint'
+                        - 'LobattoIIIB'
+                        - 'GL4'
+                        - 'GL6'
+                    'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
+                    'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
+
+                -:code:`rk_root_method` : str
+                    Method to use for root-finding during implicit RK step. Available options are:
+                            - 'Newton'
+                            - 'qausi-Newton'
+                            - 'fixed_point'
+                            - 'explicit'
+                    'Newton' (default) uses Newton's method whereas 'fixed_point' uses a fixed point iteration method.
+                    Newton's method requires computing the Jacobian of the equations of motion but has quadratic convergence.
+    """
+
+
+        pvars = POincare.from_Simulation(sim)
+        return cls(pvars,max_order,dt,dtFraction,max_order,method,resonances_to_include,rtol,atol,max_iter,rk_method,rk_root_method)
 
     @property
-    def atol(self):
-        return self.nonlinearSecOp.atol
-    @atol.setter
-    def atol(self,value):
-        self.nonlinearSecOp.atol = value
-    @property
-    def rtol(self):
-        return self.nonlinearSecOp.rtol
-    @rtol.setter
-    def rtol(self,value):
-        self.nonlinearSecOp.rtol = value
+    def Lambda0s(self):
+        """Values of particle's :math:`\Lambda` canonical momenta"""
+        return np.array([p.Lambda for p in self.state.particles])
 
     @property
     def state_vector(self):
@@ -1009,64 +965,161 @@ class SecularSystemRKIntegrator():
         for p in self.state.particles[1:]:
             state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
         return np.array(state_vec)
+
     @property
-    def dt(self):
-        return self._dt
-    @dt.setter
-    def dt(self,value):
-        self._dt = value
-        self.nonlinearSecOp.dt = self._dt
+    def max_order(self):
+        """Maximum order of disturbing function expansion in :math:`e` and :math:`I`"""
+        return self._max_order
+
+    @max_order.setter
+    def max_order(self,new_max_order):
+        self._update_matrcies_and_coefficient_dictionaries(new_max_order)
+        self._set_up_derivative_systems()
+        self.EccentricityLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.Se)
+        self.InclinationLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.SI)
+
+    @property
+    def N(self):
+        """Number of particles (including central body)"""
+        return self.state.N
+
+    @property
+    def Npl(self):
+        return self.N - 1
+
+    @property
+    def G(self):
+        """Value of the gravitational constant"""
+        return self.state.G
+
+    @property
+    def Hamiltonian_coefficients_dictionary(self):
+        """
+        A dictionary containing the coefficients appearing in the Hamiltonian.
+        Dictionary is organized by pair-wise interaction terms.
+        """
+        return self._hamiltonian_coefficients_dictionary
+
 
     def update_state_from_vector(self,state_vec):
         vecs =  np.reshape(state_vec,(-1,6))
         for vals,p in zip(vecs,self.state.particles[1:]):
             p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho = vals
 
-    def integrate(self,time,exact_finish_time = False):
-        """
-        Advance simulation by integrating to specified time.
 
-        Arguments
-        ---------
-        time : float
-            Time to integrate to
-        exact_finish_time : bool, optional
-            **NOT CURRENTLY IMPLEMENTED**
-            If :code:`True`, system will be advanced to user-specified time exactly.
-            If :code:`False`, system will advance by a fixed number of time steps
-            to the first time after the user-specified `time` argument.
-            Default is :code:`False`.
+    def _update_matrcies_and_coefficient_dictionary(self,new_max_order):
+
+        ps=self.state.particles
+        G = self.G
+        Npl = self.Npl
+        old_max_order = self._max_order
+        self.Se = np.zeros((Npl,Npl))
+        self.SI = np.zeros((Npl,Npl))
+
+        for i in range(1,self.N):
+            I = i-1
+            for j in range(i+1,self.N):
+                J = j-1
+
+                pIn = ps[i]
+                pOut = ps[j]
+                extra_args = G,pIn.m,pOut.m,pIn.M,pOut.M,pIn.Lambda,pOut.Lambda
+                res_jk_list = self.resonances_to_include.get((i,j),[])
+                hamiltonian_coeff_dict = self._hamiltonian_coefficients_dictionary[(i,j)]
+
+                if new_max_order > self.max_order:
+
+                    coeff_dict = _get_pair_SecularHamiltonian_coefficients(
+                        old_max_order+2,
+                        new_max_order,
+                        *extra_args,
+                        res_jk_list
+                    )
+
+                    hamiltonian_coeff_dict.update(coeff_dict)
+
+                elif new_max_order < self.max_order:
+                    for k,z in hamiltonian_coeff_dict:
+                        order= np.sum(np.abs(k)) + 2 * np.sum(z)
+                        if order > new_max_order:
+                            hamiltonian_coeff_dict.pop((k,z))
+
+                # Get second-order eccentricity terms and add them to Laplace-Lagrange matrix
+                self.Se[I,I] += hamiltonian_coeff_dict.get(((0,0,0,0,0,0),(0,0,1,0)),0)
+                self.Se[J,J] += hamiltonian_coeff_dict.get(((0,0,0,0,0,0),(0,0,0,1)),0)
+                term = hamiltonian_coeff_dict.get(((0,0,1,-1,0,0),(0,0,0,0)),0)
+                self.Se[I,J] += 0.5 * term
+                self.Se[J,I] += 0.5 * term
+
+                # Get second-order inclination terms and add them to Laplace-Lagrange matrix
+                self.SI[I,I] += hamiltonian_coeff_dict.get(((0,0,0,0,0,0),(1,0,0,0)),0)
+                self.SI[J,J] += hamiltonian_coeff_dict.get(((0,0,0,0,0,0),(0,1,0,0)),0)
+                term = hamiltonian_coeff_dict.get(((0,0,0,0,1,-1),(0,0,0,0)),0)
+                self.SI[I,J] += 0.5 * term
+                self.SI[J,I] += 0.5 * term
+
+        Lambda0s = self.Lambda0s[1:]
+        rtLambda0s_inv = 1/np.sqrt(Lambda0s)
+        self.Se = 2 * np.diag(rtLambda0s_inv) @ self.Se @ np.diag(rtLambda0s_inv)
+        self.SI = 0.5 * np.diag(rtLambda0s_inv) @ self.SI @ np.diag(rtLambda0s_inv)
+
+    def state_to_qp_vec(self):
+        r"""
+        Convert full state vector to vector of variables
+        that enter in the secular equations.
 
         Returns
         -------
-        None
+        qp_vec : ndarray
+         Vector containing eccentricity and inclination
+         variables :math:`\eta,\rho,\kappa,\sigma`. The variables
+         are returned in the order:
+
+         math::
+
+          (\eta_1,\eta_2,...,\eta_N,\rho_1,...,\rho_N,\kappa_1,...,\kappa_N,\sigma_1,...,\sigma_N)
         """
+
+        vecs = np.reshape(self.state_vector,(-1,6))
+        kappa = vecs[:,0]
+        eta = vecs[:,1]
+        sigma = vecs[:,4]
+        rho = vecs[:,5]
+        return np.concatenate((eta,rho,kappa,sigma))
+
+
+    def integrate(self,time,exact_finish_time=False):
         assert time >= self.t, "Backward integration is currently not implemented."
         Nstep = int( np.ceil( (time-self.t) / self.dt) )
+        Npl=self.Npl
         state_vec = self.state_vector
-        nlOp = self.nonlinearSecOp
-        qp = nlOp.state_vec_to_qp_vec(state_vec)
+        qp = self.state_to_qp_vec()
+
+        qp = self._integrator.init_step(qp)
         for _ in xrange(Nstep):
-            qp = nlOp.rk_step(qp)
+            qp = self._integrator.step(qp)
+        qp = self._integrator.final_step(qp)
 
         if exact_finish_time:
-           warnings.warn("Exact finish time is not currently implemented.")
-        for i in xrange(nlOp.Npl):
+            warnings.warn("Exact finish time is not currently implemented.")
+
+        for i in xrange(Npl):
             # eta
             state_vec[6*i+1] = qp[i]
             # kappa
-            state_vec[6*i] = qp[i + 2 * nlOp.Npl]
+            state_vec[6*i] = qp[i + 2 * Npl]
             # rho
-            state_vec[6*i+5] = qp[i + nlOp.Npl]
+            state_vec[6*i+5] = qp[i + Npl]
             # sigma
-            state_vec[6*i+4] = qp[i + 3 * nlOp.Npl]
-
+            state_vec[6*i+4] = qp[i + 3 * Npl]
         self.update_state_from_vector(state_vec)
         self.t += Nstep * self.dt
+
     def calculate_energy(self):
-        sv = self.state_vector
-        E = self.nonlinearSecOp.calculate_Hamiltonian(sv)
-        return E
+        qp = self.state_to_qp_vec()
+        return self._integrator.calculate_energy(qp)
+
     def calculate_AMD(self):
-        return np.sum([p.Q + p.Gamma for p in self.state.particles[1:]])
+        return sum([p.Q + p.Gamma for p in self.state.particles[1:]])
+
 
