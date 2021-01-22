@@ -24,7 +24,6 @@ SeriesTerm* add_term(SeriesTerm* term,int k[6], int z[4]){
 	return new_term->next;
 }
 
-
 double complex** get_complex_variables_arr(const int nrow, const int ncol){
 	double complex* values = calloc(nrow * ncol, sizeof(double complex));
 	double complex** rows = malloc( nrow * sizeof(double complex*));
@@ -170,6 +169,7 @@ void evaluate_series
 	*re = creal(sum);
 	*im = cimag(sum);
 }
+
 void evaluate_series_and_derivs
 (double complex exp_Il[2],double complex xy[4], SeriesTerm* first_term,const int kmax, const int Nmax,
  double* re, double* im, double re_deriv_xy[4], double im_deriv_xy[4] ,double re_deriv_xybar[4], double im_deriv_xybar[4]){

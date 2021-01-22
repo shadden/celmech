@@ -873,10 +873,9 @@ class SecularSystemSimulation():
     @classmethod
     def from_Simulation(cls,sim,
                         dt=None,dtFraction=None,
-                        max_order=4,method='RK',
+                        max_order=4,integrator='RK',
                         resonances_to_include={},
-                        rtol=_machine_eps, atol=0,max_iter=10,
-                        rk_method='ImplicitMidpoint',rk_root_method='Newton'
+                        rk_kwargs = {}
                        ):
         """
         Initialize a :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` object
@@ -951,8 +950,8 @@ class SecularSystemSimulation():
     """
 
 
-        pvars = POincare.from_Simulation(sim)
-        return cls(pvars,max_order,dt,dtFraction,max_order,method,resonances_to_include,rtol,atol,max_iter,rk_method,rk_root_method)
+        pvars = Poincare.from_Simulation(sim)
+        return cls(pvars,dt,dtFraction,max_order,integrator,resonances_to_include,rk_kwargs)
 
     @property
     def Lambda0s(self):
