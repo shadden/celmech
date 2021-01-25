@@ -260,7 +260,8 @@ class Andoyer(object):
 
     @property
     def wlib(self):
-        return 2*(2*self.B)**(self.params['k']/4.)/self.params['tau']
+        Phistar = self.Z_to_Phi(self.Zstar)
+        return np.sqrt(8)*(2*Phistar)**(self.params['k']/4.)/self.params['tau']
     
     @property
     def tlib(self):
