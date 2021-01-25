@@ -205,7 +205,7 @@ class RKIntegrator():
         return ynew
     
     def _rk4_step(self,y,ydot,h):
-        f = self.deriv_from_qp_vec
+        f = self.f
         h_by_2 = 0.5 * h
         k1 = ydot
         y2 = y + h_by_2 * k1
@@ -222,7 +222,7 @@ class RKIntegrator():
         a = self.rk_a
         b = self.rk_b
         s = self.rk_s
-        f = self.deriv_from_qp_vec
+        f = self.f
         y = qp_vec
         k = np.zeros((s,self.Ndim))
         for i,ai in enumerate(a):
@@ -244,7 +244,7 @@ class RKIntegrator():
         a = self.rk_a
         b = self.rk_b
         c = self.rk_c
-        f = self.deriv_from_qp_vec
+        f = self.f
         y = qp_vec
         ktemp = f(qp_vec)
         max_iter = self.max_iter
@@ -285,8 +285,8 @@ class RKIntegrator():
         c = self.rk_c
         s = self.rk_s
         Ndim = self.Ndim
-        f = self.deriv_from_qp_vec
-        f_and_Df = self.deriv_and_jacobian_from_qp_vec
+        f = self.f
+        f_and_Df = self.f_and_Df
         y = qp_vec
         Imtrx = np.eye(s * Ndim)
         max_iter = self.max_iter

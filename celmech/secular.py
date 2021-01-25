@@ -424,7 +424,8 @@ class _SecularDerivativesSystem():
             i,j=key
             Lambda0In = self.Lambda0[i-1]
             Lambda0Out = self.Lambda0[j-1]
-            self.DFSeries_dict[key] = DFTermSeries(term_coeff_dict,Lambda0In,Lambda0Out)
+            if len(term_coeff_dict) > 0:
+                self.DFSeries_dict[key] = DFTermSeries(term_coeff_dict,Lambda0In,Lambda0Out)
 
     def Hamiltonian_from_qp_vec(self,qp_vec):
         """
@@ -654,7 +655,7 @@ class SecularSplittingIntegrator(RKIntegrator):
         
     def init_step(self,qpvec):
         if self.corrector:
-                qpvec = self.corrector3(qpvec)
+                qpvec = self.corrector3(qpvec,self.dt)
         return self.A_half_step_forward_matrix @ qpvec
     
     def step(self,qpvec):
@@ -664,7 +665,7 @@ class SecularSplittingIntegrator(RKIntegrator):
     def final_step(self,qpvec):
         qpvec = self.A_half_step_backward_matrix @ qpvec
         if self.corrector:
-            qpvec = self.corrector3inv(qpvec)
+            qpvec = self.corrector3inv(qpvec,self.dt)
         return qpvec
     
     def _apply_A_step_for_dt(self,qpvec,h):
@@ -766,7 +767,7 @@ class SecularSystemSimulation():
     rk_kwargs : dict, optional
         Keyword arguments that determine details of the Runge-Kutta scheme used to integrate
         equations of motion. Keywoards include:
-             - :code:`rtol`: float
+            - :code:`rtol`: float
                 Relative tolerance of root-finding step in the implicit Runge-Kutta scheme.
                 Default is set to machine precision.
 
@@ -786,7 +787,7 @@ class SecularSystemSimulation():
                 'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
                 'ExplicitMidpoint' and 'RK4' are explicit methods that are neither symplectic nor time-reversible.
 
-            -:code:`rk_root_method` : str
+            - :code:`rk_root_method` : str
                 Method to use for root-finding during implicit RK step. Available options are:
                         - 'Newton'
                         - 'qausi-Newton'
@@ -799,7 +800,7 @@ class SecularSystemSimulation():
     def __init__(self,
                  state,
                  dt=None,dtFraction=None,
-                 max_order=4,integrator='RK',
+                 max_order=4,method='RK',
                  resonances_to_include={},
                  rk_kwargs = {}
                ):
@@ -843,25 +844,33 @@ class SecularSystemSimulation():
             **rk_kwargs
         )
 
-        self.integrator = integrator
+        self.method = method
 
     @property
-    def integrator(self):
-        return self._integrator_name
+    def method(self):
+        """
+        Integration method to use. 
+        
+        Valid options are
+         - RK
+         - splitting
+        """
+        return self._method_name
 
-    @integrator.setter
-    def integrator(self,integrator):
-        if integrator is 'RK':
-            self._integrator_name = 'RK'
+    @method.setter
+    def method(self,method):
+        if method is 'RK':
+            self._method_name = 'RK'
             self._integrator = self.secular_rk_integrator
-        elif integrator is 'splitting':
-            self._integrator_name = 'splitting'
+        elif method is 'splitting':
+            self._method_name = 'splitting'
             self._integrator = self.secular_splitting_integrator
         else:
-            raise ValueError("{} is not a valid integrator option.".format(integrator))
+            raise ValueError("{} is not a valid method option.".format(method))
 
     @property
     def dt(self):
+        """Simulation time step"""
         return self._dt
 
     @dt.setter
@@ -870,10 +879,57 @@ class SecularSystemSimulation():
         self.secular_rk_integrator.dt = h
         self.secular_splitting_integrator.dt = h
 
+    @property
+    def Lambda0s(self):
+        """Values of particle's :math:`\Lambda` canonical momenta"""
+        return np.array([p.Lambda for p in self.state.particles])
+
+    @property
+    def state_vector(self):
+        """Current state vector of systems' canonical Poincare variables."""
+        state_vec = []
+        for p in self.state.particles[1:]:
+            state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
+        return np.array(state_vec)
+
+    @property
+    def max_order(self):
+        """Maximum order of disturbing function expansion in :math:`e` and :math:`I`"""
+        return self._max_order
+
+    @max_order.setter
+    def max_order(self,new_max_order):
+        self._update_matrcies_and_coefficient_dictionaries(new_max_order)
+        self._set_up_derivative_systems()
+        self.EccentricityLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.Se)
+        self.InclinationLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.SI)
+
+    @property
+    def N(self):
+        """Number of particles (including central body)"""
+        return self.state.N
+
+    @property
+    def Npl(self):
+        return self.N - 1
+
+    @property
+    def G(self):
+        """Value of the gravitational constant"""
+        return self.state.G
+
+    @property
+    def Hamiltonian_coefficients_dictionary(self):
+        """
+        A dictionary containing the coefficients appearing in the Hamiltonian.
+        Dictionary is organized by pair-wise interaction terms.
+        """
+        return self._hamiltonian_coefficients_dictionary
+
     @classmethod
     def from_Simulation(cls,sim,
                         dt=None,dtFraction=None,
-                        max_order=4,integrator='RK',
+                        max_order=4,method='RK',
                         resonances_to_include={},
                         rk_kwargs = {}
                        ):
@@ -922,7 +978,7 @@ class SecularSystemSimulation():
         rk_kwargs : dict, optional
             Keyword arguments that determine details of the Runge-Kutta scheme used to integrate
             equations of motion. Keywoards include:
-                 - :code:`rtol`: float
+                - :code:`rtol`: float
                     Relative tolerance of root-finding step in the implicit Runge-Kutta scheme.
                     Default is set to machine precision.
 
@@ -939,7 +995,7 @@ class SecularSystemSimulation():
                     'GL4' and 'GL6' are `Gauss-Legendre methods <https://en.wikipedia.org/wiki/Gauss–Legendre_method>`_ of order 4 and 6, respectively.
                     'ImplicitMidpoint', 'GL4', and 'GL6' are symplectic methods while 'LobattoIIIB' is a 4th order time-reversible method (but not symplectic).
 
-                -:code:`rk_root_method` : str
+                - :code:`rk_root_method` : str
                     Method to use for root-finding during implicit RK step. Available options are:
                             - 'Newton'
                             - 'qausi-Newton'
@@ -951,53 +1007,8 @@ class SecularSystemSimulation():
 
 
         pvars = Poincare.from_Simulation(sim)
-        return cls(pvars,dt,dtFraction,max_order,integrator,resonances_to_include,rk_kwargs)
+        return cls(pvars,dt,dtFraction,max_order,method,resonances_to_include,rk_kwargs)
 
-    @property
-    def Lambda0s(self):
-        """Values of particle's :math:`\Lambda` canonical momenta"""
-        return np.array([p.Lambda for p in self.state.particles])
-
-    @property
-    def state_vector(self):
-        state_vec = []
-        for p in self.state.particles[1:]:
-            state_vec += [p.kappa,p.eta,p.Lambda,p.l,p.sigma,p.rho]
-        return np.array(state_vec)
-
-    @property
-    def max_order(self):
-        """Maximum order of disturbing function expansion in :math:`e` and :math:`I`"""
-        return self._max_order
-
-    @max_order.setter
-    def max_order(self,new_max_order):
-        self._update_matrcies_and_coefficient_dictionaries(new_max_order)
-        self._set_up_derivative_systems()
-        self.EccentricityLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.Se)
-        self.InclinationLinearEvolutionOperatorMatrix = expm(0.5 * self.dt * self.SI)
-
-    @property
-    def N(self):
-        """Number of particles (including central body)"""
-        return self.state.N
-
-    @property
-    def Npl(self):
-        return self.N - 1
-
-    @property
-    def G(self):
-        """Value of the gravitational constant"""
-        return self.state.G
-
-    @property
-    def Hamiltonian_coefficients_dictionary(self):
-        """
-        A dictionary containing the coefficients appearing in the Hamiltonian.
-        Dictionary is organized by pair-wise interaction terms.
-        """
-        return self._hamiltonian_coefficients_dictionary
 
 
     def update_state_from_vector(self,state_vec):
@@ -1074,11 +1085,13 @@ class SecularSystemSimulation():
          variables :math:`\eta,\rho,\kappa,\sigma`. The variables
          are returned in the order:
 
-         math::
+         .. math::
 
-          (\eta_1,\eta_2,...,\eta_N,\rho_1,...,\rho_N,\kappa_1,...,\kappa_N,\sigma_1,...,\sigma_N)
+            (\eta_1,\eta_2,...,\eta_N,\rho_1,...,\rho_N,\kappa_1,...,\kappa_N,\sigma_1,...,\sigma_N)
+
         """
-
+        
+    
         vecs = np.reshape(self.state_vector,(-1,6))
         kappa = vecs[:,0]
         eta = vecs[:,1]

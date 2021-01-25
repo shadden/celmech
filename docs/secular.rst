@@ -146,14 +146,11 @@ We'll describe options for addressing both of these issues with ``celmech`` belo
 Nonlinear Secular Evolution
 ---------------------------
 
-The secular equations of motion derived from a disturbing function expansion to degree 4 or higher in eccentricity and inclinationwill, in general, 
-not have analytic solutions [#]_ .
+The secular equations of motion derived from a disturbing function expansion to degree 4 or higher in eccentricity and inclination will, in general, 
+not have analytic solutions [#]_.
 Therefore, the equations of motion need to be integrated numerically.
-``celmech`` provides two special classes designed for integrating secular equations of motion derived from 4th and higher order expansions of the 
-Hamiltonian. 
-The first class, which we'll use in the present example, is the :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` class. 
-
-A :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` can also easily be initialized directly from a REBOUND simulation:
+The ``celmech`` class :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` offers methods for integrating secular equations of motion derived from 4th and higher order expansions of the Hamiltonian. 
+A :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` can easily be initialized directly from a REBOUND simulation:
 
 .. code:: python
 
@@ -162,23 +159,22 @@ A :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` can
         # intialize secular simulation object
         sec_sim = SecularSystemSimulation.from_Simulation(
             sim0,
+            method='RK',
             max_order = 4,
-            dtFraction=1/100.,
-            DFOp_kwargs={'rtol':1e-10}
+            dtFraction=1/10.,
+            rk_kwargs={'rtol':1e-10,'rk_method':'GL6'}
         )
 
 Let's briefly unpack the arguments passed to the :code:`from_Simulation` call above:
         - :code:`sim0` serves as the REBOUND simulation from which we'll intialize our :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
+        - The :code:`method='RK'` keyword argument specifies that we will integrate the equations of motion using a Runge-Kutta integrator.
         - The :code:`max_order=4` keyword argument specifies that we want equations of motion derived from a 4th order expansion of the disturbing function.
-        - the :code:`dtFraction=1/100.` tells ``celmech`` that we want to set our simulation time-step to 1/100 times the secular timescale. This secular timescale
+        - the :code:`dtFraction=1/10.` tells ``celmech`` that we want to set our simulation time-step to 1/10 times the secular timescale. This secular timescale
           is estimated from the Laplace-Lagrange solution for the system (see :code:`llsys.Tsec` above). Note that 
           :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses a fixed-step symplectic integration method.
-        - The :code:`DFOp_kwargs={'rtol':1e-10}` sets the relative tolerance of our integration scheme.  
-          In order to better understand what this means, we need to discuss how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
-          integrates the equations of motion.  
+        - The :code:`rk_kwargs={'rtol':1e-10,'rk_method':'GL6'}` argument sets the Runge-Kutta integration scheme to a 6th order Gauss-Legendre method and sets the relative tolerance of this implicit method to :math:`10^{-10}`. Additional integration options for :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` are desrcibed in the API.
 
-We'll return to the issue of just how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
-integrates the equations of motion below, but lets run our integration and compare results first.
+Lets run an integration with our :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` and compare results to N-body.
 In order to do so, we'll first define a wrapper function...  
 
 .. code:: python
@@ -219,7 +215,7 @@ In order to do so, we'll first define a wrapper function...
 
 .. code:: python
 
-        T = np.linspace(0,sa[-1].t,150)
+        T = np.linspace(0,sa[-1].t,100)
         times_sec, Eerr, AMDerr, ecc_sec, inc_sec,pomega_sec,Omega_sec = run_secular_sim(sec_sim,T)
 
 ... and finally compare with our previous results:
@@ -254,9 +250,8 @@ With higher-order terms in our secular equations of motion, we now have excellen
 
 Integration via splitting method
 ********************************
-Before going on, we should discuss the integration method used by :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>`
-and some of the corresponding options. 
-:class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` relies on a second-order "splitting" method to solve Hamilton's equations. 
+In addition to direct integration of the equations of motion using Runge-Kutta schemes, the :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` class offers an integration method that uses a second-order "splitting" method to solve Hamilton's equations. 
+This method can be selected using the :code:`method='splitting'` keyword argument when initializing a :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` object or by setting an object's :attr:`method <celmech.secular.SecularSystemSimulation.method>` attriubte to :code:`'splitting'`.
 (The 'leapfrog' and `Wisdom-Holman <https://ui.adsabs.harvard.edu/abs/1991AJ....102.1528W/abstract>`_ integration methods are examples of splitting methods that may be familiar.)
 Our method relies on representing the Hamiltonian governing the system as the sum of two pieces:
 
@@ -288,14 +283,8 @@ There is, however, a catch to the splitting method described above:  we don't ha
 Therefore, instead of representing the operator :math:`\hat{H_\mathrm{NL}}(\tau)` exactly,
 :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses an approximate solution for this evolution operator. 
 In particular, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` solves the equations of motion generated by :math:`H_\mathrm{NL}` approximately using Runge-Kutta methods. 
-By default, :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` uses a single implicit midpoint step of size :math:`\tau` as an approximation for :math:`\hat{H_\mathrm{NL}}(\tau)`.
-There are, however, an array of options for exactly how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` approximates :math:`\hat{H_\mathrm{NL}}(\tau)`.
-These options are specified as a dictionary through the keyword argument :code:`DFOp_kwargs`.
-Details of avaliable options are described under the 
+There options for exactly how :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` approximates :math:`\hat{H_\mathrm{NL}}(\tau)` are with the :code:`rk_kwargs` argument in the same way that options for direct integration via a Runge-Kutta method are.
 
-Runge-Kutta Integration 
-***********************
-With the :class:`SecularRKIntegrator <celmech.secular.SecularSystemRKIntegrator>` class, you can forego splitting and simply integrate the equations of motion directly using a user-specified Runge-Kutta method.
 
 .. _secular-corrections:
 
@@ -304,7 +293,7 @@ Corrections to Secular Dynamics Near Resonance
 
 The secular dynamics of a multiplanet system can be significantly modified when one or more pairs of planets in the system lie near a low-order mean motion resonance. 
 These corrections can be derived by applying canonical perturbation theory to second order in planet masses. 
-In particular consider a system with a pair of planets, planets :math:`i` and :math:`j`, near (but not in) a :math:`p:p-q` MMR. 
+Consider a system with a pair of planets, planets :math:`i` and :math:`j`, near (but not in) a :math:`p:p-q` MMR. 
 A normal form Hamiltonian approximating the dynamics of the system is given by 
 
 .. math::
@@ -372,6 +361,9 @@ In particular, the secular terms are given by
     \right)
  }\right) + c.c.
   
+The secular contributions of near-resonant interactions can be added to the equations of motion modeled by :class:`SecularSystemSimulation <celmech.secular.SecularSystemSimulation>` 
+instance by using the   :code:`resonances_to_include` keyword argument at initialization.
+
 API
 ---
 .. autoclass:: celmech.secular.LaplaceLagrangeSystem
@@ -379,11 +371,7 @@ API
 
 .. autoclass:: celmech.secular.SecularSystemSimulation
         :members:
-        :special-members: __init__
 
-.. autoclass:: celmech.secular.SecularSystemRKIntegrator
-        :members:
-        :special-members: __init__
 
 .. [#] Since the initial conditions are randomized, results may vary
 .. [#] Only even orders of eccentricities and inclinations appear in an expansion of the secular disturbing function. Therefore, 4th order terms are the lowest nonlinear terms that appear in the secular equations.
