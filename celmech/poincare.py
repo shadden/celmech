@@ -189,6 +189,14 @@ class PoincareParticle(object):
     def a(self):
         return self.sLambda**2/self.G/self.M
     @property
+    def P(self):
+        G = self.G
+        M = self.M
+        mu = self.mu
+        L  = self.Lambda
+        L3 = L*L*L
+        return G*G*M*M*mu*mu*mu/L3
+    @property
     def e(self):
         GbyL = self.sGamma/self.sLambda
         if 1-(1.-GbyL)*(1.-GbyL) < 0:
