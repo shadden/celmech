@@ -239,7 +239,7 @@ class Poincare(object):
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
 
     @classmethod
-    def from_Simulation(cls, sim, average=True):
+    def from_Simulation(cls, sim):
         masses = [p.m for p in sim.particles]
         Mstar = masses[0]
         pvars = Poincare(sim.G)
@@ -255,11 +255,9 @@ class Poincare(object):
             sGamma = sLambda*(1.-np.sqrt(1.-orb.e**2))
             sQ = sLambda*np.sqrt(1.-orb.e**2) * (1 - np.cos(orb.inc))
             pvars.add(m=m,Mstar=Mstar, sLambda=sLambda, l=orb.l, sGamma=sGamma, sQ = sQ, gamma=-orb.pomega,q=-orb.Omega)
-        if average is True:
-            pvars.average_synodic_terms()
         return pvars
 
-    def to_Simulation(self, masses=None, average=True):
+    def to_Simulation(self, masses=None):
         """ 
         Convert Poincare object to a REBOUND simulation.
 
@@ -279,12 +277,9 @@ class Poincare(object):
         sim : rebound.Simulation
         """ 
 
-        if average is True:
-            self.average_synodic_terms(inverse=True)
-
         if not masses:
             p1 = self.particles[1]
-            masses = [p1.Mstar] + [p.m for p in self.particles]
+            masses = [p1.Mstar] + [p.m for p in self.particles[1:]]
 
         sim = rebound.Simulation()
         sim.G = self.G
@@ -302,33 +297,6 @@ class Poincare(object):
 
     def copy(self):
         return Poincare(self.G, self.particles[1:self.N])
-
-    def average_synodic_terms(self, inverse=False):
-        """
-        Do a canonical transformation to correct the Lambdas for the fact that we have implicitly
-        averaged over all the synodic terms we do not include in the Hamiltonian.
-        """
-        corrpvars = self.copy() # so we use original values when planet appears in more than one pair
-        pairs = combinations(range(1,self.N), 2)
-        #TODO assumes particles ordered going outward so a1 < a2 always. Sort first?
-        for i1, i2 in pairs:
-            ps = self.particles
-            m1 = ps[i1].m
-            m2 = ps[i2].m
-            deltalambda = ps[i1].l-ps[i2].l
-            G = self.G
-
-            prefac = G/ps[i2].a/(ps[i1].n-ps[i2].n) 
-            alpha = ps[i1].a/ps[i2].a
-            summation = (1. + alpha**2 - 2*alpha*np.cos(deltalambda))**(-0.5)
-            s = prefac*(alpha*np.cos(deltalambda)-summation+laplace_b(0.5, 0, 0, alpha)/2.)
-            if inverse is True:
-                s *= -1
-            corrpvars.particles[i1].sLambda += m2*s # prefac*m1*m2*s/m1 (sLambda=Lambda/m)
-            corrpvars.particles[i2].sLambda -= m1*s
-        
-        for i, p in enumerate(self.particles):
-            p.sLambda = corrpvars.particles[i].sLambda
 
     @property
     def N(self):
