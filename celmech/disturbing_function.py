@@ -776,7 +776,7 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
         "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
         )
         return 0
-    if k1 == 0 and k2 == 0:
+    if k1 == 0 or k2 == 0:
         return 0
     if k1 + k4 != 1:
         return 0
@@ -1103,8 +1103,8 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
     all_dicts = []
     
     # highest harmonic of j:j-k resonance to include
-    #nmax = (Nmax + 2) // (2*k)
-    nmax = (Nmax) // (2*k)
+    nmax = 1 + (Nmax + 2) // (2*k)  # Complete secular contribution at desired order
+    #nmax = (Nmax) // (2*k) # Faster calculation
     # loop over harmonics
     for n in range(1,nmax+1):
         j1 = n * j
@@ -1118,8 +1118,8 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
         # These come from the  ~{pbar,p} / omega_res
         # term in the transformed Hamiltonian so they're
         # subdominant but we'll add them for completeness.
-        #Mmax = 1 + (Nmax - 2 * k1)//2
-        Mmax = (Nmax - 2 * k1)//2
+        Mmax = 1 + (Nmax - 2 * k1)//2
+        # Mmax = (Nmax - 2 * k1)//2
         for M in range(0,Mmax+1):
             # 
             res_args += _resonance_arguments_of_fixed_order(j1,k1,k1 + 2 * M)
