@@ -92,7 +92,7 @@ class PoincareParticle(object):
         
     @property
     def mu(self):
-        return self.m * self.M / (self.M + self.m)
+        return self.m * self.Mstar / (self.Mstar + self.m)
     @property 
     def M(self):
         return self.Mstar + self.m
