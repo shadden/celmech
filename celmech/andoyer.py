@@ -148,8 +148,8 @@ def get_num_fixed_points(k, Phiprime):
     return num
             
 class Andoyer(object):
-    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., B=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
-        self.calc_params(j, k, a10, G, m1, M1, m2, M2)
+    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., B=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
+        self.calc_params(j, k, a10, G, m1, m2, Mstar)
         self.X = X
         self.Y = Y
         self.Zcom = Zcom
@@ -213,12 +213,12 @@ class Andoyer(object):
     @property
     def lambda1(self):
         p = self.params
-        return np.mod((p['j']*p['K0']*self.theta1 - p['m2']*p['sLambda20']*self.theta)/p['K0'],2*np.pi)
+        return np.mod((p['j']*p['K0']*self.theta1 - p['mu2']*p['sLambda20']*self.theta)/p['K0'],2*np.pi)
     
     @property
     def lambda2(self):
         p = self.params
-        return np.mod(((p['j']-p['k'])*p['K0']*self.theta1 + p['m1']*p['sLambda10']*self.theta)/p['K0'],2*np.pi)
+        return np.mod(((p['j']-p['k'])*p['K0']*self.theta1 + p['mu1']*p['sLambda10']*self.theta)/p['K0'],2*np.pi)
         
     @property
     def psi1(self):
@@ -247,12 +247,12 @@ class Andoyer(object):
     @property
     def dL1hat(self):
         p = self.params
-        return self.dKprime - (p['j']-p['k'])**2/3./p['j']*p['m2']*p['sLambda20']/p['K0']*self.dP
+        return self.dKprime - (p['j']-p['k'])**2/3./p['j']*p['mu2']*p['sLambda20']/p['K0']*self.dP
 
     @property
     def dL2hat(self):
         p = self.params
-        return self.dKprime + (p['j']-p['k'])/3.*p['m1']*p['sLambda10']/p['K0']*self.dP
+        return self.dKprime + (p['j']-p['k'])/3.*p['mu1']*p['sLambda10']/p['K0']*self.dP
     
     @property
     def dK(self):
@@ -267,31 +267,35 @@ class Andoyer(object):
     def tlib(self):
         return 2*np.pi/self.wlib
 
-    def calc_params(self, j, k, a10, G, m1, M1, m2, M2):
-        self.params = {'j':j, 'k':k, 'a10':a10, 'G':G, 'm1':m1, 'M1':M1, 'm2':m2, 'M2':M2}
+    def calc_params(self, j, k, a10, G, m1, m2, Mstar):
+        self.params = {'j':j, 'k':k, 'a10':a10, 'G':G, 'm1':m1, 'm2':m2, 'Mstar':Mstar}
         p = self.params
-        p['alpha'] = (M1/M2)**(1./3.)*(float(j-k)/j)**(2./3.) 
+        p['M1'] = Mstar + m1
+        p['M2'] = Mstar + m2
+        p['mu1'] = m1*Mstar/(Mstar+m1)
+        p['mu2'] = m2*Mstar/(Mstar+m2)
+        p['alpha'] = (p['M1']/p['M2'])**(1./3.)*(float(j-k)/j)**(2./3.) 
         p['a20'] = a10/p['alpha']
-        p['sLambda10'] = np.sqrt(G*M1*a10)
-        p['sLambda20'] = np.sqrt(G*M2*a10/p['alpha'])
-        p['K0'] = (j-k)*m2*p['sLambda20'] + j*m1*p['sLambda10']
-        p['eta'] = float(j-k)/(3*j)*m1*m2*p['sLambda10']*p['sLambda20']/p['K0']
+        p['sLambda10'] = np.sqrt(G*p['M1']*a10)
+        p['sLambda20'] = np.sqrt(G*p['M2']*a10/p['alpha'])
+        p['K0'] = (j-k)*p['mu2']*p['sLambda20'] + j*p['mu1']*p['sLambda10']
+        p['eta'] = float(j-k)/(3*j)*p['mu1']*p['mu2']*p['sLambda10']*p['sLambda20']/p['K0']
         
         f,g = get_fg_coeffs(j,k)
         p['f'], p['g'] = f,g
-        norm = np.sqrt((j-k)/3./j)*np.sqrt((f**2*m2*p['sLambda20'] + g**2*m1*p['sLambda10'])/p['K0']) # np.sqrt(ff**2 + gg**2)
+        norm = np.sqrt((j-k)/3./j)*np.sqrt((f**2*p['mu2']*p['sLambda20'] + g**2*p['mu1']*p['sLambda10'])/p['K0']) # np.sqrt(ff**2 + gg**2)
         p['Zfac'] = (f**2 + g**2)/norm**2
         p['C'] = -1./j*np.sqrt(g**2/(f**2 + g**2))*np.sqrt(float(j-k)/3./j)
 
-        p['n0'] = 1./j*G**2*M1**2/p['sLambda10']**3
+        p['n0'] = 1./j*G**2*p['M1']**2/p['sLambda10']**3
         p['a'] = -0.5*p['n0']*(p['j']-p['k'])**2
-        p['c'] = -(j-k)*p['n0']*((j-k)/3./j)**((k-2.)/2.)*p['K0']/M2/np.sqrt(G*M1*a10)*((m2*p['sLambda20']*f**2 + m1*p['sLambda10']*g**2)/p['K0'])**(k/2.)
+        p['c'] = -(j-k)*p['n0']*((j-k)/3./j)**((k-2.)/2.)*p['K0']/p['M2']/np.sqrt(G*p['M1']*a10)*((p['mu2']*p['sLambda20']*f**2 + p['mu1']*p['sLambda10']*g**2)/p['K0'])**(k/2.)
         p['Phi0'] = (4.*k**(k/2.)*p['c']/p['a'])**(2./(4.-k))
         p['tau'] = 4./(p['Phi0']*abs(p['a']))
     
     @classmethod
-    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=0., theta=theta, theta1=theta1)
+    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=0., theta=theta, theta1=theta1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
@@ -306,14 +310,14 @@ class Andoyer(object):
 
         if a1 is None:
             a1 = a10
-        dL1 = m1*np.sqrt(G*M1)*(np.sqrt(a1)-np.sqrt(a10))
-        andvars.dKprime = p['eta']/p['m1']/p['sLambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
+        dL1 = p['mu1']*np.sqrt(G*p['M1'])*(np.sqrt(a1)-np.sqrt(a10))
+        andvars.dKprime = p['eta']/p['mu1']/p['sLambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
         
         return andvars
     
     @classmethod
-    def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
+    def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
@@ -325,8 +329,8 @@ class Andoyer(object):
         return andvars
 
     @classmethod
-    def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, M1=1., m2=1.e-5, M2=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, M1=M1, m2=m2, M2=M2, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
+    def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
@@ -341,19 +345,20 @@ class Andoyer(object):
     def from_Poincare(cls, pvars, j, k, a10, i1=1, i2=2):
         p1 = pvars.particles[i1]
         p2 = pvars.particles[i2]
-        andvars = cls(j, k, 0., 0., a10=a10, G=p1.G, m1=p1.m, M1=p1.M, m2=p2.m, M2=p2.M)
+        andvars = cls(j, k, 0., 0., a10=a10, G=p1.G, m1=p1.m, m2=p2.m, Mstar=p1.Mstar)
         
         p = andvars.params
         dL1hat = (p1.sLambda-p['sLambda10'])/p['sLambda10']
         dL2hat = (p2.sLambda-p['sLambda20'])/p['sLambda20']
+        #print('from_p', p1.sLambda, p2.sLambda)
 
         dP = 3.*j/(j-k)*(dL2hat - dL1hat)
-        andvars.dKprime = (j-k)*p['m2']*p['sLambda20']/p['K0']*dL2hat + j*p['m1']*p['sLambda10']/p['K0']*dL1hat
+        andvars.dKprime = (j-k)*p['mu2']*p['sLambda20']/p['K0']*dL2hat + j*p['mu1']*p['sLambda10']/p['K0']*dL1hat
       
         l1 = np.mod(p1.l, 2*np.pi)
         l2 = np.mod(p2.l, 2*np.pi)
         andvars.theta = j*l2 - (j-k)*l1
-        andvars.theta1 = (p['m1']*p['sLambda10']*l1 + p['m2']*p['sLambda20']*l2)/p['K0']
+        andvars.theta1 = (p['mu1']*p['sLambda10']*l1 + p['mu2']*p['sLambda20']*l2)/p['K0']
       
         Z, phiZ, andvars.Zcom, andvars.phiZcom = andvars.sGammas_to_Zs(p1.sGamma, p1.gamma, p2.sGamma, p2.gamma)
         Psi1 = p['Zfac']*Z**2/2.
@@ -366,6 +371,11 @@ class Andoyer(object):
         andvars.X = np.sqrt(2*Phi)*np.cos(phi)
         andvars.Y = np.sqrt(2*Phi)*np.sin(phi)
         
+        sLambda1 = p['sLambda10']*(1.+andvars.dL1hat)
+        sLambda2 = p['sLambda20']*(1.+andvars.dL2hat)
+        #print(sLambda1, p1.sLambda)
+        #print(sLambda2, p2.sLambda)
+        print('from_p', p) 
         return andvars
 
     def to_Poincare(self):
@@ -373,12 +383,15 @@ class Andoyer(object):
         
         sLambda1 = p['sLambda10']*(1.+self.dL1hat)
         sLambda2 = p['sLambda20']*(1.+self.dL2hat)
+        print('to_p', p) 
+        
+        #print('to_p', sLambda1, sLambda1)
 
         sGamma1, gamma1, sGamma2, gamma2 = self.Zs_to_sGammas(self.Z, self.phiZ, self.Zcom, self.phiZcom)
         
         pvars = Poincare(p['G'])
-        pvars.add(m=p['m1'], sLambda=sLambda1, l=self.lambda1, sGamma=sGamma1, gamma=gamma1, M=p['M1'], sQ=0, q=0)
-        pvars.add(m=p['m2'], sLambda=sLambda2, l=self.lambda2, sGamma=sGamma2, gamma=gamma2, M=p['M2'], sQ=0, q=0)
+        pvars.add(m=p['m1'], sLambda=sLambda1, l=self.lambda1, sGamma=sGamma1, gamma=gamma1, Mstar=p['Mstar'], sQ=0, q=0)
+        pvars.add(m=p['m2'], sLambda=sLambda2, l=self.lambda2, sGamma=sGamma2, gamma=gamma2, Mstar=p['Mstar'], sQ=0, q=0)
 
         return pvars
 
@@ -428,16 +441,16 @@ class Andoyer(object):
         ZcomX, ZcomY = pol_to_cart(Zcom, phiZcom)
         p = self.params
         ratio = np.sqrt(p['M2']*p['a20']/p['M1']/p['a10'])
-        m1, m2 = p['m1'], p['m2']
+        mu1, mu2 = p['mu1'], p['mu2']
         f, g = p['f'], p['g']
         beta1 = abs(f/g)*ratio
         beta2 = float(p['j']-p['k'])/p['j']*ratio
-        D = m1*g - f*beta1*m2
+        D = mu1*g - f*beta1*mu2
         N = np.sqrt(f**2 + g**2)
-        sX1 = -np.sqrt(p['sLambda10'])/D*(beta1*m2*N*ZX - g*(m1+beta2*m2)*ZcomX)
-        sY1 = -np.sqrt(p['sLambda10'])/D*(-beta1*m2*N*ZY + g*(m1+beta2*m2)*ZcomY)
-        sX2 = np.sqrt(p['sLambda20'])/D*(m1*N*ZX - f*(m1+beta2*m2)*ZcomX)
-        sY2 = np.sqrt(p['sLambda20'])/D*(-m1*N*ZY + f*(m1+beta2*m2)*ZcomY)
+        sX1 = -np.sqrt(p['sLambda10'])/D*(beta1*mu2*N*ZX - g*(mu1+beta2*mu2)*ZcomX)
+        sY1 = -np.sqrt(p['sLambda10'])/D*(-beta1*mu2*N*ZY + g*(mu1+beta2*mu2)*ZcomY)
+        sX2 = np.sqrt(p['sLambda20'])/D*(mu1*N*ZX - f*(mu1+beta2*mu2)*ZcomX)
+        sY2 = np.sqrt(p['sLambda20'])/D*(-mu1*N*ZY + f*(mu1+beta2*mu2)*ZcomY)
         sGamma1, gamma1 = XYToActionAngle(sX1, sY1)
         sGamma2, gamma2 = XYToActionAngle(sX2, sY2)
         return sGamma1, gamma1, sGamma2, gamma2
@@ -447,15 +460,15 @@ class Andoyer(object):
         sX2, sY2 = ActionAngleToXY(sGamma2, gamma2)
         p = self.params
         ratio = np.sqrt(p['M2']*p['a20']/p['M1']/p['a10'])
-        m1, m2 = p['m1'], p['m2']
+        mu1, mu2 = p['mu1'], p['mu2']
         f, g = p['f'], p['g']
         beta1 = abs(f/g)*ratio
         beta2 = float(p['j']-p['k'])/p['j']*ratio
         N = np.sqrt(f**2 + g**2)
         ZX = 1/N*(f/np.sqrt(p['sLambda10'])*sX1 + g/np.sqrt(p['sLambda20'])*sX2)
         ZY = 1/N*(-f/np.sqrt(p['sLambda10'])*sY1 - g/np.sqrt(p['sLambda20'])*sY2)
-        ZcomX = 1/(m1 + beta2*m2)*(m1/np.sqrt(p['sLambda10'])*sX1 + beta1*m2/np.sqrt(p['sLambda20'])*sX2)
-        ZcomY = 1/(m1 + beta2*m2)*(-m1/np.sqrt(p['sLambda10'])*sY1 - beta1*m2/np.sqrt(p['sLambda20'])*sY2)
+        ZcomX = 1/(mu1 + beta2*mu2)*(mu1/np.sqrt(p['sLambda10'])*sX1 + beta1*mu2/np.sqrt(p['sLambda20'])*sX2)
+        ZcomY = 1/(mu1 + beta2*mu2)*(-mu1/np.sqrt(p['sLambda10'])*sY1 - beta1*mu2/np.sqrt(p['sLambda20'])*sY2)
         Z, phiZ = cart_to_pol(ZX, ZY)
         Zcom, phiZcom = cart_to_pol(ZcomX, ZcomY)
         return Z, phiZ, Zcom, phiZcom
