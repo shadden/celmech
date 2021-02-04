@@ -304,6 +304,8 @@ class Andoyer(object):
     
     @classmethod
     def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, dKprime=None, G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
+        """If we rewrite, many of these functions need to calculate self.params first to evaluate initialization values. Write that as separate function
+        and have __init__ and these functions call it. These functions then evaluate initialization values and instantiate andvars once"""
         andvars = cls(j, k, 0., 0., a10=a10, a1=a1, dKprime=dKprime, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, theta=theta, theta1=theta1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
@@ -317,10 +319,13 @@ class Andoyer(object):
             andvars.X = Xstar - libfac*np.abs(Xstar-Xouter)
         else: # offset toward inner branch of separatrix
             andvars.X = Xstar - libfac*np.abs(Xstar-Xinner)
-        return andvars
+        return cls(j=j, k=k, X=andvars.X, Y=0, B=andvars.B, a10=a10, a1=a1, dKprime=dKprime, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, theta=theta, theta1=theta1)
     
     @classmethod
     def from_Z(cls, j, k, Z, phi, Zstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        """If we rewrite, many of these functions need to calculate self.params first to evaluate initialization values. Write that as separate function
+        and have __init__ and these functions call it. These functions then evaluate initialization values and instantiate andvars once
+        dKPRIME will be wrong here when we set a1, since we need to know Phi and B values in order to calculate dP and dKprime to match. See from_elements"""
         andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
@@ -334,6 +339,9 @@ class Andoyer(object):
 
     @classmethod
     def from_dP(cls, j, k, dP, phi, Zstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        """If we rewrite, many of these functions need to calculate self.params first to evaluate initialization values. Write that as separate function
+        and have __init__ and these functions call it. These functions then evaluate initialization values and instantiate andvars once
+        dKPRIME will be wrong here when we set a1, since we need to know Phi and B values in order to calculate dP and dKprime to match."""
         andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
         Phistar = andvars.Z_to_Phi(Zstar)
         Xstar = -np.sqrt(2.*Phistar)
