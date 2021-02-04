@@ -303,24 +303,20 @@ class Andoyer(object):
         p['tau'] = 4./(p['Phi0']*abs(p['a']))
     
     @classmethod
-    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
-        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=0., theta=theta, theta1=theta1)
+    def from_elements(cls, j, k, Zstar, libfac, a10=1., a1=None, dKprime=None, G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., theta=0, theta1=0.):
+        andvars = cls(j, k, 0., 0., a10=a10, a1=a1, dKprime=dKprime, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, theta=theta, theta1=theta1)
         p = andvars.params
         Psi1star = 0.5*Zstar**2*p['Zfac']
         Phistar = Psi1star/k/p['Phi0']
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
         Xinner, Xouter = get_Xsep(k, andvars.Phiprime)
+        if np.isnan(Xinner):
+            raise AttributeError("No separatrix for that value of Zstar")
         if libfac > 0: # offset toward outer branch of separatrix
             andvars.X = Xstar - libfac*np.abs(Xstar-Xouter)
         else: # offset toward inner branch of separatrix
             andvars.X = Xstar - libfac*np.abs(Xstar-Xinner)
-
-        if a1 is None:
-            a1 = a10
-        dL1 = p['mu1']*np.sqrt(G*p['M1'])*(np.sqrt(a1)-np.sqrt(a10))
-        andvars.dKprime = p['eta']/p['mu1']/p['sLambda10']/p['eta']*(dL1 + (j-k)*p['eta']*andvars.dP)
-        
         return andvars
     
     @classmethod
