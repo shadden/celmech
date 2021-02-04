@@ -148,17 +148,26 @@ def get_num_fixed_points(k, Phiprime):
     return num
             
 class Andoyer(object):
-    def __init__(self, j, k, X, Y, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., B=1.5, Zcom=0., phiZcom=0., dKprime=0., theta=0., theta1=0.):
+    def __init__(self, j, k, X, Y, a10=1., a1=None, G=1., m1=1.e-5, m2=1.e-5, Mstar=1., B=1.5, Zcom=0., phiZcom=0., dKprime=None, theta=0., theta1=0.):
         self.calc_params(j, k, a10, G, m1, m2, Mstar)
         self.X = X
         self.Y = Y
         self.Zcom = Zcom
         self.phiZcom = phiZcom
         self.B = B
-        self.dKprime = dKprime
         self.theta = theta
         self.theta1 = theta1
-    
+        if dKprime is not None:
+            if a1 is not None:
+                raise AttributeError('Can only set a1 OR dKprime, not both')
+            self.dKprime = dKprime
+        else:
+            if a1 is None:
+                a1 = a10
+            p = self.params
+            dL1 = p['mu1']*np.sqrt(G*p['M1'])*(np.sqrt(a1)-np.sqrt(a10))
+            self.dKprime = p['eta']/p['mu1']/p['sLambda10']/p['eta']*(dL1 + (j-k)*p['eta']*self.dP)
+
     @property
     def Phi(self):
         Phi, phi = XYToActionAngle(self.X, self.Y)
@@ -302,7 +311,6 @@ class Andoyer(object):
         Xstar = -np.sqrt(2.*Phistar)
         andvars.Phiprime = get_Phiprime(k, Xstar)
         Xinner, Xouter = get_Xsep(k, andvars.Phiprime)
-        #print(Zstar, Xstar, andvars.Phiprime, Xinner, Xouter)
         if libfac > 0: # offset toward outer branch of separatrix
             andvars.X = Xstar - libfac*np.abs(Xstar-Xouter)
         else: # offset toward inner branch of separatrix
@@ -350,7 +358,6 @@ class Andoyer(object):
         p = andvars.params
         dL1hat = (p1.sLambda-p['sLambda10'])/p['sLambda10']
         dL2hat = (p2.sLambda-p['sLambda20'])/p['sLambda20']
-        #print('from_p', p1.sLambda, p2.sLambda)
 
         dP = 3.*j/(j-k)*(dL2hat - dL1hat)
         andvars.dKprime = (j-k)*p['mu2']*p['sLambda20']/p['K0']*dL2hat + j*p['mu1']*p['sLambda10']/p['K0']*dL1hat
@@ -373,9 +380,6 @@ class Andoyer(object):
         
         sLambda1 = p['sLambda10']*(1.+andvars.dL1hat)
         sLambda2 = p['sLambda20']*(1.+andvars.dL2hat)
-        #print(sLambda1, p1.sLambda)
-        #print(sLambda2, p2.sLambda)
-        print('from_p', p) 
         return andvars
 
     def to_Poincare(self):
@@ -383,10 +387,7 @@ class Andoyer(object):
         
         sLambda1 = p['sLambda10']*(1.+self.dL1hat)
         sLambda2 = p['sLambda20']*(1.+self.dL2hat)
-        print('to_p', p) 
         
-        #print('to_p', sLambda1, sLambda1)
-
         sGamma1, gamma1, sGamma2, gamma2 = self.Zs_to_sGammas(self.Z, self.phiZ, self.Zcom, self.phiZcom)
         
         pvars = Poincare(p['G'])
