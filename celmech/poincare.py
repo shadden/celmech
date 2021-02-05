@@ -53,6 +53,7 @@ class PoincareParticle(object):
             raise AttributeError("Can only pass one of Q, sQ (specific Q, i.e. per unit mass), or inc (inclination)")
         
         mu = m * Mstar / (m + Mstar)
+        M = Mstar + m
         if sLambda:
             self.sLambda = sLambda
         elif Lambda:
@@ -266,7 +267,7 @@ class Poincare(object):
         masses : array-like, optional
             If masses is None, will calculate physical masses from the m and M 
             parameters stored by the particles. If masses is a list, will use 
-            those as the physical masses. Default is None.
+            those as the physical masses. Default is None. (REMOVE? RELIC OF POINCARE MASSES)
         average : boole, optional
             If True, semi-major axes of simulation planets will be computed
             by converting 'mean' elements to 'osculating' ones to 0th order

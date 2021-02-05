@@ -204,6 +204,7 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     """
     star = sim.particles[0]
     _sim = rb.Simulation()
+    _sim.G = sim.G
     _star = star.copy()
     _sim.add(_star)
     _sim.add(
