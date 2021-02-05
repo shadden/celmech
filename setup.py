@@ -41,6 +41,13 @@ libcelmechmodule = Extension('libcelmech',
                     extra_link_args=extra_link_args,
                     )
 
+if not os.getenv('READTHEDOCS'):
+    packages = ['theano', 'sympy>=1.1.1', 'numpy', 'scipy==1.2.0', 'reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0']
+    try:
+        install_requires += packages
+    except:
+        install_requires = packages
+
 setup(name='celmech',
     version='0.3.3',
     description='Open source tools for celestial mechanics',
@@ -77,5 +84,3 @@ setup(name='celmech',
     ext_modules = [libcelmechmodule],
     zip_safe=False)
 
-if not os.getenv('READTHEDOCS'):
-    install_requires.append('theano', 'sympy>=1.1.1', 'numpy', 'scipy==1.2.0', 'reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0')
