@@ -115,5 +115,5 @@ class Hamiltonian(object):
             dydt = [deriv(*y) for deriv in self.Nderivs]
             #print(t, y, dydt)
             return dydt
-        self.integrator = ode(diffeq).set_integrator('lsoda')
+        self.integrator = ode(diffeq).set_integrator('dop853')# ('lsoda') #
         self.integrator.set_initial_value(self.state_to_list(self.state))
