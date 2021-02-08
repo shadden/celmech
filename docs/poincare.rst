@@ -181,8 +181,32 @@ Lie Transformations
 Constructing a Hamiltonian with a finite number of disturbing function terms
 implicitly assumes that an infinite number of other terms can be ignored 
 because they are rapdily oscillating such that there average effect on the
-dynamics is negligible. 
-[blah blah blah]  :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` [blah blah blah]
+dynamics is negligible. In reality, these rapidly oscillating terms lead to
+rapid oscillations in the dynamical variables under study. 
+
+A generating function, :math:`\chi(q',p')`, is a function of canconical elements that is used to create a canonical transformation of variables. 
+This is accomplished by means of a Lie transformation. 
+The Lie transformation, :math:`f\rightarrow f'` of a function :math:`f`, induced by :math:`\chi`, is defined as
+
+.. math::
+        f'(q',p') = \exp[{\cal L}_\chi]f(q',p') = \sum_{n=0}^\infty \frac{1}{n!}{\cal L}_\chi^n f(q',p')
+
+where :math:`{\cal L}_\chi= [\cdot,\chi]` is the Lie derivative with respect to :math:`\chi`, i.e., the Poisson bracket of a function with :math:`\chi`.
+
+Generally, the goal of applying a Lie transformation is to eliminate the dependence of a Hamiltonian on a set of variables up to a specific order in some small parameter. 
+In other words, usually one seeks to transform a Hamiltonian of the form :math:`H = H_0(p) + \epsilon H_1(q,p) + \epsilon^2H_2(q,p) + ...`, such that 
+
+.. math::
+        H'(q',p') = \exp[{\cal L}_\chi]H(q',p') = H'_0(p') + \epsilon^NH'_N(q',p')+....
+
+where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is integrable if one igonres terms of order :math:`\epsilon^N` and smaller.
+In other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity up to order :math:`\epsilon^{N-1}`.
+
+The FirstOrderGeneratingFunction class
+**************************************
+
+``celmech`` provides the :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` class that can be used to apply transformations between osculating coordiantes used by :math:`N`-body simulatoins and transformed variables appropriate for that Hamiltonian models used by ``celmech``. 
+These transformations will apply corrections at first order in planet-star mass ratio.
 
 Generating function [DO SOME STUFF]
 

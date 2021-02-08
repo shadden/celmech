@@ -102,6 +102,16 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         y_mean = self.osculating_to_mean_state_vector(y_osc)
         self.update_state_from_list(self.state,y_mean)
 
+    def mean_to_osculating(self,**integrator_kwargs):
+        """
+        Convert the :attr:`state <celmech.generating_functions.FirstOrderGeneratingFunction.state>`'s
+        variables from osculating
+        to mean canonical variables.
+        """
+        y_mean = self.state_to_list(self.state)
+        y_osc = self.mean_to_osculating_state_vector(y_mean)
+        self.update_state_from_list(self.state,y_osc)
+
     def add_zeroth_order_term(self,indexIn=1,indexOut=2,update=True):
         r"""
         Add generating function term that elimiates 
@@ -164,7 +174,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         cosine coefficient. 
         """
         if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
-            warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
+            warnings.warn("Monomial term k=({},{},{},{},{},{}) , z = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*zvec))
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
