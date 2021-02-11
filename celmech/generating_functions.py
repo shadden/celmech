@@ -1,3 +1,4 @@
+import numpy as np
 from .poincare import PoincareHamiltonian
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from sympy.functions import elliptic_f,elliptic_k
@@ -52,8 +53,14 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     def Nchi(self):
         return self.NH
 
-    def osculating_to_mean_state_vector(self,y,**integrator_kwargs):
-        """
+    def _get_approximate_corrections(self,y):
+        corrections = np.zeros(y.shape)
+        for i,deriv_func in enumerate(self.Nderivs):
+            corrections[i] = deriv_func(*y)
+        return corrections
+
+    def osculating_to_mean_state_vector(self,y,approximate=True,**integrator_kwargs):
+        r"""
         Convert a state vector of canonical variables of the 
         the un-averaged :math:`N`-body Hamiltonian to a state
         vector of mean variables used by a normal form.
@@ -63,17 +70,32 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         y : array-like
           State vector of un-averaged variables.
 
+        approximate : bool, optional
+          If True, Lie transformation is computed approximately
+          to first order.  In other words, the approximation
+
+          .. math::
+            \exp[{\cal L}_{\chi}]f \approx f + \left[f,\chi \right]
+
+        is used. If False, the exact Lie transformation is computed
+        numerically.
+
         Returns
         -------
         ymean : array-like
           State vector of transformed (averaged) variables.
         """
-        self.integrator.set_initial_value(y,t=0)
-        self.integrator.integrate(-1,**integrator_kwargs)
-        return self.integrator.y
+        if approximate:
+            yarr = np.atleast_1d(y)
+            corrections = self._get_approximate_corrections(yarr)
+            return yarr - corrections
+        else:
+            self.integrator.set_initial_value(y,t=0)
+            self.integrator.integrate(-1,**integrator_kwargs)
+            return self.integrator.y
 
-    def mean_to_osculating_state_vector(self,y,**integrator_kwargs):
-        """
+    def mean_to_osculating_state_vector(self,y,approximate=True,**integrator_kwargs):
+        r"""
         Convert a state vector of canonical variables of mean 
         variables used by a normal form to un-averaged variables
         of the full :math:`N`-body Hamiltonian.
@@ -83,14 +105,29 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         y : array-like
           State vector of 'averaged' canonical variables.
 
+        approximate : bool, optional
+          If True, Lie transformation is computed approximately
+          to first order.  In other words, the approximation
+
+          .. math::
+            \exp[{\cal L}_{\chi}]f \approx f + \left[f,\chi \right]
+
+        is used. If False, the exact Lie transformation is computed
+        numerically.
+
         Returns
         -------
         yosc : array-like
           State vector of osculating canonical variables.
         """
-        self.integrator.set_initial_value(y,t=0)
-        self.integrator.integrate(+1,**integrator_kwargs)
-        return self.integrator.y
+        if approximate:
+            yarr = np.atleast_1d(y)
+            corrections = self._get_approximate_corrections(yarr)
+            return yarr + corrections
+        else:
+            self.integrator.set_initial_value(y,t=0)
+            self.integrator.integrate(+1,**integrator_kwargs)
+            return self.integrator.y
 
     def osculating_to_mean(self,**integrator_kwargs):
         """
