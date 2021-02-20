@@ -19,10 +19,42 @@ class TestDisturbingFunction(unittest.TestCase):
         self.LaskarRobutel['C3'] = {
             (1,(3/2,1,0)):1/4,
         }
+        self.LaskarRobutel['C4'] = {
+            (1,(5/2,0,0)):-15/4,
+            (3,(5/2,0,0)):-15/4,
+            (0,(5/2,1,0)):3/2,
+            (2,(5/2,1,0)):27/8,
+            (4,(5/2,1,0)):3/2,
+        }
+        self.LaskarRobutel['C7'] = {
+            (1,(5/2,0,0)):15/8,
+            (3,(5/2,0,0)):15/8,
+            (0,(5/2,1,0)):-3/4,
+            (2,(5/2,1,0)):-9/8,
+            (4,(5/2,1,0)):-3/4,
+        }
+        self.LaskarRobutel['C8'] = {
+            (2,(5/2,1,0)):9/16
+        }
+        self.LaskarRobutel['C9'] = {
+            (2,(5/2,0,0)):-15/32,
+            (1,(5/2,1,0)):3/16,
+            (3,(5/2,1,0)):9/16,
+        }
         self.LaskarRobutel['C10'] = {
             (2,(5/2,0,0)):+45/128,
             (1,(5/2,1,0)):-9/64,
             (3,(5/2,1,0)):-9/64
+        }
+        self.LaskarRobutel['C11'] = {
+            (2,(5/2,0,0)):3/8,
+            (1,(5/2,1,0)):-3/4,
+            (3,(5/2,1,0)):-3/4,
+        }
+        self.LaskarRobutel['C12'] = {
+            (2,(5/2,0,0)):-15/4,
+            (1,(5/2,1,0)):3/4,
+            (3,(5/2,1,0)):3/4,
         }
         self.LaskarRobutel['C13'] = {
             (2,(5/2,0,0)):+9/128,
@@ -38,6 +70,11 @@ class TestDisturbingFunction(unittest.TestCase):
             (2,(5/2,0,0)):3/8,
             (1,(5/2,1,0)):3/8,
             (3,(5/2,1,0)):3/8
+        }
+        self.LaskarRobutel['C17'] = {
+            (2,(5/2,0,0)):-15/32,
+            (1,(5/2,1,0)):9/16,
+            (3,(5/2,1,0)):3/16,
         }
         self.LaskarRobutel['C18'] = {
             (2,(5/2,0,0)):9/8,
@@ -76,10 +113,99 @@ class TestDisturbingFunction(unittest.TestCase):
                 {key:val/2 for key,val in self.LaskarRobutel['C3'].items()},
                 DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
+        # e1*e*inc1*inc*cos(w-w1+Omega-Omega1)
+        j1,j2,j3,j4,j5,j6 = 0,0,1,-1,1,-1
+        z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4),
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,0,1)
+                {key:2*val for key,val in self.LaskarRobutel['C4'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
+        # e1*e*inc^2*cos(w-w1)
+        j1,j2,j3,j4,j5,j6 = 0,0,1,-1,0,0
+        z1,z2,z3,z4  = 1,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C7'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        # e1*e*inc1^2*cos(w-w1)
+        j1,j2,j3,j4,j5,j6 = 0,0,1,-1,0,0
+        z1,z2,z3,z4  = 0,1,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C7'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+
+        # C8
+        j1,j2,j3,j4,j5,j6 = 0,0,+1,+1,-1,-1
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:4*val for key,val in self.LaskarRobutel['C8'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,-1,+1,+1,-1
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:-4*val for key,val in self.LaskarRobutel['C8'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,-1,-1,2,0
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:-2*val for key,val in self.LaskarRobutel['C8'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,-1,-1,0,2
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:-2*val for key,val in self.LaskarRobutel['C8'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        # C9
+        j1,j2,j3,j4,j5,j6 = 0,0,0,-2,2,0
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C9'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,-2,0,2
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C9'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,-2,1,1
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:-4*val for key,val in self.LaskarRobutel['C9'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        # C11
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
+        z1,z2,z3,z4  = 1,0,1,0
+        self.compare_DF_coeffs(
+                {key:val for key,val in self.LaskarRobutel['C11'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
+        z1,z2,z3,z4  = 0,1,0,1
+        self.compare_DF_coeffs(
+                {key:val for key,val in self.LaskarRobutel['C11'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        # C12
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
+        z1,z2,z3,z4  = 1,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C12'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
+        z1,z2,z3,z4  = 0,1,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C12'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+
         # e1^2e2^2 cos(2w1-2w2)
         j1,j2,j3,j4,j5,j6 = 0,0,2,-2,0,0
         z1,z2,z3,z4  = 0,0,0,0
@@ -105,7 +231,14 @@ class TestDisturbingFunction(unittest.TestCase):
                 self.LaskarRobutel['C14'],
                 DFCoeff_C(j1,j2,j3,j4,j5,j6,0,2,z3,z4)
         )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,2,-2
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C14'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
 
+        # C15
         # inc1 inc2 e^2 cos(Omega1-Omega2)
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
         z1,z2,z3,z4  = 0,0,1,0
@@ -113,6 +246,32 @@ class TestDisturbingFunction(unittest.TestCase):
                 {key:2*val for key,val in self.LaskarRobutel['C15'].items()},
                 DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
+        j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
+        z1,z2,z3,z4  = 0,0,0,1
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C15'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        # C17
+        j1,j2,j3,j4,j5,j6 = 0,0,-2,0,2,0
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C17'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,-2,0,0,2
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:2*val for key,val in self.LaskarRobutel['C17'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        j1,j2,j3,j4,j5,j6 = 0,0,-2,0,1,1
+        z1,z2,z3,z4  = 0,0,0,0
+        self.compare_DF_coeffs(
+                {key:-4*val for key,val in self.LaskarRobutel['C17'].items()},
+                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        )
+        
         # e1^2e2^2 
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         for zvec, factor in zip([(0,0,1,1),(1,1,0,0),(1,0,0,1),(0,1,1,0)],[0.25,4,-1,-1]):
