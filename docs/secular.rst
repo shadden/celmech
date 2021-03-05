@@ -304,14 +304,14 @@ where
 .. math::
  H_\mathrm{res} = \sum_{n=1}^\infty e^{\mathrm{i} n \pmb{k}\cdot\pmb{\lambda} } p_n(\pmb{z},\bar{\pmb{z}},\pmb{\Lambda}) + c.c.
 
-and :math:`\pmb{k}\cdot\pmb{\lambda} = p\lambda_{j} - (p-q)\lambda_j`.
+and :math:`\pmb{k}\cdot\pmb{\lambda} = p\lambda_{j} - (p-q)\lambda_i`.
 In order to derive a normal form governing the secular evolution of the system, we seek a canonical transformation that eliminates the the :math:`\lambda` dependence from our Hamiltonian.
 In other words, we would like to find a Lie transformation such that :math:`H' = \exp[\epsilon{\cal L}_{\chi}] H` is independent of :math:`\pmb{\lambda}`.
 To second order in :math:`\epsilon`, we have
 
 .. math::
   H'= H_\mathrm{Kep}(\pmb{\Lambda}') +\epsilon\left(H_\mathrm{sec} + H_\mathrm{res} + \{H_\mathrm{Kep},\chi\}\right)\\
-  + \epsilon^2\left(\{H_\mathrm{sec} + H_\mathrm{res},\chi\} + \frac{1}{2}\{\{H_\mathrm{Kep},\chi_1\},\chi\}\right)
+  + \epsilon^2\left(\{H_\mathrm{sec} + H_\mathrm{res},\chi\} + \frac{1}{2}\{\{H_\mathrm{Kep},\chi\},\chi\}\right)
     
 In order to eliminate :math:`\pmb{\lambda}` to first order in :math:`\epsilon`, we can choose
 
