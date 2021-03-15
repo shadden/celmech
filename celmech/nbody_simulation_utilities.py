@@ -130,8 +130,9 @@ def _get_reboundx_simarchive_integration_results(sa,coordinates):
 
 def get_canonical_heliocentric_orbits(sim):
     """
-    Compute orbital elements in canconical 
-    heliocentric coordinates.
+    Compute orbital elements in canonical 
+    heliocentric coordinates (Laskar & Robutel 1995), 
+    in the center-of-mass frame (so p0 = 0)
 
     Arguments:
     ----------
@@ -144,17 +145,23 @@ def get_canonical_heliocentric_orbits(sim):
         Orbits of particles in canonical heliocentric
         coordinates.
     """
+    sim = sim.copy()
+    # Move to center of mass frame so p0 = 0
+    sim.move_to_com()
+
     star = sim.particles[0]
     orbits = []
+    # the central body in this splitting should have star.m + mu, but 
+    # this is already accounted for in REBOUND's orbit calculation 
     fictitious_star = rb.Particle(m=star.m)
     com = sim.calculate_com()
     for planet in sim.particles[1:]:
 
         # Heliocentric position
         r = np.array(planet.xyz) - np.array(star.xyz)
-
-        # Barycentric momentum
-        rtilde = planet.m * ( np.array(planet.vxyz) - np.array(com.vxyz) )
+        # For canonical heliocentric coordinates the momentum
+        # is the same as the inertial momentum, pi=mi*vi
+        v = np.array(planet.vxyz)
 
         # Mapping from (coordinate,momentum) pair to
         # orbital elments requires that the 'velocity'
@@ -165,15 +172,13 @@ def get_canonical_heliocentric_orbits(sim):
         #
         # For Laskar & Robutel (1995)'s definition
         # of canonical action-angle pairs, this is
-        # the reduced mass.
-        #
-        # For democratic heliocentric elements,
-        # 'mu' is simply the planet mass.
+        # the reduced mass, so v_for_orbit = mi * vi / mu_i = (m0 + mi)/m0 * vi
+        # We write it this way to remain well behaved in test particle limit
         mu = planet.m * star.m / (planet.m + star.m)
-        v_for_orbit = rtilde / mu
+        v_for_orbit = (star.m + planet.m)/star.m*v
 
         fictitious_particle =  rb.Particle(
-            m=planet.m,
+            m=mu,
             x = r[0],
             y = r[1],
             z = r[2],
@@ -203,13 +208,18 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
         Simulation to add particle to.
     """
     star = sim.particles[0]
+    mu = m*star.m/(m+star.m)
+    # Make a 2body simulation with star mass m, 
+    # particle mu (so REBOUND assigns central mass star.m+mu)
+    # Given canonical heliocentric elements,
+    # this yields xtilde = xi-xstar, vtilde = (mstar+mi)/mstar * vi
     _sim = rb.Simulation()
     _sim.G = sim.G
     _star = star.copy()
     _sim.add(_star)
     _sim.add(
             primary=_star,
-            m=m,
+            m=mu,
             **elements
     )
     _p = _sim.particles[1]
