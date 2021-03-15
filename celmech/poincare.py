@@ -290,7 +290,6 @@ class Poincare(object):
             p = ps[i]
             elements = {element:getattr(p,element) for element in ['a','e','inc','l','pomega','Omega']}
             add_canonical_heliocentric_elements_particle(masses[i],elements,sim)
-        sim.move_to_com()
         return sim
     
     def add(self, **kwargs):

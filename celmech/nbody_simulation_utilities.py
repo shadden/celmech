@@ -3,12 +3,12 @@ import rebound as rb
 import reboundx as rbx
 
 def set_timestep(sim,dtfactor):
-        ps=sim.particles[1:]
+        ps=sim.particles[1:sim.N_real]
         tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
         dt = tperi * dtfactor
         sim.dt = dt
 def set_min_distance(sim,rhillfactor):
-        ps=sim.particles[1:]
+        ps=sim.particles[1:sim._Nreal]
         mstar = sim.particles[0].m
         rhill = np.min([ p.rhill for p in ps if p.m > 0])
         mindist = rhillfactor * rhill
@@ -155,7 +155,7 @@ def get_canonical_heliocentric_orbits(sim):
     # this is already accounted for in REBOUND's orbit calculation 
     fictitious_star = rb.Particle(m=star.m)
     com = sim.calculate_com()
-    for planet in sim.particles[1:]:
+    for planet in sim.particles[1:sim.N_real]:
 
         # Heliocentric position
         r = np.array(planet.xyz) - np.array(star.xyz)
@@ -210,28 +210,44 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     star = sim.particles[0]
     mu = m*star.m/(m+star.m)
     # Make a 2body simulation with star mass m, 
-    # particle mu (so REBOUND assigns central mass star.m+mu)
+    # particle mass = mu (so REBOUND assigns central mass star.m+mu)
     # Given canonical heliocentric elements,
     # this yields xtilde = xi-xstar, vtilde = (mstar+mi)/mstar * vi
     _sim = rb.Simulation()
     _sim.G = sim.G
     _star = star.copy()
-    _sim.add(_star)
+    _sim.add(m=star.m)
     _sim.add(
-            primary=_star,
             m=mu,
             **elements
     )
     _p = _sim.particles[1]
-    p = _p.copy()
-    f = star.m / (p.m + star.m)
-    p.vx = f * ( _p.vx - star.vx )
-    p.vy = f * ( _p.vy - star.vy )
-    p.vz = f * ( _p.vz - star.vz )
+    p = rb.Particle(m=m) 
+    # we cache the planet positions so we can later correct to stay in COM frame
+    x = star.x + _p.x
+    y = star.y + _p.y
+    z = star.z + _p.z
+    p.x = x
+    p.y = y
+    p.z = z
+    # We convert the vtilde back to inertial velocities
+    # All of these need to be the final velocities in the COM frame, so the
+    # only way to do that is to compensate for the shift in COM with the star
+    f = star.m / (m + star.m)
+    p.vx = f * _p.vx
+    p.vy = f * _p.vy
+    p.vz = f * _p.vz
+    star.vx -= m * p.vx / star.m
+    star.vy -= m * p.vy / star.m
+    star.vz -= m * p.vz / star.m
     sim.add(p)
-    star.vx -= p.m * p.vx / star.m
-    star.vy -= p.m * p.vy / star.m
-    star.vz -= p.m * p.vz / star.m
+    # We now move all particles by the same offset to keep the COM at 0
+    # This ensures that the xi-x0 remain the same
+    Mtot = np.array([p.m for p in sim.particles[:sim.N_real]).sum()
+    for p in sim.particles[:sim.N_real]:
+        p.x -= m/Mtot*x
+        p.y -= m/Mtot*y
+        p.z -= m/Mtot*z
 
 def _compute_transformation_angles(sim):
     Gtot_vec = sim.calculate_angular_momentum()
@@ -275,6 +291,6 @@ def align_simulation(sim):
     sim : rebound.Simulation
     """
     theta1,theta2 = _compute_transformation_angles(sim)
-    for p in sim.particles:
+    for p in sim.particles[:sim.N_real]:
         p.x,p.y,p.z = npEulerAnglesTransform(p.xyz,0,theta2,theta1)
         p.vx,p.vy,p.vz = npEulerAnglesTransform(p.vxyz,0,theta2,theta1) 
