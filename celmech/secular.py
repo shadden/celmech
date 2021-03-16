@@ -69,7 +69,7 @@ class LaplaceLagrangeSystem(Poincare):
         for i,particle in enumerate(self.particles):
             if i is not 0:
                 m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i)) 
-                self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
+                self.params.update({m:particle.m,mu:particle.m,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float).eps

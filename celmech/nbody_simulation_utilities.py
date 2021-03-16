@@ -1,6 +1,8 @@
+from math import isclose
 import numpy as np
 import rebound as rb
 import reboundx as rbx
+from .poincare import PoincareParticle
 
 def set_timestep(sim,dtfactor):
         ps=sim.particles[1:sim.N_real]
@@ -145,18 +147,13 @@ def get_canonical_heliocentric_orbits(sim):
         Orbits of particles in canonical heliocentric
         coordinates.
     """
-    sim = sim.copy()
-    # Move to center of mass frame so p0 = 0
-    sim.move_to_com()
 
     star = sim.particles[0]
     orbits = []
     # the central body in this splitting should have star.m + mu, but 
     # this is already accounted for in REBOUND's orbit calculation 
     fictitious_star = rb.Particle(m=star.m)
-    com = sim.calculate_com()
     for planet in sim.particles[1:sim.N_real]:
-
         # Heliocentric position
         r = np.array(planet.xyz) - np.array(star.xyz)
         # For canonical heliocentric coordinates the momentum
@@ -209,6 +206,27 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     """
     star = sim.particles[0]
     mu = m*star.m/(m+star.m)
+    M = star.m + m
+    p = PoincareParticle(m=mu, M=M, G=sim.G, **elements)
+    add_chp_to_sim(p, sim)
+
+def mu_M_to_m_Mstar(mu, M):
+    """
+    Takes reduced mass mu = mMstar/(Mstar+m) and M=Mstar+m
+    and returns m and Mstar 
+    """
+    d = np.sqrt(M**2 - 4*mu*M) # m_0 - m_i
+    Mstar = (M+d)/2
+    m = mu*M/Mstar
+    return m, Mstar
+
+def add_chp_to_sim(p, sim):
+    star = sim.particles[0]
+    mu = p.m
+    m, Mstar = mu_M_to_m_Mstar(mu, p.M)
+    if abs((star.m-Mstar)/star.m) > 1.e-15:
+        raise ValueError("Trying to add a Poincare particle with an inconsistent central mass.")
+
     # Make a 2body simulation with star mass m, 
     # particle mass = mu (so REBOUND assigns central mass star.m+mu)
     # Given canonical heliocentric elements,
@@ -217,10 +235,7 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     _sim.G = sim.G
     _star = star.copy()
     _sim.add(m=star.m)
-    _sim.add(
-            m=mu,
-            **elements
-    )
+    _sim.add(m=mu, a=p.a, e=p.e, inc=p.inc, Omega=p.Omega, pomega=p.pomega, l=p.l)
     _p = _sim.particles[1]
     p = rb.Particle(m=m) 
     # we cache the planet positions so we can later correct to stay in COM frame
@@ -237,13 +252,13 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     p.vx = f * _p.vx
     p.vy = f * _p.vy
     p.vz = f * _p.vz
-    star.vx -= m * p.vx / star.m
-    star.vy -= m * p.vy / star.m
-    star.vz -= m * p.vz / star.m
+    star.vx -= m/star.m * p.vx
+    star.vy -= m/star.m * p.vy
+    star.vz -= m/star.m * p.vz
     sim.add(p)
     # We now move all particles by the same offset to keep the COM at 0
     # This ensures that the xi-x0 remain the same
-    Mtot = np.array([p.m for p in sim.particles[:sim.N_real]).sum()
+    Mtot = np.array([p.m for p in sim.particles[:sim.N_real]]).sum()
     for p in sim.particles[:sim.N_real]:
         p.x -= m/Mtot*x
         p.y -= m/Mtot*y

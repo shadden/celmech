@@ -40,37 +40,34 @@ class TestPoincare(unittest.TestCase):
 
     def compare_simulations_orb(self, sim1, sim2, delta=1.e-15):
         self.assertAlmostEqual(sim1.particles[0].m, sim2.particles[0].m, delta=delta)
-        orbs1 = sim1.calculate_orbits(jacobi_masses=True)
-        orbs2 = sim2.calculate_orbits(jacobi_masses=True)
+        orbs1 = sim1.calculate_orbits()
+        orbs2 = sim2.calculate_orbits()
         for i in range(sim1.N-1):
-            self.assertAlmostEqual(sim1.particles[i+1].m, sim2.particles[i+1].m, delta=delta)
+            self.assertAlmostEqual(sim1.particles[i+1].m, sim2.particles[i+1].m, delta=delta, msg="mass")
             o1 = orbs1[i]
             o2 = orbs2[i]
             for attr in ['a', 'e', 'inc']:
-                self.assertAlmostEqual(getattr(o1, attr), getattr(o2, attr), delta=delta)
+                self.assertAlmostEqual(getattr(o1, attr), getattr(o2, attr), delta=delta, msg=attr)
             for attr in ['Omega', 'pomega', 'theta']:
                 self.assertAlmostEqual(np.cos(getattr(o1, attr)), np.cos(getattr(o2, attr)), delta=delta)
-
+    
     def test_orbelements(self):
-        pvars = Poincare.from_Simulation(self.sim, average=False)
-        ps = pvars.particles
-        o = self.sim.calculate_orbits(jacobi_masses=True)
-        for i in range(1,4):
-            self.assertAlmostEqual(o[i-1].a, ps[i].a, delta=1.e-15)
-            self.assertAlmostEqual(o[i-1].e, ps[i].e, delta=1.e-15)
-            self.assertAlmostEqual(o[i-1].inc, ps[i].inc, delta=1.e-15)
-            self.assertAlmostEqual(o[i-1].l, ps[i].l, delta=1.e-15)
-            self.assertAlmostEqual(o[i-1].Omega, ps[i].Omega, delta=1.e-15)
-            self.assertAlmostEqual(o[i-1].pomega, ps[i].pomega, delta=1.e-15)
+        p = PoincareParticle(m=1.e3, M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
+        self.assertAlmostEqual(p.a, 2., delta=1.e-15)
+        self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
+        self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
+        self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
+        self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
+        self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
 
-    def test_rebound(self):
-        orbs = self.sim.calculate_orbits(primary=self.sim.particles[0])
-        sim = rebound.Simulation()
-        sim.add(m=1.)
-        for i, orb in enumerate(orbs):
-            sim.add(m=self.sim.particles[i+1].m, a=orb.a, e=orb.e, inc=orb.inc, pomega=orb.pomega, l=orb.l, Omega=orb.Omega, primary=sim.particles[0])
-        sim.move_to_com()
-        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
+    def test_tp_orbelements(self):
+        p = PoincareParticle(m=0., M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
+        self.assertAlmostEqual(p.a, 2., delta=1.e-15)
+        self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
+        self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
+        self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
+        self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
+        self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
 
     def test_copy(self):
         pvars = Poincare.from_Simulation(self.sim)
@@ -78,17 +75,17 @@ class TestPoincare(unittest.TestCase):
         self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
-        # averaging operation is not symmetric because have to use current
-        # Lambdas to calculate correction. So turn off averaging for test
-        pvars = Poincare.from_Simulation(self.sim, average = False)
-        sim = pvars.to_Simulation(average = False)
-        self.compare_simulations_orb(self.sim, sim, delta=1.e-14)
+        pvars = Poincare.from_Simulation(self.sim)
+        sim = pvars.to_Simulation()
+        self.compare_simulations_orb(self.sim, sim, delta=1.e-14) # can't get it to 1e-15
 
-    def test_averaging(self): # see PoincareTest.ipynb in celmech/celmech/test for a description
-        pass
-        #errs = np.array([averaging_error(Nseed) for Nseed in range(100)]) # takes about 5 sec
-        #self.assertLess(np.median(errs), 3.)        
-
+    def test_tp_rebound_transformations(self):
+        sim = self.sim.copy()
+        sim.particles[2].m = 0
+        pvars = Poincare.from_Simulation(sim)
+        sim2 = pvars.to_Simulation()
+        self.compare_simulations_orb(sim, sim2, delta=1.e-14) # can't get it to 1e-15
+    
     def test_particles(self):
         m=1.e-5
         M=3.
