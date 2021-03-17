@@ -3,6 +3,7 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from .hamiltonian import Hamiltonian
 from .disturbing_function import get_fg_coeffs , laplace_b
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
 import rebound
 import warnings
@@ -24,10 +25,12 @@ def get_re_im_components(x,y,k):
             im += b * (sgnk * y)**l * x**(absk-l) * (-1)**((l-1)//2)
     return re,im
 
-def single_true(iterable): # Returns true if only one element in the iterable is set 
-    # make generator from iterable setting any zeros as valid entries (otherwise they evaluate to False)
-    i = iter([item if item != 0 else True for item in iterable]) # make generator and set zeros to valid inputs
-    return any(i) and not any(i) # any(i) True once first valid item found. not any(i) ensures no additional ones exist
+def num_passed(iterable): # returns num of entries in iterable that are not None
+    ctr = 0
+    for i in iterable:
+        if i is not None:
+            ctr += 1
+    return ctr
 
 class PoincareParticle(object):
     """
@@ -44,27 +47,67 @@ class PoincareParticle(object):
     M : float
       Mass of central body.
     """
-    def __init__(self, m, M, G=1., sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None):
+    def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None):
         """
-        We store the specific Lambda = sqrt(G*M*a) and specific Gamma = sLambda*(1-sqrt(1-e**2)) to support test particles
+        We store Cartesian components of specific actions to support test particles
         """
-        if not single_true([sLambda, Lambda, a]):
-            raise AttributeError("Must pass one (and only one) of Lambda, sLambda (specific Lambda, i.e. per unit mass), or a (semimajor axis)")
-        if not single_true([sGamma, Gamma, e]):
-            raise AttributeError("Must pass one (and only one) of Gamma, sGamma (specific Gamma, i.e. per unit mass), or e (eccentricity)")
-        if not single_true([sQ, Q, inc]):
-            raise AttributeError("Must pass one (and only one) of Q, sQ (specific Q, i.e. per unit mass), or inc (inclination)")
-        if not single_true([gamma, pomega]):
-            raise AttributeError("Must pass one (and only one) of gamma (-pomega) or pomega (longitude of pericenter)")
-        if not single_true([q, Omega]):
-            raise AttributeError("Must pass one (and only one) of q (-Omega) or Omega (longitude of ascending node)")
-        if not single_true([l]):
-            raise AttributeError("Must pass l (mean longitude)")
+        num = num_passed([sLambda, Lambda, a])
+        if num == 0:
+            raise AttributeError("Must pass exactly 1 of Lambda, sLambda (specific Lambda, i.e., per unit mass), and a.")
+        elif num > 1:
+            raise AttributeError("Can't pass more than 1 of Lambda, sLambda (specific Gamma, i.e. per unit mass), and a (semimajor axis)")
+        num = num_passed([sGamma, Gamma, e])
+        if num == 0:
+            sGamma = 0 # default
+        elif num > 1:
+            raise AttributeError("Can't pass more than 1 of Gamma, sGamma (specific Gamma, i.e. per unit mass), and e (eccentricity)")
+        num = num_passed([sQ, Q, inc])
+        if num == 0:
+            sQ = 0 # default
+        elif num > 1:
+            raise AttributeError("Can't pass more than 1 of Q, sQ (specific Q, i.e. per unit mass), and inc (inclination)")
+        num = num_passed([gamma, pomega])
+        if num == 0:
+            gamma = 0 # default
+        elif num > 1:
+            raise AttributeError("Can't pass more than 1 of gamma (-pomega) and pomega (longitude of pericenter)")
+        num = num_passed([q, Omega])
+        if num == 0:
+            q = 0 # default
+        elif num > 1:
+            raise AttributeError("Can't pass more than 1 of q (-Omega) and Omega (longitude of ascending node)")
+        num = num_passed([l])
+        if num == 0:
+            l = 0 # default
        
         self.G = G  
-        self.m = m 
-        self.M = M 
         self.l = l
+        self.coordinates = coordinates
+
+        massError = False
+        if m is not None and Mstar is not None: # passed both physical masses
+            if mu is not None or M is not None: # also passed one of others
+                massError = True
+            else: # calculate from physical masses
+                if coordinates == 'democratic heliocentric':
+                    self.mu = m
+                    self.M = Mstar
+                elif coordinates == 'canonical heliocentric':
+                    self.mu = m*Mstar/(Mstar + m)
+                    self.M = Mstar+m
+                else:
+                    raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heiocentric")
+        else: # didn't pass both physical masses
+            if m is not None or Mstar is not None: # passed only one physical mass
+                massError = True
+            elif mu is None or M is None: # didn't pass both can. masses
+                massError = True
+            else:
+                self.mu = mu
+                self.M = M
+
+        if massError == True:   
+            raise AttributeError("Have to either pass physical masses (m, Mstar) or 'canonical masses' (mu and M). Can't mix or pass both.")
         
         if pomega is not None:
             gamma = -pomega
@@ -75,15 +118,15 @@ class PoincareParticle(object):
             self.sLambda = sLambda
         elif Lambda is not None:
             try:
-                self.sLambda = Lambda/m
+                self.sLambda = Lambda/self.mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif a is not None:
-            self.sLambda = np.sqrt(G*M*a)
+            self.sLambda = np.sqrt(self.G*self.M*a)
 
         if Gamma is not None:
             try:
-                sGamma = Gamma/m
+                sGamma = Gamma/self.mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif e is not None:
@@ -91,7 +134,7 @@ class PoincareParticle(object):
 
         if Q is not None:
             try:
-                sQ = Q/m
+                sQ = Q/self.mu
             except:
                 raise AttributeError("Need to pass specific actions (sLambda, sGamma, and sQ) or a, e, and inc for test particles")
         elif inc is not None:
@@ -102,7 +145,43 @@ class PoincareParticle(object):
 
         self.ssigma = np.sqrt(2.*sQ)*np.cos(q) # Xinc per unit sqrt(mass)
         self.srho = np.sqrt(2.*sQ)*np.sin(q)
-        
+
+    def _mu_M_to_m_Mstar(self, mu, M):
+        """
+        Takes reduced mass mu = mMstar/(Mstar+m) and M=Mstar+m
+        and returns m and Mstar 
+        """
+        d = np.sqrt(M**2 - 4*mu*M) # m_0 - m_i
+        Mstar = (M+d)/2
+        m = mu*M/Mstar
+        return m, Mstar
+   
+    @property
+    def m(self):
+        if self.coordinates == "democratic heliocentric":
+            return self.mu
+        elif self.coordinates == "canonical heliocentric":
+            m, Mstar = self._mu_M_to_m_Mstar(self.mu, self.M)
+            return m
+    @m.setter
+    def m(self, value):
+        if self.coordinates == "democratic heliocentric":
+            self.mu = value
+        elif self.coordinates == "canonical heliocentric":
+            raise AttributeError("Can't change physical masses after initialization with canonical heliocentric coordinates.")
+    @property
+    def Mstar(self):
+        if self.coordinates == "democratic heliocentric":
+            return self.M
+        elif self.coordinates == "canonical heliocentric":
+            m, Mstar = self._mu_M_to_m_Mstar(self.mu, self.M)
+            return Mstar
+    @Mstar.setter
+    def Mstar(self, value):
+        if self.coordinates == "democratic heliocentric":
+            self.M = value
+        elif self.coordinates == "canonical heliocentric":
+            raise AttributeError("Can't change physical masses after initialization with canonical heliocentric coordinates.")
     @property
     def x(self):
         return (self.kappa - 1j * self.eta) / np.sqrt(2)
@@ -131,51 +210,51 @@ class PoincareParticle(object):
 
     @property
     def kappa(self):
-        return np.sqrt(self.m)*self.skappa
+        return np.sqrt(self.mu)*self.skappa
     @kappa.setter
     def kappa(self, value):
-        self.skappa = value/np.sqrt(self.m)
+        self.skappa = value/np.sqrt(self.mu)
     @property
     def eta(self):
-        return np.sqrt(self.m)*self.seta
+        return np.sqrt(self.mu)*self.seta
     @eta.setter
     def eta(self, value):
-        self.seta = value/np.sqrt(self.m)
+        self.seta = value/np.sqrt(self.mu)
 
     @property
     def sigma(self):
-        return np.sqrt(self.m)*self.ssigma
+        return np.sqrt(self.mu)*self.ssigma
     @sigma.setter
     def sigma(self, value):
-        self.ssigma = value/np.sqrt(self.m)
+        self.ssigma = value/np.sqrt(self.mu)
 
     @property
     def rho(self):
-        return np.sqrt(self.m)*self.srho
+        return np.sqrt(self.mu)*self.srho
     @rho.setter
     def rho(self, value):
-        self.srho = value/np.sqrt(self.m)
+        self.srho = value/np.sqrt(self.mu)
 
     @property
     def Lambda(self):
-        return self.m*self.sLambda
+        return self.mu*self.sLambda
     @Lambda.setter
     def Lambda(self, value):
-        self.sLambda = value/self.m
+        self.sLambda = value/self.mu
 
     @property
     def Gamma(self):
-        return self.m*(self.skappa**2+self.seta**2)/2.
+        return self.mu*(self.skappa**2+self.seta**2)/2.
     @Gamma.setter
     def Gamma(self, value):
-        self.sGamma = value/self.m
+        self.sGamma = value/self.mu
 
     @property
     def Q(self):
-        return self.m*(self.ssigma**2+self.srho**2)/2.
+        return self.mu*(self.ssigma**2+self.srho**2)/2.
     @Q.setter
     def Q(self, value):
-        self.sQ = value/self.m
+        self.sQ = value/self.mu
 
     @property
     def sGamma(self):
@@ -213,37 +292,33 @@ class PoincareParticle(object):
         if np.abs(cosi) > 1:
             raise AttributeError("sGamma:{0}, sLambda:{1}, sQ:{2}, cosi:{3}".format(self.sGamma, self.sLambda, self.sQ,cosi))
         return np.arccos(cosi)
-
     @property
     def pomega(self):
         return -self.gamma
-
     @property
     def Omega(self):
         return -self.q
-    @property
-    def n(self):
-        return np.sqrt(self.G*self.M/self.a**3)
 
 class Poincare(object):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
-    def __init__(self, G, poincareparticles=[]):
+    def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric"):
         self.G = G
-        self.particles = [PoincareParticle(m=np.nan, M=np.nan, G=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
+        self.coordinates = coordinates
+        self.particles = [PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
         try:
             for p in poincareparticles:
-                self.add(m=p.m, M=p.M, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ=p.sQ, q=p.q)
+                self.add(m=p.m, Mstar=p.Mstar, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ=p.sQ, q=p.q)
         except TypeError:
             raise TypeError("poincareparticles must be a list of PoincareParticle objects")
     
     def add(self, **kwargs):
-        self.particles.append(PoincareParticle(G=self.G, **kwargs))
-
+        self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
+        # TODO: update 0th particle for the remaining COM coordinate
 
     @classmethod
-    def from_Simulation(cls, sim):
+    def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
         """ 
         Convert REBOUND Simulation to Poincare object, using canonical heliocentric coordinates
         in the center of mass frame. Assumes the dominant mass is sim.particles[0].
@@ -256,18 +331,16 @@ class Poincare(object):
         # Move to COM frame so P0 = 0 in canonical heliocentric coordinates
         sim.move_to_com()
 
-        pvars = Poincare(sim.G)
+        pvars = Poincare(G=sim.G, coordinates=coordinates)
         ps = sim.particles
         Mstar = ps[0].m
-        o = get_canonical_heliocentric_orbits(sim)
+        o = reb_calculate_orbits(sim, coordinates=coordinates)
         for i in range(1,sim.N_real):
             orb = o[i-1]
-            # for canonical heliocentric coordinates, particle mass is reduced mass mu, and central mass M = Mstar+p.m
-            M = Mstar + ps[i].m 
-            m = ps[i].m*Mstar/(ps[i].m+Mstar) 
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
-            pvars.add(m=m, M=M, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega)
+            # always pass physical masses, PoincareParticle will calculate appropriate canonical mass based on coord
+            pvars.add(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega)
         return pvars
 
     def to_Simulation(self):
@@ -283,14 +356,14 @@ class Poincare(object):
         sim = rebound.Simulation()
         sim.G = self.G
         ps = self.particles
-        m, Mstar = mu_M_to_m_Mstar(ps[1].m, ps[1].M) # use first Poincare particle to extract Mstar
+        Mstar = ps[1].Mstar # use first Poincare particle to extract Mstar
         sim.add(m=Mstar)
         for i in range(1, self.N):
-            add_chp_to_sim(ps[i], sim)
+            reb_add_poincare_particle(ps[i], sim)
         return sim
     
     def copy(self):
-        return Poincare(self.G, self.particles[1:self.N])
+        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N])
 
     @property
     def N(self):
@@ -327,7 +400,7 @@ class PoincareHamiltonian(Hamiltonian):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
             pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
-            Hparams[symbols("mu{0}".format(i))] = ps[i].m
+            Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
             H = self.add_Hkep_term(H, i)
@@ -377,12 +450,12 @@ class PoincareHamiltonian(Hamiltonian):
         ps = state.particles
         vpp = 6 # vars per particle
         for i in range(1, state.N):
-            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].m)
-            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].m)
-            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].m
+            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].mu)
+            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].mu)
+            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].mu
             ps[i].l = y[vpp*(i-1)+3]
-            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].m) 
-            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].m) 
+            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].mu) 
+            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].mu) 
             
     
     def add_Hkep_term(self, H, index):
@@ -643,6 +716,4 @@ class PoincareHamiltonian(Hamiltonian):
             mtrx.append(row)
         inc_mtrx = Matrix(mtrx)
         return ecc_mtrx,inc_mtrx
-
-from .nbody_simulation_utilities import get_canonical_heliocentric_orbits,add_canonical_heliocentric_elements_particle, mu_M_to_m_Mstar, add_chp_to_sim
 

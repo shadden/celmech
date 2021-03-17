@@ -4,7 +4,6 @@ from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
-from .poincare import single_true
 from .rk_integrator import RKIntegrator, _rk_methods 
 from scipy.linalg import expm
 from celmech.miscellaneous import getOmegaMatrix, _machine_eps
@@ -69,7 +68,7 @@ class LaplaceLagrangeSystem(Poincare):
         for i,particle in enumerate(self.particles):
             if i is not 0:
                 m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i)) 
-                self.params.update({m:particle.m,mu:particle.m,M:particle.M,Lambda:particle.Lambda})
+                self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float).eps

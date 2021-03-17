@@ -14,6 +14,7 @@ class TestPoincare(unittest.TestCase):
         self.sim.add(m=1.e-7, a=1.3, e=0.1, inc=0.05, pomega=2.3, l=4.4, Omega=2.1)
         self.sim.add(m=1.e-5, a=2.9, e=0.3, inc=0.07, pomega=1.3, l=3.4, Omega=5.2)
         self.sim.move_to_com()
+        self.coordinates = ['canonical heliocentric', 'democratic heliocentric']
 
     def tearDown(self):
         self.sim = None
@@ -50,41 +51,55 @@ class TestPoincare(unittest.TestCase):
                 self.assertAlmostEqual(getattr(o1, attr), getattr(o2, attr), delta=delta, msg=attr)
             for attr in ['Omega', 'pomega', 'theta']:
                 self.assertAlmostEqual(np.cos(getattr(o1, attr)), np.cos(getattr(o2, attr)), delta=delta)
-    
+   
+    def test_masses(self):
+        m=1e-3
+        Mstar=1
+        for coord in self.coordinates:
+            p = PoincareParticle(m=m, Mstar=Mstar, a=1., coordinates=coord)
+            p = PoincareParticle(mu=p.mu, M=p.M, a=1., coordinates=coord)
+            self.assertAlmostEqual(p.m, m, delta=1e-15)
+            self.assertAlmostEqual(p.Mstar, Mstar, delta=1e-15)
+
     def test_orbelements(self):
-        p = PoincareParticle(m=1.e3, M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
-        self.assertAlmostEqual(p.a, 2., delta=1.e-15)
-        self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
-        self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
-        self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
-        self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
-        self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
+        for coord in self.coordinates:
+            p = PoincareParticle(coordinates=coord, mu=1.e-3, M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
+            self.assertAlmostEqual(p.a, 2., delta=1.e-15)
+            self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
+            self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
+            self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
+            self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
+            self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
 
     def test_tp_orbelements(self):
-        p = PoincareParticle(m=0., M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
-        self.assertAlmostEqual(p.a, 2., delta=1.e-15)
-        self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
-        self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
-        self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
-        self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
-        self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
+        for coord in self.coordinates:
+            p = PoincareParticle(coordinates=coord, mu=0., M=3., a=2., e=0.5, inc=0.7, q=-0.3, gamma=-0.5, l=2.3)
+            self.assertAlmostEqual(p.a, 2., delta=1.e-15)
+            self.assertAlmostEqual(p.e, 0.5, delta=1.e-15)
+            self.assertAlmostEqual(p.inc, 0.7, delta=1.e-15)
+            self.assertAlmostEqual(p.Omega, 0.3, delta=1.e-15)
+            self.assertAlmostEqual(p.pomega, 0.5, delta=1.e-15)
+            self.assertAlmostEqual(p.l, 2.3, delta=1.e-15)
 
     def test_copy(self):
-        pvars = Poincare.from_Simulation(self.sim)
-        pvars2 = pvars.copy()
-        self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
+        for coord in self.coordinates:
+            pvars = Poincare.from_Simulation(self.sim, coordinates=coord)
+            pvars2 = pvars.copy()
+            self.compare_poincare_particles(pvars.particles, pvars2.particles) # ignore nans in particles[0]
         
     def test_rebound_transformations(self):
-        pvars = Poincare.from_Simulation(self.sim)
-        sim = pvars.to_Simulation()
-        self.compare_simulations_orb(self.sim, sim, delta=1.e-14) # can't get it to 1e-15
+        for coord in self.coordinates:
+            pvars = Poincare.from_Simulation(self.sim, coordinates=coord)
+            sim = pvars.to_Simulation()
+            self.compare_simulations_orb(self.sim, sim, delta=1.e-14) # can't get it to 1e-15
 
     def test_tp_rebound_transformations(self):
         sim = self.sim.copy()
         sim.particles[2].m = 0
-        pvars = Poincare.from_Simulation(sim)
-        sim2 = pvars.to_Simulation()
-        self.compare_simulations_orb(sim, sim2, delta=1.e-14) # can't get it to 1e-15
+        for coord in self.coordinates:
+            pvars = Poincare.from_Simulation(sim, coordinates=coord)
+            sim2 = pvars.to_Simulation()
+            self.compare_simulations_orb(sim, sim2, delta=1.e-14) # can't get it to 1e-15
     
     def test_particles(self):
         m=1.e-5
@@ -102,8 +117,8 @@ class TestPoincare(unittest.TestCase):
         Lambda = m*sLambda
         Gamma = m*sGamma
         Q = m*sQ
-        p = PoincareParticle(m=m, M=M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
-        tp = PoincareParticle(m=0., M=M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
+        p = PoincareParticle(mu=m, M=M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
+        tp = PoincareParticle(mu=0., M=M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
         self.assertAlmostEqual(p.a, a, delta=1.e-15)
         self.assertAlmostEqual(p.e, e, delta=1.e-15)
         self.assertAlmostEqual(p.inc, inc, delta=1.e-15)
@@ -127,8 +142,8 @@ class TestPoincare(unittest.TestCase):
         self.assertAlmostEqual(ps[2].pomega, pomega, delta=1.e-15)
         self.assertAlmostEqual(ps[2].Omega, Omega, delta=1.e-15)
         pvars = Poincare(G=G)
-        pvars.add(m=m, M=M, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
-        pvars.add(m=0., M=M, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
+        pvars.add(mu=m, M=M, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
+        pvars.add(mu=0., M=M, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
         ps = pvars.particles
         self.assertAlmostEqual(ps[1].a, a, delta=1.e-15)
         self.assertAlmostEqual(ps[1].e, e, delta=1.e-15)
