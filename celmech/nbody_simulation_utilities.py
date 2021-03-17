@@ -149,24 +149,21 @@ def get_canonical_heliocentric_orbits(sim):
 
 def reb_calculate_orbits(sim, coordinates="canonical heliocentric"):
     """
-    Compute orbital elements in canonical 
-    heliocentric coordinates (Laskar & Robutel 1995), 
-    in the center-of-mass frame (so p0 = 0)
+    Compute orbital elements in passed canonical coordinates
 
     Arguments:
     ----------
-    sim : rb.Simulation
+    sim : rebound.Simulation
         simulation for which to compute orbits
     coordinates: str
-        Set of canonical coordinates to use. Can be one of
-        'canonical heliocentric' (default)
-        'democratic heliocentric'
+        Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+        'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+        'democratic heliocentric': e.g. Duncan et al. 1998
 
     Returns
     -------
     list of rebound.Orbits
-        Orbits of particles in canonical heliocentric
-        coordinates.
+        Orbits of particles in passed canonical coordinates 
     """
     if coordinates not in ['canonical heliocentric', 'democratic heliocentric']:
         raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heliocentric")
@@ -245,7 +242,8 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
 def reb_add_from_elements(m,elements,sim,coordinates='canonical heliocentric'):
     """
     Add a new particle to a rebound simulation 
-    by specifying its mass and orbital elements.
+    by specifying its mass, orbital elements, and the set of canonical
+    coordinates the elements are in.
 
     Arguments
     ---------
@@ -258,9 +256,9 @@ def reb_add_from_elements(m,elements,sim,coordinates='canonical heliocentric'):
     sim : rebound.Simulation
         Simulation to add particle to.
     coordinates: str
-        Set of canonical coordinates to use. Can be one of
-        'canonical heliocentric' (default)
-        'democratic heliocentric'
+        Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+        'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+        'democratic heliocentric': e.g. Duncan et al. 1998
     """
     if coordinates not in ['canonical heliocentric', 'democratic heliocentric']:
         raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heliocentric")

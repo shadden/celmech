@@ -35,17 +35,41 @@ def num_passed(iterable): # returns num of entries in iterable that are not None
 class PoincareParticle(object):
     """
     A class representing an individual member (star, planet, or test particle) of a planetary system.
-    The appropriate value for m and M depends on the adopted coordinate system and Kepler splitting
-    (see e.g., Hernandez and Dehnen 2017 for a review and comparison). celmech by default uses
-    canonical heliocentric coordinates, where one would pass m = the reduced mass MPlanet*Mstar/(Mstar+Mplanet) 
-    and M=Mstar+MPlanet
+    The appropriate value for mu and M depends on the adopted coordinate system and Kepler splitting
+    (see e.g., Hernandez and Dehnen 2017 for a review and comparison). celmech supports canonical
+    heliocentric coordinates (default) and democratic heliocentric coordinates.
 
-    Attributes
+    Parameters 
     ----------
+    coordinates: str
+      Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+      'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+      'democratic heliocentric': e.g. Duncan et al. 1998
+    G : float
+      Gravitational constant (Default: 0)
     m : float
-      Mass of particle.
+      Physical mass of particle.
+    Mstar : float
+      Physical mass of central body.
+    mu : float
+      'Canonical' mass of body. mu=reduced mass for canonical heliocentric coordinates (default)
+      mu=m for democratic heliocentric coordinates.
     M : float
-      Mass of central body.
+      'Canonical' central mass. M=Mstar+m for canonical heliocentric coordinates (default)
+      M=Mstar for democratic heliocentric coordinates.
+    Lambda, sLambda, a: float
+      These variables specify the semimajor axis of the orbit. 
+      Can pass any of the three, but at least one must be specified.
+    l : float
+      Mean longitude of the orbit. If not passed, defaults to 0.
+    Gamma, sGamma, e: float 
+      These variables specify the orbital eccentricity. Any one can be passed. If none passed, defaults to 0
+    gamma, pomega: float
+      These variables specify the pericenter orientation. Any one can be passed. If none passed, defaults to 0
+    Q, sQ, inc: float 
+      These variables specify the orbital inclination. Any one can be passed. If none passed, defaults to 0
+    q, Omega: float
+      These variables specify the node longitude. Any one can be passed. If none passed, defaults to 0
     """
     def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None):
         """
@@ -299,6 +323,12 @@ class PoincareParticle(object):
     def Omega(self):
         return -self.q
 
+    def __repr__(self):
+        """ 
+        Returns a string with the state of the particle.
+        """ 
+        return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
+
 class Poincare(object):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
@@ -320,12 +350,23 @@ class Poincare(object):
     @classmethod
     def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
         """ 
-        Convert REBOUND Simulation to Poincare object, using canonical heliocentric coordinates
-        in the center of mass frame. Assumes the dominant mass is sim.particles[0].
+        Convert REBOUND Simulation to Poincare object, using specified canonical coordinates.
+        Assumes the dominant mass is sim.particles[0].
 
+        Parameters 
+        ----------
+        
+        sim : rebound.Simulation
+          Simulation to convert.
+        coordinates: str
+          Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+          'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+          'democratic heliocentric': e.g. Duncan et al. 1998
+    
         Returns
         -------
-        sim : rebound.Simulation
+
+        Poincare object
         """ 
         sim = sim.copy()
         # Move to COM frame so P0 = 0 in canonical heliocentric coordinates
@@ -346,7 +387,6 @@ class Poincare(object):
     def to_Simulation(self):
         """ 
         Convert Poincare object to a REBOUND simulation in COM frame.
-        Assumes that Poincare object is in canonical heliocentric coordinates in the COM frame.
 
         Returns
         -------
