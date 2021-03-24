@@ -4,7 +4,6 @@ from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
-from .poincare import single_true
 from .rk_integrator import RKIntegrator, _rk_methods 
 from scipy.linalg import expm
 from celmech.miscellaneous import getOmegaMatrix, _machine_eps

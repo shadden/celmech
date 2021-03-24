@@ -3,12 +3,12 @@ import rebound as rb
 import reboundx as rbx
 
 def set_timestep(sim,dtfactor):
-        ps=sim.particles[1:]
+        ps=sim.particles[1:sim.N_real]
         tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
         dt = tperi * dtfactor
         sim.dt = dt
 def set_min_distance(sim,rhillfactor):
-        ps=sim.particles[1:]
+        ps=sim.particles[1:sim.N_real]
         mstar = sim.particles[0].m
         rhill = np.min([ p.rhill for p in ps if p.m > 0])
         mindist = rhillfactor * rhill
@@ -130,8 +130,9 @@ def _get_reboundx_simarchive_integration_results(sa,coordinates):
 
 def get_canonical_heliocentric_orbits(sim):
     """
-    Compute orbital elements in canconical 
-    heliocentric coordinates.
+    Compute orbital elements in canonical 
+    heliocentric coordinates (Laskar & Robutel 1995), 
+    in the center-of-mass frame (so p0 = 0)
 
     Arguments:
     ----------
@@ -144,17 +145,40 @@ def get_canonical_heliocentric_orbits(sim):
         Orbits of particles in canonical heliocentric
         coordinates.
     """
+    return reb_calculate_orbits(sim, coordinates="canonical heliocentric")
+
+def reb_calculate_orbits(sim, coordinates="canonical heliocentric"):
+    """
+    Compute orbital elements in passed canonical coordinates
+
+    Arguments:
+    ----------
+    sim : rebound.Simulation
+        simulation for which to compute orbits
+    coordinates: str
+        Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+        'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+        'democratic heliocentric': e.g. Duncan et al. 1998
+
+    Returns
+    -------
+    list of rebound.Orbits
+        Orbits of particles in passed canonical coordinates 
+    """
+    if coordinates not in ['canonical heliocentric', 'democratic heliocentric']:
+        raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heliocentric")
+
     star = sim.particles[0]
     orbits = []
+    # the central body in this splitting should have star.m + mu, but 
+    # this is already accounted for in REBOUND's orbit calculation 
     fictitious_star = rb.Particle(m=star.m)
-    com = sim.calculate_com()
-    for planet in sim.particles[1:]:
-
+    for planet in sim.particles[1:sim.N_real]:
         # Heliocentric position
         r = np.array(planet.xyz) - np.array(star.xyz)
-
-        # Barycentric momentum
-        rtilde = planet.m * ( np.array(planet.vxyz) - np.array(com.vxyz) )
+        # For canonical heliocentric coordinates the momentum
+        # is the same as the inertial momentum, pi=mi*vi
+        v = np.array(planet.vxyz)
 
         # Mapping from (coordinate,momentum) pair to
         # orbital elments requires that the 'velocity'
@@ -165,15 +189,22 @@ def get_canonical_heliocentric_orbits(sim):
         #
         # For Laskar & Robutel (1995)'s definition
         # of canonical action-angle pairs, this is
-        # the reduced mass.
-        #
-        # For democratic heliocentric elements,
-        # 'mu' is simply the planet mass.
-        mu = planet.m * star.m / (planet.m + star.m)
-        v_for_orbit = rtilde / mu
+        # the reduced mass, so v_for_orbit = mi * vi / mu_i = (m0 + mi)/m0 * vi
+        # We write it this way to remain well behaved in test particle limit
+        # For DHC: v_for_orbit = mi*vi/mi = vi
+       
+        # Need to set right central mass for REBOUND calculation
+        # for CH, set m so central M = Mstar + m
+        # for DHC, m=0 so central M = Mstar
+        if coordinates == 'canonical heliocentric':
+            m = planet.m
+            v_for_orbit = (m + star.m)/star.m*v
+        elif coordinates == 'democratic heliocentric':
+            m = 0
+            v_for_orbit = v
 
         fictitious_particle =  rb.Particle(
-            m=planet.m,
+            m=m,
             x = r[0],
             y = r[1],
             z = r[2],
@@ -185,6 +216,10 @@ def get_canonical_heliocentric_orbits(sim):
         orbits.append(orbit)
     return orbits
 
+def reb_add_poincare_particle(p, sim):
+    elements = {element:getattr(p,element) for element in ['a','e','inc','l','pomega','Omega']}
+    reb_add_from_elements(p.m, elements, sim, p.coordinates) 
+
 def add_canonical_heliocentric_elements_particle(m,elements,sim):
     """
     Add a new particle to a rebound simulation 
@@ -194,7 +229,7 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     Arguments
     ---------
     m : float
-        Mass of particle to add.
+        Physical mass of particle to add.
     elements : dict
         Dictionary of orbital elements for particle.
         Dictionary must contain valid set
@@ -202,26 +237,80 @@ def add_canonical_heliocentric_elements_particle(m,elements,sim):
     sim : rebound.Simulation
         Simulation to add particle to.
     """
+    reb_add_from_elements(m, elements, sim, coordinates = 'canonical heliocentric')
+
+def reb_add_from_elements(m,elements,sim,coordinates='canonical heliocentric'):
+    """
+    Add a new particle to a rebound simulation 
+    by specifying its mass, orbital elements, and the set of canonical
+    coordinates the elements are in.
+
+    Arguments
+    ---------
+    m : float
+        Physical mass of particle to add.
+    elements : dict
+        Dictionary of orbital elements for particle.
+        Dictionary must contain valid set
+        of orbital elements accepted by REBOUND.
+    sim : rebound.Simulation
+        Simulation to add particle to.
+    coordinates: str
+        Specifices the canonical coordinate system. This determines the appropriate definitions of mu and M. Options:
+        'canonical heliocentric' (default): canonical heliocentric coordinates in the COM frame e.g. Laskar & Robutel 1995
+        'democratic heliocentric': e.g. Duncan et al. 1998
+    """
+    if coordinates not in ['canonical heliocentric', 'democratic heliocentric']:
+        raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heliocentric")
+    
     star = sim.particles[0]
+
+    # Make a 2body simulation with star mass m, 
+    # particle mass = mu (so REBOUND assigns central mass star.m+mu)
+    # Given canonical heliocentric elements,
+    # this yields xtilde = xi-xstar, vtilde = (mstar+mi)/mstar * vi
     _sim = rb.Simulation()
     _sim.G = sim.G
     _star = star.copy()
-    _sim.add(_star)
-    _sim.add(
-            primary=_star,
-            m=m,
-            **elements
-    )
+    _sim.add(m=star.m)
+    # REBOUND will use central mass M = star.m + m, so need to set so that correct M set
+    if coordinates == 'canonical heliocentric':
+        _sim.add(m=m, **elements) # so REBOUND uses central M = Mstar + m
+    elif coordinates == 'democratic heliocentric':
+        _sim.add(m=0, **elements) # so REBOUND uses central M = Mstar
     _p = _sim.particles[1]
-    p = _p.copy()
-    f = star.m / (p.m + star.m)
-    p.vx = f * ( _p.vx - star.vx )
-    p.vy = f * ( _p.vy - star.vy )
-    p.vz = f * ( _p.vz - star.vz )
+    p = rb.Particle(m=m) 
+    # we cache the planet positions so we can later correct to stay in COM frame
+    x = star.x + _p.x
+    y = star.y + _p.y
+    z = star.z + _p.z
+    p.x = x
+    p.y = y
+    p.z = z
+    # Fictitious particle provides vtilde, convert back to inertial velocities
+    # vtilde = momentum/canonical mass (see get_canonical_heliocentric_orbits)
+    # CH: vtilde = m*v/mu, so v = f*vtilde
+    # DHC: vtilde = m*v/m, so v = vtilde
+    if coordinates == 'canonical heliocentric':
+        f = star.m / (m + star.m)
+    elif coordinates == 'democratic heliocentric':
+        f = 1.
+    p.vx = f * _p.vx
+    p.vy = f * _p.vy
+    p.vz = f * _p.vz
+    # All of these need to be the final velocities in the COM frame, so the
+    # only way to do that is to compensate for the shift in COM with the star
+    star.vx -= m/star.m * p.vx
+    star.vy -= m/star.m * p.vy
+    star.vz -= m/star.m * p.vz
     sim.add(p)
-    star.vx -= p.m * p.vx / star.m
-    star.vy -= p.m * p.vy / star.m
-    star.vz -= p.m * p.vz / star.m
+    # We now move all particles by the same offset to keep the COM at 0
+    # This ensures that the xi-x0 remain the same
+    Mtot = np.array([p.m for p in sim.particles[:sim.N_real]]).sum()
+    for p in sim.particles[:sim.N_real]:
+        p.x -= m/Mtot*x
+        p.y -= m/Mtot*y
+        p.z -= m/Mtot*z
 
 def _compute_transformation_angles(sim):
     Gtot_vec = sim.calculate_angular_momentum()
@@ -265,6 +354,6 @@ def align_simulation(sim):
     sim : rebound.Simulation
     """
     theta1,theta2 = _compute_transformation_angles(sim)
-    for p in sim.particles:
+    for p in sim.particles[:sim.N_real]:
         p.x,p.y,p.z = npEulerAnglesTransform(p.xyz,0,theta2,theta1)
         p.vx,p.vy,p.vz = npEulerAnglesTransform(p.vxyz,0,theta2,theta1) 
