@@ -331,7 +331,7 @@ def NCOd0(a,b,c):
 def NewcombOperator(a,b,c,d):
     """
     Value of of Newcomb operator
-        X^{a,b}_{c,0}
+        X^{a,b}_{c,d}
         
     Arguments
     ---------
@@ -724,22 +724,16 @@ def _Cindirect_type1(k1,k2,m,z1,z2,z3,z4):
                     - (k_1-1)\varpi_j - (k_2+1) \varpi_i
                     + m(\Omega_i-\Omega_j)
     """
-    if m > 2:
+    if m > 2 or m < 0:
         return 0
-    base_case = -1 * calX_term(0,1,k1,z4) * calX_term(0,1,-k2,z3)
+    base_case = -1 * calX_term(0,1,-k1,z4) * calX_term(0,1,k2,z3)
     if m == 0:
-        if z1 > 1 or z2 > 1:
-            return 0
-        return (-1)**(z1) * (-1)**(z2) * base_case
-    elif m == 1:
-        binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
+        return binom(1,z1) * binom(1,z2) * (-1)**(z1) * (-1)**(z2) * base_case
+    if m == 1:
+         return 2 * binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
         base_case
-    else:
-        # m == 2
-        if z1 > 1 or z2 > 1:
-            return 0
-        return base_case
-    return 0
+    if m == 2:
+        return (1 - _delta(z1)) * (1 - _delta(z2)) * base_case
 
 def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
     r"""
@@ -750,17 +744,15 @@ def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
                     - (k_1-1)\varpi_j - (k_2-1) \varpi_i
                     - \Omega_i - \Omega_j + m(\Omega_j-\Omega_i)
     """
-    if abs(m) > 1:
+    if m > 2 or m <0:
         return 0
     base_case = -1 * calX_term(0,1,k1,z4) * calX_term(0,1,k2,z3)
     if m == 0:
-        return binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) *\
-        base_case
-    if m == -1:
-        return binom(1 ,z1) * _delta(z2) * (-1)**(z1) * base_case
-    if m == +1:
-        return binom(1 ,z2) * _delta(z1) * (-1)**(z2) * base_case
-    return 0
+        return binom(1 ,z1) * (1 - _delta(z2)) * (-1)**(z1) * base_case
+    if m == 1:
+        return -2 * binom(0.5 ,z1) * binom(0.5, z2 ) * (-1)**(z1) * (-1)**(z2) * base_case
+    if m == 2:
+        return binom(1 ,z2) * (1 - _delta(z1)) * (-1)**(z2) * base_case
 
 
 def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
@@ -778,12 +770,13 @@ def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
         return 0
     if k1 == 0 or k2 == 0:
         return 0
-    if k1 + k4 != 1:
-        return 0
-    if k2 + k3 == -1:
-        return _Cindirect_type1(k1,k2,k5,z1,z2,z3,z4)
-    elif k2 + k3 == 1:
-        return _Cindirect_type2(k1,k2,k6-1,z1,z2,z3,z4)
+    s1 = k1 + k4
+    s2 = k2 + k3
+    if abs(s1) == 1 and abs(s2)==1:
+        if s1 == -1*s2:
+            return _Cindirect_type1(s2 * k1,s2 * k2,s2 * k6,z1,z2,z3,z4)
+        else:
+            return _Cindirect_type2(s1 * k1,s1 * k2,-1 * s1 * k5,z1,z2,z3,z4)
     else:
         return 0
 
