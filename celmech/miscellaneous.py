@@ -392,7 +392,8 @@ def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_fr
     output_arr = np.empty((Nfreq,3),order='C',dtype=np.float64)
     input_arr = np.array(np.vstack((time,np.real(z),np.imag(z))).T,order='C',dtype=np.float64)
     Ndata = _nearest_pow2(len(input_arr))
-    _Nyq = 2 * np.pi * 0.5
+    dt = time[1]-time[0]
+    _Nyq =  np.pi / dt
     if not min_freq:
         min_freq = -1 * _Nyq
     if not max_freq:

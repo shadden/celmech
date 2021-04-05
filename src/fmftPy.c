@@ -21,8 +21,8 @@ int fmft_wrapper(double out[][3], int nfreq, double minfreq, double maxfreq, int
 		i++;
 	}
 	
-	err = fmft(output, nfreq, minfreq, maxfreq, flag, input, ndata);
 	dt = in[1][0] - in[0][0];
+	err = fmft(output, nfreq,dt * minfreq,dt * maxfreq, flag, input, ndata);
 	for(i=0;i<nfreq; i++){
 		// Frequency
 		out[i][0] = output[3*flag-2][i+1] / dt;
