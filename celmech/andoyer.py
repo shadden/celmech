@@ -401,21 +401,19 @@ class Andoyer(object):
         return pvars
 
     @classmethod
-    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2, average=True):
-        pvars = Poincare.from_Simulation(sim, average)
+    def from_Simulation(cls, sim, j, k, a10=None, i1=1, i2=2):
+        pvars = Poincare.from_Simulation(sim)
         if a10 is None:
             a10 = pvars.particles[i1].a
         return Andoyer.from_Poincare(pvars, j, k, a10, i1, i2)
 
-    def to_Simulation(self, masses=None, average=True):
+    def to_Simulation(self, masses=None):
         ''' By default assumes 2 planet system with self consistent jacobi masses
         (4 masses m1, M1, m2, M2 for 3 masses of star+2 planets may not be consistent).
         If 2 planets are part of larger system, need to pass physical masses=[M, m1, m2]
         '''
         pvars = self.to_Poincare()
-        #if average is True:
-        #    pvars.average_resonant_terms(exclude=[[self.params['j'], self.params['k']]], inverse=True)
-        return pvars.to_Simulation(masses, average)
+        return pvars.to_Simulation()
 
     def Z_to_Phi(self, Z):
         p = self.params
