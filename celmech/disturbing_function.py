@@ -1096,8 +1096,7 @@ def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,L
     all_dicts = []
     
     # highest harmonic of j:j-k resonance to include
-    nmax = 1 + (Nmax + 2) // (2*k)  # Complete secular contribution at desired order
-    #nmax = (Nmax) // (2*k) # Faster calculation
+    nmax = (Nmax + 2) // (2*k)  # Complete secular contribution at desired order
     # loop over harmonics
     for n in range(1,nmax+1):
         j1 = n * j

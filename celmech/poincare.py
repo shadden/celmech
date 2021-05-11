@@ -299,7 +299,7 @@ class PoincareParticle(object):
         return self.sLambda**2/self.G/self.M
     @property
     def n(self):
-        return self.G**2*M**2/self.sLambda**3
+        return self.G**2*self.M**2/self.sLambda**3
     @property
     def P(self):
         return 2 * np.pi / self.n
