@@ -407,3 +407,55 @@ def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_fr
             c_long(Ndata)
     )
     return {x[0]:x[1]*np.exp(1j*x[2]) for x in output_arr}
+
+def holman_weigert_stability_boundary(mu,e,Ptype=True):
+    r"""
+    Compute the critical semi-major axis represnting an approximate 
+    stability boundary for circumbinary planets in P- or S-type orbits.
+    Formulas for critical semi-major axes are taken from Holman & Wiegert (1999)[#]_
+    
+    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1999AJ....117..621H/abstract>`
+
+    Arguments
+    ---------
+    mu : float
+      The mass-ratio of the binary.
+      .. math::
+        \mu = \frac{m_B}{m_A+m_B}
+
+      where math:`m_A` and math:`m_B` are the component masses of the binary.
+    e : float
+      The eccentricity of the binary. 
+
+    Ptype : bool, optional
+      If `True` (default) orbit is assumed to be a P-type circumbinary orbit. 
+      If `False`, a S-type circum-primary/secondary orbit is considered.
+    Returns
+    -------
+    aC : float
+      The critical semi-major axis marking the stability boundary
+    """
+    if Ptype:
+        if mu<0.1 or mu>0.5:
+            warnings.warn("Input 'mu'={:.2g} is outside range [0.1,0.5] for which the stability boundary has been computed".format(mu))
+        if e<0.0 or e>0.7:
+            warnings.warn("Input 'e'={:.2g} is outside range [0.0,0.7] for which the stability boundary has been computed".format(e))
+        aC =  1.6
+        aC += 5.1 * e
+        aC += -2.22 * e * e
+        aC += 4.12 * mu
+        aC += -4.27 * mu * e
+        aC += -5.09 * mu * mu
+        aC += 4.61 * mu * mu * e * e
+    else:
+        if mu<0.1 or mu>0.9:
+            warnings.warn("Input 'mu'={:.2g} is outside range [0.1,0.5] for which the stability boundary has been computed".format(mu))
+        if e<0.0 or e>0.8:
+            warnings.warn("Input 'e'={:.2g} is outside range [0.0,0.7] for which the stability boundary has been computed".format(e))
+        aC =  0.464
+        aC += -0.38 * mu
+        aC += -0.631 * e
+        aC += 0.586 * mu * e
+        aC += 0.150 * e * e
+        aC += -0.198 * mu * e * e
+    return aC
