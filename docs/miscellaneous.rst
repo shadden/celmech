@@ -13,6 +13,7 @@ N-body simulation utilities
         :members:
 
 .. _other_misc:
+
 Other
 -----
 Other useful odds and ends are gathered into the :mod:`celmech.miscellaneous` module.
