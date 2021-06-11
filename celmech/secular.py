@@ -1,12 +1,13 @@
 import numpy as np
 import warnings
 from . import Poincare
-from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix
+from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix,Poly
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from scipy.linalg import expm
 from .rk_integrator import RKIntegrator, _rk_methods 
 from scipy.linalg import expm
 from celmech.miscellaneous import getOmegaMatrix, _machine_eps
+from collections import defaultdict
 
 from celmech.disturbing_function import SecularTermsList
 from celmech.disturbing_function import DFCoeff_C, _add_dicts,_consolidate_dictionary_terms
@@ -1132,5 +1133,142 @@ class SecularSystemSimulation():
 
     def calculate_AMD(self):
         return sum([p.Q + p.Gamma for p in self.state.particles[1:]])
+
+    def _get_symbol_vec(self,sybmol_str):
+        return symbols(",".join([r'{}_{}'.format(sybmol_str,i) for i in range(1,self.Npl+1)]))
+
+    def diagonalizing_tranformations(self):
+        r"""
+        Calculate transformations 
+
+        .. math::
+            \begin{align}
+                D_e &=& T_e^\mathrm{T}S_e T_e\\
+                D_I &=& T_I^\mathrm{T}S_I T_I\\
+
+        that diagonalize the matrices :math:`S_e` 
+        and :math:`S_I`.
+
+        Returns
+        -------
+        Te : ndarray
+        TI : ndarray
+        De : ndarray
+        DI : ndarray
+        """
+        vals_e,Te = np.linalg.eigh(self.Se)
+        vals_I,TI = np.linalg.eigh(self.SI)
+        vals_I[0] = 0
+        De = np.diag(vals_e)
+        DI = np.diag(vals_I)
+        return Te,TI,De,DI
+
+    def Hamiltonian_as_polynomial(self, transformed = False):
+        r"""
+        Return the Hamiltonian of the secular system as a :py:obj:`sympy.Poly`
+        object.
+
+        Argmunets
+        ---------
+        transformed : bool, optional
+            If :code:`True`, transform to the complex canonical variables 
+            :math:`\pmb{u}` and :math:`\pmb{v}`, that represent the proper 
+            secular modes and are related to the usual complex canonical
+            variables via :math:`\pmb{x} = T_e\cdot `
+
+        Returns
+        -------
+        H : sympy.Poly
+            The Hamiltonian
+        """
+        H = self._hamiltonian_to_poly(not transformed)
+        if transformed:
+            Npl = self.Npl
+            get_symbol_vec = self._get_symbol_vec
+            u=get_symbol_vec("u")
+            ubar=get_symbol_vec(r"\bar{u}")
+            v=get_symbol_vec("v")
+            vbar=get_symbol_vec(r"\bar{v}")
+            Te,TI,De,DI = self.diagonalizing_tranformations()
+            cvars = H.gens
+            transformed_vars = np.concatenate((Te.dot(u),TI.dot(v),Te.dot(ubar),TI.dot(vbar)))
+            rule={a:b for a,b in zip(cvars,transformed_vars)}
+            H = H.as_expr().subs(rule)
+            H += De.dot(u).dot(ubar) + DI.dot(v).dot(vbar)
+            H = H.as_poly(u+v+ubar+vbar)
+        return H
+
+    def _hamiltonian_to_poly(self,include_linear_terms):
+        get_symbol_vec = self._get_symbol_vec
+        Npl = self.Npl
+        x=get_symbol_vec("x")
+        xbar=get_symbol_vec(r"\bar{x}")
+        y=get_symbol_vec("y")
+        ybar=get_symbol_vec(r"\bar{y}")
+        poly_dict = defaultdict(float)
+        hdict = self.Hamiltonian_coefficients_dictionary
+        Lambdas = self.Lambda0s
+        for ij,terms_dict in hdict.items():
+            i,j=ij
+            Lin,Lout = Lambdas[i],Lambdas[j]
+            coeff_dict = _XYcoeff_to_xycoeff(terms_dict,Lin,Lout)
+            for kz, val in coeff_dict.items():
+                pows = _ijkz_to_Vpows(i,j,*kz,Npl)
+                cpows = _conj_powers(pows)
+                poly_dict[tuple(pows)]+=0.5*val
+                poly_dict[tuple(cpows)]+=0.5*val
+        H = Poly.from_dict(poly_dict,x+y+xbar+ybar)
+        if include_linear_terms:
+            H2 = np.array(xbar).dot(self.Se.dot(x))
+            H2 += np.array(ybar).dot(self.SI.dot(y))
+            H += H2.as_poly()
+        return H
+
+def _ijkz_to_Vpows(ii,jj,k,z,N):
+    # Planets indexed from 1
+    # array entries indexed from 0
+    i=ii-1
+    j=jj-1
+    vpows = np.zeros(4*N,dtype=int)
+    k1,k2,k3,k4,k5,k6 = k
+    z1,z2,z3,z4 = z
+    if k3 != 0:
+        vpows[i + N * (1 - np.sign(k3))] = abs(k3)
+    if k4 != 0:
+        vpows[j + N * (1 - np.sign(k4))] = abs(k4)
+    if k5 != 0:
+        vpows[i + N + N * (1 - np.sign(k5))] = abs(k5)
+    if k6 != 0:
+        vpows[j + N + N * (1 - np.sign(k6))] = abs(k6)
+
+    # eccentricity terms
+    vpows[i] += z3
+    vpows[i + 2 * N] += z3
+    vpows[j] += z4
+    vpows[j + 2 * N] += z4
+
+    # inclination terms
+    vpows[i + N] += z1
+    vpows[i + 3 * N] += z1
+    vpows[j + N] += z2
+    vpows[j + 3 * N] += z2
+    
+    return vpows
+
+def _conj_powers(powers_arr):
+    N = powers_arr.shape[0]//2
+    return np.concatenate((powers_arr[N:],powers_arr[:N]))
+
+def _XYcoeff_to_xycoeff(d,Lin,Lout):
+    dnew = dict()
+    for kz,val in d.items():
+        k,z=kz
+        Xpow = abs(k[2]) + 2 * z[2]
+        X1pow = abs(k[3]) + 2 * z[3]
+        Ypow = abs(k[4]) + 2 * z[0]
+        Y1pow = abs(k[5]) + 2 * z[1]
+        factor = (2/Lin)**(Xpow/2) * (2/Lout)**(X1pow/2) * (0.5/Lin)**(Ypow/2) * (0.5/Lout)**(Y1pow/2)
+        dnew[kz] = val * factor
+    return dnew
 
 
