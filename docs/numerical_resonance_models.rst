@@ -160,10 +160,104 @@ and
 Spatial Resonance Equations
 ---------------------------
 
-:class:`celmech.numerical_resonance_models.SpatialResonanceEquations` provides equations of motion governing a mean-motion resonance between planets that may be on mutually inclined orbits.
+:class:`celmech.numerical_resonance_models.SpatialResonanceEquations` provides equations of motion governing a mean-motion resonance between a planet pair on mutually inclined orbits. To study the dynamics of a :math:`p:p-q` MMR, we perform a transformation from the usual :ref:`Poincare canonical variables<poincare>` to new canonical angle variables
+
+   .. math::
+        \begin{align}
+            \begin{pmatrix}\sigma_1\\ \sigma_2 \\ \phi \\ \psi \\ \tilde{r}  \\  \tilde{s} \end{pmatrix}
+            =
+        \begin{pmatrix}
+        -s & 1+s & 1 & 0 & 0 & 0\\
+        -s & 1+s & 0 & 1 & 0 & 0\\
+        -s & 1+s & 0 & 0 &  1/2 & 1/2 \\
+        -1/q & 1/q & 0 & 0 & 0 & 0 \\
+        -s & 1+s & 0 & 0 & 0 & 0 \\
+        0 & 0 & 0 & 0 &  1/2 & -1/2 \\
+        \end{pmatrix}
+        \cdot
+        \begin{pmatrix}\lambda_1 \\ \lambda_2 \\ \gamma_1 \\ \gamma_2 \\ q_1 \\ q_2 \end{pmatrix}
+        \label{eq:equations_of_motion:angles}
+        \end{align}
+
+where :math:`s = (p-q)/{q}`, along with new conjugate momenta defined implicitly in terms of the old momentum variables as
+  .. math::
+
+        \begin{eqnarray}
+        \Lambda_1 &=& -s\tilde{R} -\Psi/q - s(I_1 + I_2 + \Phi)\nonumber\\
+        \Lambda_2 &=&  (s+1)\tilde{R} + \Psi/q + (s+1)(I_1 + I_2 + \Phi)\nonumber\\
+        \Gamma_i &=& I_i \nonumber\\
+        Q_1 &=& \frac{1}{2}(\Phi + \tilde{S}) \nonumber\\
+        Q_2 &=& \frac{1}{2}(\Phi - \tilde{S})
+        \end{eqnarray}
+
+The Hamiltonian is independent of the new angle variable :math:`\tilde r`, so the quantity
+    .. math::
+                \begin{eqnarray}
+                    \tilde{R} &=& \Lambda_1+\Lambda_2-Q_1-Q_2-\Gamma_1-\Gamma_2
+                \end{eqnarray}
+
+is conserved. The value of :math:`\tilde{R} =C_z`, where :math:`C_z` is the :math:`z`-component of the total angular momentum. If coordinates are chosen such that the :math:`z`-axis coincides with the direction of the total angular momentum vector, then  :math:`2{\tilde s} = (\Omega_2-\Omega_1)=\pi` and
+
+    .. math::
+        \begin{equation}
+          \tilde{S} =  2\frac{(s+1)I_1 + s I_2+\frac{\Psi}{q}+(s+1/2)(\tilde{R}+ \Phi)}{\tilde{R}}{\Phi}
+        \end{equation}
+
+(see, e.g., `Malige (2002) <https://ui.adsabs.harvard.edu/abs/2002CeMDA..84..283M/abstract>`_). 
+The :class:`SpatialResonanceEquations<celmech.numerical_resonance_models.SpatialResonanceEquations>` class assumes the system's angular momentum is oriented along the positive :math:`z`-axis and the equations of motion are formulated in the reduced phase-space spanned by the canonical coordinates :math:`(\sigma_1,\sigma_2,\phi,\psi)` and their conjugate momenta. 
+The phase space is further reduced by numerically averaging over the fase angle :math:`psi`, similar to the :class:`PlanarResonanceEquations<celmech.numerical_resonance_models.PlanarResonanceEquations>` class.
+This leaves us with the Hamiltonian
+        .. math::
+                H(\sigma_i,\phi,I_i,\Phi;\Psi,\tilde{R}) =  -\sum_{i=1}^{2}\frac{G^2M_i^2\mu^3}{2\Lambda_i^2} +  \int_{0}^{2\pi}
+                \left(\frac{\tilde{\pmb{r}_1}\cdot \tilde{\pmb{r}_2}}{m_0}-\frac{G m_1 m_2}{|\pmb{r}_1 - \pmb{r}_2|} \right) d\psi
 
 
+where 
+        .. math::
+                -\Psi/q = (1+s)\Lambda_1 + s\Lambda_2 
 
+is a conserved quantity of the resonant dynamics.
+
+The :class:`SpatialResonanceEquations<celmech.numerical_resonance_models.SpatialResonanceEquations>` class further simplifies the equations of motion by rescaling the action variables and Hamiltonian after an appropriate choice of units. 
+This re-scaling is accomplisehd by first defining the reference semi-major axes :math:`a_{i,0}` such that
+
+        .. math::
+                \begin{align}
+                C_z &= \mu_1\sqrt{GM_1a_{1,0}} + \mu_2\sqrt{GM_2a_{2,0}}\\
+                a_{1,0}&=\left(\frac{M_1}{M_2}\right)^{1/3}\left(\frac{p-q}{p}\right)^{2/3}a_{2,0}~,
+                \end{align}
+then rescaling all action variables and the Hamiltonian by a factor of :math:`(\mu_1+\mu_2)\sqrt{G M_*a_{2,0}}` so that the new canonical action variables become 
+        .. math::
+                \Lambda_i = \beta_i\sqrt{a_{i}/a_{2,0}}
+where :math:`\beta_i = \frac{\mu_i}{\mu_1+\mu_2}\sqrt{1+m_i/M_*}` and the Hamiltonian becomes
+        .. math::
+                \begin{align}
+                H&=-\sum_{i=1}^{2}\frac{\sqrt{1+m_i/M_*}\beta_i^3}{2\Lambda_i^2} + \epsilon H_{1}\\
+                H_1&=\frac{a_{2,0}}{GM_*}\pmb{v_1}\cdot\pmb{v_2} - \frac{a_{2,0}}{|\pmb{r}_2 - \pmb{r_2}|} 
+                \end{align}
+
+First, note that after our reductions, the Hamiltonian is parameterized by two conserved quantites, :math:`(\tilde{R},\Psi)`. We are alternatively free to choose any linear combination of these quantities to parameterize the Hamiltonian.
+In order to do so, we define :math:`f = \frac{\mu_1}{\mu_2}\sqrt{\frac{M_*+m_1}{M_*+m_2}}\left(\frac{p-q}{p}\right)^{1/3}\left({M_*+m_1}{M_*+m_2}\right)^{1/6}`, the value of :math:`\Lambda_1/\Lambda_2` at exact resonance, and write
+
+    .. math::
+            \begin{equation}
+            \begin{pmatrix}
+                 -\Psi/q\\
+                 \tilde{R}
+            \end{pmatrix}
+            = 
+            \begin{pmatrix}
+                s + (1+s) f & 0 \\
+                (1+f) & -1
+            \end{pmatrix}
+            \cdot
+            \begin{pmatrix}
+                \Lambda_{2,\text{res}} \\
+                {\cal D}
+            \end{pmatrix}~.
+            \end{equation}
+
+The newly defined quantity :math:`\Lambda_{2,\text{res}}` simply sets the semi-major axis scale of the system.
 API
 ---
 
