@@ -71,7 +71,7 @@ These objects can be initialized directly from the ``REBOUND`` simulation that w
 .. code:: python
         
         pvars = Poincare.from_Simulation(sim)
-        pham = PoincareHamiltonian()
+        pham = PoincareHamiltonian(pvars)
 
 Now that we've now generated a :class:`poincare.PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` object, 
 we'll examine the symbolic expression for the Hamiltonian governing our system:
