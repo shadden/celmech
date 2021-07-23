@@ -101,7 +101,7 @@ and get the results using the :func:`get_simarchive_integration_results <celmech
         sim.automateSimulationArchive("secular_example.sa",interval=Tsec/100,deletefile=True)
         sim.integrate(10 * Tsec)
         sa = rb.SimulationArchive("secular_example.sa")
-        nbody_results = get_simarchive_integration_results(sa)
+        nbody_results = get_simarchive_integration_results(sa,coordinates='heliocentric')
 
 :meth:`secular_solution <celmech.secular.LaplaceLagrangeSystem.secular_solution>` generates a secular solution as a dictionary:
 
@@ -179,37 +179,36 @@ In order to do so, we'll first define a wrapper function...
 
 .. code:: python
 
-        def run_secular_sim(sec_sim,times, corrector=True):
-                N = len(times)
-                # orbital elements that we want to track
-                eccN,incN,pomegaN,OmegaN = np.zeros((4,sec_sim.state.N - 1,N))
-
-                # We'll also track error in two conserved quanties, 
-                # the energy and the 'angular momentum deficit' or AMD
-                Eerr = np.zeros(N)
-                AMDerr = np.zeros(N)
-                timesDone = np.zeros(N)
-                E0 = sec_sim.calculate_energy()
-                AMD0 = sec_sim.calculate_AMD()
-
-                # main loop
-                for i,time in enumerate(times):
-                    sec_sim.integrate(time, corrector=corrector)
-                    timesDone[i] = sec_sim.t
-                    E = sec_sim.calculate_energy()
-
-                    AMD = sec_sim.calculate_AMD()
-                    Eerr[i] = np.abs((E-E0)/E0)
-                    AMDerr[i] = np.abs((AMD-AMD0)/AMD0)
-                    # sec_sim stores a Poincare object in its 'state' attribute
-                    # the state is updated when the system is integrated.
-                    for j,p in enumerate(sec_sim.state.particles[1:]):
-                        eccN[j,i] = p.e
-                        incN[j,i] = p.inc
-                        pomegaN[j,i] = p.pomega
-                        OmegaN[j,i] = p.Omega
-
-                return timesDone, Eerr, AMDerr, eccN, incN,pomegaN,OmegaN
+        def run_secular_sim(sec_sim,times):
+            N = len(times)
+            # orbital elements that we want to track
+            eccN,incN,pomegaN,OmegaN = np.zeros((4,sec_sim.state.N - 1,N))
+            
+            # We'll also track error in two conserved quanties,
+            # the energy and the 'angular momentum deficit' or AMD
+            Eerr = np.zeros(N)
+            AMDerr = np.zeros(N)
+            timesDone = np.zeros(N)
+            E0 = sec_sim.calculate_energy()
+            AMD0 = sec_sim.calculate_AMD()
+            
+            # main loop
+            for i,time in enumerate(times):
+                sec_sim.integrate(time)
+                timesDone[i] = sec_sim.t
+                E = sec_sim.calculate_energy()
+                AMD = sec_sim.calculate_AMD()
+                Eerr[i] = np.abs((E-E0)/E0)
+                AMDerr[i] = np.abs((AMD-AMD0)/AMD0)
+                
+                # sec_sim stores a Poincare object in its 'state' attribute
+                # the state is updated when the system is integrated.
+                for j,p in enumerate(sec_sim.state.particles[1:]):
+                    eccN[j,i] = p.e
+                    incN[j,i] = p.inc
+                    pomegaN[j,i] = p.pomega
+                    OmegaN[j,i] = p.Omega
+            return timesDone, Eerr, AMDerr, eccN, incN,pomegaN,OmegaN
 
 ... and then integrate ...
 

@@ -6,7 +6,7 @@ Installation
 Requirements
 ------------
 
-Installation of ``celmech`` will require a few additional Pyton packages. 
+Installation of ``celmech`` will require a few additional Python packages. 
 
 GitHub
 ------
@@ -53,10 +53,11 @@ Now we'll initialize a REBOUND simulation containing a pair of Earth-mass planet
 
         sim = rb.Simulation()
         sim.add(m=1,hash='star')
-        sim.add(m=3e-6,P = 1, e = 0.05)
-        sim.add(m=3e-6,P = 3/2, e = 0.05,pomega = np.pi)
+        sim.add(m=3e-6,P = 1, e = 0.03,l=0)
+        sim.add(m=3e-6,P = 3/2, e = 0.03,l=np.pi/5,pomega = np.pi)
         sim.move_to_com()
-        rb.OrbitPlot(sim,periastron=True) # Gives a visualization of our system
+        rb.OrbitPlot(sim,periastron=True)
+
 
 After running the above code, we should see a represntation of our planetary system:
 
@@ -112,7 +113,7 @@ This will result in quite boring dynamical evolution: the planets' mean longitud
 will simply increase linearly with time at a rate of 
 :math:`n_i = \frac{G^{2} M_{2}^{2} m_{i}^{3}}{\Lambda_{i}^{3}}`, while all other orbital elements remain constant.
 
-In order explore more interesting dynamics, we need to add term to Hamiltonian that capture pieces of the gravitational interactions between planets.
+In order explore more interesting dynamics, we need to add terms to Hamiltonian that capture pieces of the gravitational interactions between planets.
 Since our planet pair is near a 3:2 MMR, terms associated with this resonance are a natural choice to explore. 
 For a pair of co-planar planets, these terms will all involve linear combinations of the two resonant angles 
 
