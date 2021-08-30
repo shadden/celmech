@@ -431,11 +431,12 @@ class PoincareHamiltonian(Hamiltonian):
         A set of Poincare variables to which 
         transformations are applied.
     """
-    def __init__(self, pvars):
+    def __init__(self, pvars, constant_Lambda_approx = True):
         Hparams = {symbols('G'):pvars.G}
         pqpairs = []
         ps = pvars.particles
         H = S(0) 
+        self.constant_Lambda_approx = constant_Lambda_approx
         for i in range(1, pvars.N):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
@@ -443,10 +444,11 @@ class PoincareHamiltonian(Hamiltonian):
             Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
+            Hparams[symbols(r"\bar{{\Lambda}}_{{{0}}}".format(i))] = ps[i].Lambda
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
         super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
-    
+
     @property
     def particles(self):
         return self.state.particles
@@ -506,6 +508,7 @@ class PoincareHamiltonian(Hamiltonian):
         #m, M, mu, Lambda, lam, Gamma, gamma = self._get_symbols(index)
         H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
+
     def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
         """
         Add individual monomial term to Hamiltonian. The term 
@@ -521,6 +524,11 @@ class PoincareHamiltonian(Hamiltonian):
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
+        if self.constant_Lambda_approx:
+            Lambda0In,Lambda0Out = symbols(r"\bar{{\Lambda}}_{{{0}}},\bar{{\Lambda}}_{{{1}}}".format(indexIn,indexOut))
+            LambdaIn = Lambda0In
+            LambdaOut = Lambda0Out
+
         alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
 	# aIn = LambdaIn * LambdaIn / mIn / mIn / G / MIn
 	# aOut = LambdaOut * LambdaOut / mOut / mOut / G / MOut

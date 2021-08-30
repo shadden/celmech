@@ -202,7 +202,7 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
     r"""
     Evaluate a dictionary representing a sum
     of Laplace coefficient terms like those returned
-    by DFCoeff_C and DFCoeff_Cbar evaluated at a 
+    by DFCoeff_C and DFCoeff_Ctilde evaluated at a 
     specific value of semi-major axis ratio, alpha.
 
     Arguments
@@ -512,7 +512,7 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
 
     
 
-def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
+def DFCoeff_Ctilde(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
     r"""
     Get the coefficient of the disturbing function term:
     
@@ -604,7 +604,7 @@ def DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
 
     # add indirect term
     if include_indirect:
-        total['indirect'] = DFCoeff_Cbar_indirect_piece(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        total['indirect'] = DFCoeff_Ctilde_indirect_piece(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
     return dict(total)
 
 def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
@@ -654,7 +654,7 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
     terms_total = defaultdict(float)
     for n3 in range(N3+1):
         for n4 in range(N4+1):
-            term_dict = DFCoeff_Cbar(j1,j2,j3,j4,j5,j6,N1,N2,n3,n4)
+            term_dict = DFCoeff_Ctilde(j1,j2,j3,j4,j5,j6,N1,N2,n3,n4)
             prefactor = Xi(N3-n3,n3+abs(j3)/2,N1+abs(j5)/2) * Xi(N4-n4,n4+abs(j4)/2,N2+abs(j6)/2)
             if prefactor != 0.:
                 for key,val in term_dict.items():
@@ -755,7 +755,7 @@ def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
         return binom(1 ,z2) * (1 - _delta(z1)) * (-1)**(z2) * base_case
 
 
-def DFCoeff_Cbar_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
+def DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     r"""
     Get the indirect contribution to disturbing function coefficient
 
