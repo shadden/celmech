@@ -23,9 +23,6 @@ def get_compiled_Hpert_full():
         beta2 = mu2 * T.sqrt(Mstar2/mstar) / (mu1 + mu2)
         j,k = T.lscalars('jk')
         s = (j-k) / k
-        
-        # Angle variable for averaging over
-        psi = T.dvector()
 
         # Dynamical variables:
         Ndof = 2
@@ -33,7 +30,24 @@ def get_compiled_Hpert_full():
         psi = T.scalar()
         dyvars = T.vector()
         y1, y2, x1, x2, amd = [dyvars[i] for i in range(2*Ndof + Nconst)]
+
+        a20 = T.constant(1.)
+        a10 = ((j-k)/j)**(2/3) * (Mstar1 / Mstar2)**(1/3)
+        L10 = beta1 * T.sqrt(a10)
+        L20 = beta2 * T.sqrt(a20)
+        Ltot = L10 + L20
+        f = L10/L20
+        L2res = (Ltot + amd) / (1+f)
+        Psi = -k * (s * L2res + (1+s) * f * L2res) 
         
+        ###
+        # actions
+        ###
+        I1 = 0.5 * (x1*x1 + y1*y1)
+        I2 = 0.5 * (x2*x2 + y2*y2)
+        L1 = -s*Ltot - Psi/k - s * (I1 + I2)
+        L2 = (1+s)*Ltot + Psi/k + (1+s) * (I1 + I2)
+
         # Set lambda2=0
         l2 = T.constant(0.)
         l1 = -1 * k * psi 
@@ -43,35 +57,19 @@ def get_compiled_Hpert_full():
         
         kappa1 = x1 * cos_theta_res + y1 * sin_theta_res
         eta1   = y1 * cos_theta_res - x1 * sin_theta_res
+        
         kappa2 = x2 * cos_theta_res + y2 * sin_theta_res
         eta2   = y2 * cos_theta_res - x2 * sin_theta_res
-
-        Gamma1 = (x1 * x1 + y1 * y1) / 2
-        Gamma2 = (x2 * x2 + y2 * y2) / 2
         
-        # Resonant semi-major axis ratio
-        alpha_res = ((j-k)/j)**(2/3) * (Mstar1 / Mstar2)**(1/3)
-        #P0 =  k * ( beta2 - beta1 * T.sqrt(alpha_res) ) / 2
-        #P = P0 - k * (s+1/2) * amd
-        #Ltot = beta1 * T.sqrt(alpha_res) + beta2 - amd
-        a20 = 1
-        a10 = alpha_res * a20
-        Ltot = beta1 * T.sqrt(a10) + beta2 * np.sqrt(a20)
-        L1byL2res = beta1 * T.sqrt(a10) / beta2 * np.sqrt(a20)
-        L2res = (amd + Ltot) / (1 + L1byL2res)
-        P = 0.5 * L2res * (1 - L1byL2res) - (s+1/2) * amd 
-
-        L1 = Ltot/2 - P / k - s * (Gamma1 + Gamma2)
-        L2 = Ltot/2 + P / k + (1 + s) * (Gamma1 + Gamma2)
-
+        
         Xre1 = kappa1 / T.sqrt(L1)
         Xim1 = -eta1 / T.sqrt(L1)
 
         Xre2 = kappa2 / T.sqrt(L2)
         Xim2 = -eta2 / T.sqrt(L2)
-        
-        absX1_sq = 2 * Gamma1 / L1
-        absX2_sq = 2 * Gamma2 / L2
+
+        absX1_sq = 2 * I1 / L1
+        absX2_sq = 2 * I2 / L2
         X_to_z1 = T.sqrt(1 - absX1_sq / 4 )
         X_to_z2 = T.sqrt(1 - absX2_sq / 4 )
 
@@ -79,17 +77,15 @@ def get_compiled_Hpert_full():
         k1 = Xre1 * X_to_z1
         h1 = Xim1 * X_to_z1
         e1 = T.sqrt( absX1_sq ) * X_to_z1
-        
+
         a2 = (L2 / beta2 )**2 
         k2 = Xre2 * X_to_z2
         h2 = Xim2 * X_to_z2
-        e2 = T.sqrt( absX2_sq ) * X_to_z2
-        
+
         Hdir,Hind = calc_Hint_components_planar(
                 a1,a2,l1,l2,h1,k1,h2,k2,Mstar1/mstar,Mstar2/mstar
         )
         eps = m1*m2/ (mu1 + mu2) / T.sqrt(mstar)
-
         extra_ins = [m1,m2,j,k]
         ins = [psi] + [dyvars] + extra_ins
         ################################
@@ -130,15 +126,32 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         # Angle variable for averaging over
         psi = T.dvector()
 
+        # Quadrature weights
+        quad_weights = T.dvector('w')
+
         # Dynamical variables:
         Ndof = 2
         Nconst = 1
         dyvars = T.vector()
         y1, y2, x1, x2, amd = [dyvars[i] for i in range(2*Ndof + Nconst)]
 
-        # Quadrature weights
-        quad_weights = T.dvector('w')
+        a20 = T.constant(1.)
+        a10 = ((j-k)/j)**(2/3) * (Mstar1 / Mstar2)**(1/3)
+        L10 = beta1 * T.sqrt(a10)
+        L20 = beta2 * T.sqrt(a20)
+        Ltot = L10 + L20
+        f = L10/L20
+        L2res = (Ltot + amd) / (1+f)
+        Psi = -k * (s * L2res + (1+s) * f * L2res) 
         
+        ###
+        # actions
+        ###
+        I1 = 0.5 * (x1*x1 + y1*y1)
+        I2 = 0.5 * (x2*x2 + y2*y2)
+        L1 = -s*Ltot - Psi/k - s * (I1 + I2)
+        L2 = (1+s)*Ltot + Psi/k + (1+s) * (I1 + I2)
+
         # Set lambda2=0
         l2 = T.constant(0.)
         l1 = -1 * k * psi 
@@ -148,35 +161,19 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         
         kappa1 = x1 * cos_theta_res + y1 * sin_theta_res
         eta1   = y1 * cos_theta_res - x1 * sin_theta_res
+        
         kappa2 = x2 * cos_theta_res + y2 * sin_theta_res
         eta2   = y2 * cos_theta_res - x2 * sin_theta_res
-
-        Gamma1 = (x1 * x1 + y1 * y1) / 2
-        Gamma2 = (x2 * x2 + y2 * y2) / 2
         
-        # Resonant semi-major axis ratio
-        alpha_res = ((j-k)/j)**(2/3) * (Mstar1 / Mstar2)**(1/3)
-        #P0 =  k * ( beta2 - beta1 * T.sqrt(alpha_res) ) / 2
-        #P = P0 - k * (s+1/2) * amd
-        #Ltot = beta1 * T.sqrt(alpha_res) + beta2 - amd
-        a20 = 1
-        a10 = alpha_res * a20
-        Ltot = beta1 * T.sqrt(a10) + beta2 * np.sqrt(a20)
-        L1byL2res = beta1 * T.sqrt(a10) / beta2 * np.sqrt(a20)
-        L2res = (amd + Ltot) / (1 + L1byL2res)
-        P = 0.5 * L2res * (1 - L1byL2res) - (s+1/2) * amd 
-
-        L1 = Ltot/2 - P / k - s * (Gamma1 + Gamma2)
-        L2 = Ltot/2 + P / k + (1 + s) * (Gamma1 + Gamma2)
-
+        
         Xre1 = kappa1 / T.sqrt(L1)
         Xim1 = -eta1 / T.sqrt(L1)
 
         Xre2 = kappa2 / T.sqrt(L2)
         Xim2 = -eta2 / T.sqrt(L2)
-        
-        absX1_sq = 2 * Gamma1 / L1
-        absX2_sq = 2 * Gamma2 / L2
+
+        absX1_sq = 2 * I1 / L1
+        absX2_sq = 2 * I2 / L2
         X_to_z1 = T.sqrt(1 - absX1_sq / 4 )
         X_to_z2 = T.sqrt(1 - absX2_sq / 4 )
 
@@ -184,23 +181,23 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         k1 = Xre1 * X_to_z1
         h1 = Xim1 * X_to_z1
         e1 = T.sqrt( absX1_sq ) * X_to_z1
-        
+
         a2 = (L2 / beta2 )**2 
         k2 = Xre2 * X_to_z2
         h2 = Xim2 * X_to_z2
         e2 = T.sqrt( absX2_sq ) * X_to_z2
-        
+
         beta1p = T.sqrt(Mstar1) * beta1
         beta2p = T.sqrt(Mstar2) * beta2
         Hkep = -0.5 * beta1p / a1 - 0.5 * beta2p / a2
         
         Hdir,Hind = calc_Hint_components_planar(
-                a1,a2,l1,l2,h1,k1,h2,k2,Mstar1/mstar,Mstar2/mstar
+                a1,a2,l1,l2,h1,k1,h2,k2,Mstar1,Mstar2
         )
         eps = m1*m2/ (mu1 + mu2) / T.sqrt(mstar)
-        Hpert = eps * (Hdir + Hind/mstar)
+        Hpert = (Hdir + Hind/mstar)
         Hpert_av = Hpert.dot(quad_weights)
-        Htot = Hkep + Hpert_av
+        Htot = Hkep + eps * Hpert_av
 
         ######################
         # Dissipative dynamics
@@ -208,6 +205,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         tau_alpha_0, K1, K2, p = T.dscalars(4)
         y1dot_dis,y2dot_dis,x1dot_dis,x2dot_dis,amddot_dis = T.dscalars(5)
         tau_m_inv = 1/tau_alpha_0
+        alpha_res = a10/a20
         # Define timescales
         tau_e1 = tau_alpha_0 / K1
         tau_e2 = tau_alpha_0 / K2
@@ -218,6 +216,8 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         
         tau_L1 = 2 * tau_a1
         tau_L2 = 2 * tau_a2
+        Gamma1=I1
+        Gamma2=I2
         tau_Gamma1_inv = 1/tau_L1 + (Gamma1-2*L1) / (Gamma1-L1) / tau_e1 
         tau_Gamma2_inv = 1/tau_L2 + (Gamma2-2*L2) / (Gamma2-L2) / tau_e2 
         # Time derivatives of canonical variables
@@ -225,8 +225,14 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         x2dot_dis = -0.5 * x2 * tau_Gamma2_inv
         y1dot_dis = -0.5 * y1 * tau_Gamma1_inv
         y2dot_dis = -0.5 * y2 * tau_Gamma2_inv
-        Pdot_dis = -0.5 * k * ( L2 / tau_L2 - L1 / tau_L1) + k * (s + 1/2) * (Gamma1 * tau_Gamma1_inv + Gamma2 * tau_Gamma2_inv)
-        amddot_dis = Pdot_dis / T.grad(P,amd)
+
+        L1dot_dis = -1 * L1/tau_L1
+        L2dot_dis = -1 * L2/tau_L2
+        Gamma1dot_dis = -1 * I1 * tau_Gamma1_inv 
+        Gamma2dot_dis = -1 * I2 * tau_Gamma2_inv 
+        Ltot_dot_dis = L1dot_dis + L2dot_dis - Gamma1dot_dis - Gamma2dot_dis
+        Psi_dot_dis = -k * (s * L2dot_dis + (1+s) * L1dot_dis) 
+        amddot_dis = -1 * Ltot_dot_dis - Psi_dot_dis * (1+f) /(s + f*(1+s)) / k
         
         #####################################################
         # Set parameters for compiling functions with Theano
@@ -284,7 +290,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
             )
         )
 
-        actions = [L1,L2,Gamma1,Gamma2]
+        actions = [L1,L2,I1,I2]
         actions_dict = dict(
             zip(
                 ['L1','L2','Gamma1','Gamma2'],
