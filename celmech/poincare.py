@@ -569,8 +569,8 @@ class PoincareHamiltonian(Hamiltonian):
         if update:
             self._update()
         
-    def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2):
-        """
+    def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
+        r"""
         Add all disturbing function terms associated with a p:p-q mean
         motion resonance along with secular terms up to a given order.
 
@@ -578,15 +578,23 @@ class PoincareHamiltonian(Hamiltonian):
         ---------
         p : int
             Coefficient of lambdaOut in resonant argument
-                j*lambdaOut - (j-k)*lambdaIn
+                p*lambdaOut - (p-q)*lambdaIn
         q : int
             Order of the mean motion resonance.
-
+        max_order : int
+            Maximum order of terms to add.
+        indexIn : int
+            Index of inner planet.
+        indexOut : int
+            Index of outer planet.
+        lmax : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
         """
         assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
         if p<q or q<0:
             warnings.warn("""
-            MMRs with j<k or k<0 are not supported. 
+            MMRs with p<q or q<0 are not supported. 
             If you really want to include these terms, 
             they may be added individually with the 
             'add_monomial_term' method.
@@ -625,11 +633,11 @@ class PoincareHamiltonian(Hamiltonian):
                             kvec = np.array([k1,k2,k3,k4,k5,k6],dtype=int)
                             if k1 < 0:
                                 kvec *= -1
-                            self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,update=False)
+                            self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,lmax=lmax,update=False)
         # Finish with update
         self._update()
 
-    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,update=True):
+    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0,update=True):
         """
         Add all eccentricity-type disturbing function terms associated with a p:p-q mean
         motion resonance up to a given order.
@@ -661,52 +669,11 @@ class PoincareHamiltonian(Hamiltonian):
                 k3 = -l
                 k4 = l - n*q
                 kvec = [k1,k2,k3,k4,0,0]
-                self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,update=False)
+                self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,lmax=lmax,update=False)
         # Finish with update
         if update:
             self._update()
-
-
-    def add_all_secular_terms(self,max_order,indexIn = 1, indexOut = 2):
-        """
-        Add all secular disturbing function terms up to a given order.
-
-        Arguments
-        ---------
-        max_order : int
-            Maximum order of terms to include
-        indexIn : int, optional
-            Integer index of inner planet
-        indexOut : int, optional
-            Integer index of outer planet
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        raise RuntimeError("THIS METHOD NEEDS TO BE FIXED!!!")
-        max_order_by_2 = max_order//2
-        max_order_by_4 = max_order//4
-        for a in range(0,max_order_by_4+1):
-            b_hi = max_order_by_2 - 2 * a
-            if a==0:
-                b_lo = 0
-            else:
-                b_lo = -b_hi
-            for b in range(b_lo,b_hi+1):
-                c_hi = max_order_by_2 - abs(b) - 2 * a
-                if a == 0 and b ==0:
-                    c_lo = 0
-                else:
-                    c_lo = -c_hi
-                for c in range(c_lo,c_hi+1):
-                    k3 = a-b
-                    k4 = a+b
-                    k5 = -c-a
-                    k6 = c-a
-                    self.add_cos_term_to_max_order([0,0,k3,k4,k5,k6],max_order,indexIn,indexOut,update=False)
-
-        # finish with update
-        self._update()
-
-    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,update = True):
+    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,lmax=0,update = True):
         """
         Add disturbing function term 
            c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
@@ -732,7 +699,7 @@ class PoincareHamiltonian(Hamiltonian):
                 for z3 in range(0,N - z1 - z2):
                     for z4 in range(0,N - z1 - z2 - z3):
                         zvec  = [z1,z2,z3,z4]
-                        self.add_monomial_term(jvec,zvec,indexIn,indexOut,update=False)
+                        self.add_monomial_term(jvec,zvec,indexIn,indexOut,lmax=lmax,update=False)
         if update:
             self._update() 
 
