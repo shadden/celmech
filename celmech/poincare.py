@@ -2,7 +2,7 @@ import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from .hamiltonian import Hamiltonian
 from .disturbing_function import get_fg_coeffs , laplace_b
-from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .disturbing_function import DFCoeff_C,get_DFCoeff_symbol,eval_DFCoeff_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
 import rebound
@@ -31,6 +31,11 @@ def num_passed(iterable): # returns num of entries in iterable that are not None
         if i is not None:
             ctr += 1
     return ctr
+
+def _get_a0_symbol(i):
+    return symbols(r"a_{{{0}\,0}}".format(i))
+def _get_Lambda0_symbol(i):
+    return symbols(r"\Lambda_{{{0}\,0}}".format(i))
 
 class PoincareParticle(object):
     """
@@ -431,12 +436,11 @@ class PoincareHamiltonian(Hamiltonian):
         A set of Poincare variables to which 
         transformations are applied.
     """
-    def __init__(self, pvars, constant_Lambda_approx = True):
+    def __init__(self, pvars):
         Hparams = {symbols('G'):pvars.G}
         pqpairs = []
         ps = pvars.particles
         H = S(0) 
-        self.constant_Lambda_approx = constant_Lambda_approx
         for i in range(1, pvars.N):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
@@ -444,7 +448,13 @@ class PoincareHamiltonian(Hamiltonian):
             Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
-            Hparams[symbols(r"\bar{{\Lambda}}_{{{0}}}".format(i))] = ps[i].Lambda
+            Hparams[_get_Lambda0_symbol(i)] = ps[i].Lambda
+            Hparams[_get_a0_symbol(i)] = ps[i].a
+            for j in range(i+1,pvars.N):
+                alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))
+                alpha_val = ps[i].a/ps[j].a
+                Hparams[alpha_sym] = alpha_val
+
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
         super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
@@ -469,24 +479,6 @@ class PoincareHamiltonian(Hamiltonian):
             y[vpp*(i-1)+4] = ps[i].sigma
             y[vpp*(i-1)+5] = ps[i].rho
         return y
-    def set_secular_mode(self):
-        # 
-        state = self.state
-        for i in range(1,state.N):
-            Lambda0,Lambda = symbols("Lambda{0}0 Lambda{0}".format(i))
-            self.H = self.H.subs(Lambda,Lambda0)
-            self.Hparams[Lambda0] = state.particles[i].Lambda
-        self._update()
-
-    def set_planar_mode(self):
-        state = self.state
-        ps = state.particles
-        for i in xrange(1,state.N):
-            rho,sigma = symbols("rho{0} sigma{0}".format(i))
-            self.H = self.H.subs({rho:0,sigma:0})
-            ps[i].srho = 0
-            ps[i].ssigma = 0
-        self._update()   
 
     def update_state_from_list(self, state, y):
         ps = state.particles
@@ -509,7 +501,7 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
 
-    def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
+    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
         """
         Add individual monomial term to Hamiltonian. The term 
         is specified by 'kvec', which specifies the cosine argument
@@ -517,32 +509,36 @@ class PoincareHamiltonian(Hamiltonian):
         eccentricities in the Taylor expansion of the 
         cosine coefficient. 
         """
-        if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
+        if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
             warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
-        if self.constant_Lambda_approx:
-            Lambda0In,Lambda0Out = symbols(r"\bar{{\Lambda}}_{{{0}}},\bar{{\Lambda}}_{{{1}}}".format(indexIn,indexOut))
-            LambdaIn = Lambda0In
-            LambdaOut = Lambda0Out
-
-        alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
-	# aIn = LambdaIn * LambdaIn / mIn / mIn / G / MIn
-	# aOut = LambdaOut * LambdaOut / mOut / mOut / G / MOut
+        Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
+        alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
+        alpha_val = self.Hparams[alpha_sym]
+        aOut0 = _get_a0_symbol(indexOut)
+        deltaIn = (LambdaIn - Lambda0In) / Lambda0In
+        deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
         # alpha = aIn/aOut
         # Resonance components
         #
         k1,k2,k3,k4,k5,k6 = kvec
-        z1,z2,z3,z4 = zvec
-        C = get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
-        C_val = eval_DFCoeff_dict(C_dict,alpha)
-        self.Hparams[C] = C_val
-        rtLIn = sqrt(LambdaIn)
-        rtLOut = sqrt(LambdaOut)
+        nu1,nu2,nu3,nu4 = nuvec
+        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
+        p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
+        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+        Ctot = 0
+        for key,C_val in C_delta_expansion_dict.items():
+            l1,l2=key
+            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
+            self.Hparams[Csym] = C_val
+            Ctot += Csym * deltaIn**l1 * deltaOut**l2
+        rtLIn = sqrt(Lambda0In)
+        rtLOut = sqrt(Lambda0Out)
         xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
         xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
         uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
@@ -556,21 +552,20 @@ class PoincareHamiltonian(Hamiltonian):
         QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
         QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
         
-        eIn_sq_term = (2 * GammaIn / LambdaIn )**z3
-        eOut_sq_term = (2 * GammaOut / LambdaOut )**z4
-        incIn_sq_term = ( QIn / LambdaIn / 2 )**z1
-        incOut_sq_term = ( QOut / LambdaOut / 2 )**z2
+        eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
+        eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
+        incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
+        incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
         
         # Update internal Hamiltonian
-        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
-        prefactor1 = -G * mIn * mOut * aOut_inv
+        prefactor1 = -G * mIn * mOut / aOut0
         prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
         trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
         
         # Keep track of resonances
-        self.resonance_indices.append((indexIn,indexOut,(kvec,zvec)))
+        self.resonance_indices.append((indexIn,indexOut,(kvec,nuvec)))
         
-        self.H += prefactor1 * C * prefactor2 * trig_term
+        self.H += prefactor1 * Ctot * prefactor2 * trig_term
         if update:
             self._update()
         

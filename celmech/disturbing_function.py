@@ -1,4 +1,4 @@
-from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e, expand_trig
+from sympy import S, diff, lambdify, symbols, sqrt, cos,sin, numbered_symbols, simplify,binomial, hyper, hyperexpand, Function, factorial,elliptic_k,elliptic_e, expand_trig, Function,bell
 from sympy import I,exp,series
 from . import clibcelmech
 from ctypes import Structure, c_double, POINTER, c_float, c_int, c_uint, c_uint32, c_int64, c_long, c_ulong, c_ulonglong, c_void_p, c_char_p, CFUNCTYPE, byref, create_string_buffer, addressof, pointer, cast
@@ -10,10 +10,11 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
-def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut):
-    return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9};({10}\,{11})".format(
-        k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
-    )
+def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+    symbol_str  = r"C_{{({0}\,{1}\,{2}\,{3}\,{4}\,{5})}}".format(k1,k2,k3,k4,k5,k6)
+    symbol_str += r"^{{({0}\,{1}\,{2}\,{3})\,({4}\,{5})}}".format(nu1,nu2,nu3,nu4,l1,l2)
+    symbol_str += r"(\alpha_{{{0}\,{1}}})".format(indexIn,indexOut)
+    return symbols(symbol_str)
 
 def _delta(*args):
     intarr  = np.array([args],dtype=np.int64)
@@ -80,12 +81,12 @@ def DFArguments_dictionary(Nmax):
                     args_dict[N][dj*sgn].append((j3,j4,j5,j6))
     return args_dict
 
-def _zcombos_iter(ztot):
-    for z1 in range(ztot+1):
-        for z2 in range(ztot+1-z1):
-            for z3 in range(ztot+1-z1-z2):
-                z4 = ztot - z1 - z2 - z3
-                yield (z1,z2,z3,z4)
+def _nucombos_iter(nutot):
+    for nu1 in range(nutot+1):
+        for nu2 in range(nutot+1-z1):
+            for nu3 in range(nutot+1-nu1-nu2):
+                nu4 = nutot - nu1 - nu2 - nu3
+                yield (nu1,nu2,nu3,nu4)
                 
 def ResonanceTermsList(j,k,Nmin,Nmax):
     """
@@ -109,7 +110,7 @@ def ResonanceTermsList(j,k,Nmin,Nmax):
     term : list
         A list of disturbing function terms. 
         Each entry in the list is of the form
-        (kvec, zvc)
+        (kvec, nuvec)
     """
     args_dict = DFArguments_dictionary(Nmax)
     args = []
@@ -119,11 +120,11 @@ def ResonanceTermsList(j,k,Nmin,Nmax):
                 continue
             j1 = (k1//k) * j
             for N1 in range(k1,N+1,2):
-                ztot = (N-N1)//2
+                nutot = (N-N1)//2
                 for arg in args_dict[N1][k1]:
-                    for zc in _zcombos_iter(ztot):
+                    for nuc in _nucombos_iter(nutot):
                         js = (j1,k1 - j1,*arg)
-                        args.append((js,zc))
+                        args.append((js,nuc))
     return args
 
 def SecularTermsList(Nmin,Nmax):
@@ -147,7 +148,7 @@ def SecularTermsList(Nmin,Nmax):
     term : list
         A list of disturbing function terms. 
         Each entry in the list is of the form
-        (kvec, zvc)
+        (kvec, nuvec)
     """
     args_dict = DFArguments_dictionary(Nmax)
     args = []
@@ -155,13 +156,13 @@ def SecularTermsList(Nmin,Nmax):
     Nmin1 = (Nmin//2) * 2 
     for N in range(0,Nmax1 + 1,2):
         argsN = args_dict[N][0]
-        ztot_min = max( (Nmin1 - N)//2 , 0)
-        ztot_max = (Nmax1 - N)//2 
-        for ztot in range(ztot_min,ztot_max + 1):
-            for zc in _zcombos_iter(ztot):
+        nutot_min = max( (Nmin1 - N)//2 , 0)
+        nutot_max = (Nmax1 - N)//2 
+        for nutot in range(nutot_min,nutot_max + 1):
+            for nuc in _nucombos_iter(nutot):
                 for arg in argsN:
                     js = (0,0,*arg)
-                    args.append((js,zc))
+                    args.append((js,nuc))
     return args
 
 def laplace_b(s,j,n,alpha):
@@ -232,43 +233,51 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
             tot += val * alpha**p * laplace_b(*arg,alpha)
     return tot
 
-def eccentricity_type_resonance_coefficient(j,k,l,alpha):
-    r"""
-    Get the coefficient of the distrubing function term:
-        e_1^{l}e_2^{k-l}\cos[j \lambda_2 - (j-k) \lambda_1 - l\varpi_1 - (k-l)\varpi_2]
-    that appears as the leading-order term of a kth order eccentricity resonance.
 
-    Arguments
-    ---------
-    j : int
-        Specifies the resonance term
-    k : int
-        Order of the resonance
-    l : int
-        Specify the e_1^{l}e_2^{k-l} sub-resonance
-    alpha : float
-        Semi-major axis ratio a_1/a_2
 
-    Returns
-    -------
-    val : float
-        Coefficient's numerical value
-    """
-    if l >  k:
-        raise ValueError("Integer arguemnt l={} cannot be greater than the resonance order k={}".format(l,k))
-    j1 = j
-    j2 = k - j
-    j3 = -l
-    j4 = l-k
-    j5 = 0
-    j6 = 0
-    z1=z2=z3=z4=0
-    coeff = DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
-    ncoeff = eval_DFCoeff_dict(coeff,alpha)
-    return ncoeff
+def calB(n,k,p):
+    arglist = [negative_binom(p,l) * factorial(l) for l in range(1,n-k+3)]
+    return bell(n,k,arglist)
+def falling_factorial(x,n):
+    return poch(-x,n) * (-1)**n
+def _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2):
+    return binom(l1,m1) * binom(l2,m2) *\
+    falling_factorial(-2*r1 - p2/2,m2) * falling_factorial(-p1/2,m1) *\
+    calB(l1-m1,r1,2) * calB(l2-m2,r2,-2)
+def _calc_DFCoeffC_l1_l2_Taylor_coeff(l1,l2,p1,p2,derivs_list):
+    tot = 0
+    l1fact_inv = 1/factorial(l1)
+    l2fact_inv = 1/factorial(l2)
+    prefactor = l1fact_inv * l2fact_inv
+    for m1 in range(l1+1):
+        for r1 in range(l1-m1+1):
+            for m2 in range(l2+1):
+                for r2 in range(l2-m2+1):
+                    val = prefactor * derivs_list[r1+r2] * _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2)
+                    tot=tot+val        
+    return tot
+
+
+def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
+    answer = dict()
+    C = Coeff_dict
+    # Derivatives of C w.r.t. alpha
+    NC_derivs = [eval_DFCoeff_dict(C,alpha)]
+    # get indirect term to handle separately
+    Cind = C.pop('indirect')
+    alpha_inv = 1/alpha
+    ind_term =  Cind * sqrt(alpha_inv)
+    for ltot in range(lmax+1):
+        C=deriv_DFCoeff(C)
+        ind_term *= alpha_inv * (-0.5 - ltot) 
+        NC_derivs.append(alpha**(ltot+1) * (eval_DFCoeff_dict(C,alpha) + ind_term ))
+        for lIn in range(ltot+1):
+            lOut = ltot - lIn
+            answer[(lIn,lOut)] = _calc_DFCoeffC_l1_l2_Taylor_coeff(lIn,lOut,p1,p2,NC_derivs)
+    return answer
 
 # Vector of resonance coefficients
-def get_res_coeff_vector(j,k):
+def get_res_coeff_vector(j,k,include_indirect_terms=True):
     r"""
     Get a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance.
 
@@ -279,9 +288,9 @@ def get_res_coeff_vector(j,k):
     k : int
         Order of the resonance
     include_indirect_terms :  boole, optional
-        Whether the contribution of indirect terms should be
-        accounted for when computing the coefficients. Default
-        is True.
+        whether the contribution of indirect terms should be
+        accounted for when computing the coefficients. default
+        is true.
 
     Returns
     -------
@@ -290,7 +299,7 @@ def get_res_coeff_vector(j,k):
     """ 
     res_pratio = float(j - k) /float(j)
     alpha = res_pratio**(2./3.)
-    Cjkl = eccentricity_type_resonance_coefficient
+    Cjkl = lambda j,k,l,alpha: eval_DFCoeff_dict(DFCoeff_C(j,k-j,-l,l-k,0,0,0,0,0,0,include_indirect_terms),alpha)
     vals = np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
     return vals
 
@@ -478,6 +487,7 @@ def KK(i,n,m):
     numerator = (-1)**(i-n) * (1 + 2 * n) * gamma(1/2 + i) * gamma(3/2 + i)
     denom = 4 * gamma((2 + i-m-n)/2) * gamma((2 + i + m-n)/2) * gamma((3 + i - m + n)/2) * gamma((3 + i + m + n)/2)
     return numerator / denom
+
 def getrange(lim1,lim2,n=1):
     assert n>0, "Negative interval n={} passed to getrange".format(n)
     if lim1 < lim2:
@@ -512,38 +522,38 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
 
     
 
-def DFCoeff_Ctilde(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
+def DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
     r"""
     Get the coefficient of the disturbing function term:
     
-      s1^{|j5|+2z1} s2^{|j6|+2z2} * e2^{|j4|+2*z4} * e1^{|j3|+2*z3} \times 
-          cos[j1*L2 + j2*L1 + j3 * pomega1 + j4 * w2 + j5 * Omega1 + j6 * Omega2)
+      s1^{|k5|+2nu1} s2^{|k6|+2nu2} * e2^{|k4|+2*nu4} * e1^{|k3|+2*nu3} \times 
+          cos[k1*L2 + k2*L1 + k3 * pomega1 + k4 * w2 + k5 * Omega1 + k6 * Omega2)
 
     where s1 = sin(I1/2) and s2 = sin(I2/2) as a dictionary of Laplace coefficient 
     arguemnts and their numerical coefficents.
     
     Arguments:
     ----------
-    j1 : int
+    k1 : int
         Coefficient of outer planet's mean longitude in cosine argument
-    j2 : int
+    k2 : int
         Coefficient of inner planet's mean longitude in cosine argument
-    j3 : int
+    k3 : int
         Coefficient of inner planet's mean longitude in cosine argument
-    j4 : int
+    k4 : int
         Coefficient of outer planet's mean longitude in cosine argument
-    j5 : int
+    k5 : int
         Coefficient of inner planet's longitude of ascending node in cosine argument
-    j6 : int
+    k6 : int
         Coefficient of outer planet's longitude of ascending node in cosine argument
-    z1 : int
-        Select specific term where the exponent of s1 is |j5|+2*z1
-    z2 : int
-        Select specific term where the exponent of s2 is |j6|+2*z3
-    z3 : int
-        Select specific term where the exponent of e1 is |j3|+2*z3
-    z4 : int
-        Select specific term where the exponent of e1 is |j4|+2*z4
+    nu1 : int
+        Select specific term where the exponent of s1 is |k5|+2*nu1
+    nu2 : int
+        Select specific term where the exponent of s2 is |k6|+2*nu3
+    nu3 : int
+        Select specific term where the exponent of e1 is |k3|+2*nu3
+    nu4 : int
+        Select specific term where the exponent of e1 is |k4|+2*nu4
     include_indirect : booole, optional
         Whether to include the indirect contribution to the disturibing function
         coefficient.
@@ -560,85 +570,89 @@ def DFCoeff_Ctilde(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4,include_indirect = True):
     """
     total = defaultdict(float)
     # must be even power in inclination
-    if abs(j5 + j6) % 2:
+    if abs(k5 + k6) % 2:
         warnings.warn(
                 "\n DFCoeff called with an argument not symmetric w.r.t. planet inclinations:\n" + 
-                "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
+                "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
                 )
         return dict(total)
     # Sum of integer coefficients must be 0
-    if j1 + j2 + j3 + j4 + j5 + j6:
+    if k1 + k2 + k3 + k4 + k5 + k6:
         warnings.warn(
                 "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" + 
-                "\t (j1,j2,j3,j4,j5,j6)=({},{},{},{},{},{})".format(j1,j2,j3,j4,j5,j6)
+                "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
                 )
         return dict(total)
-    jvec = np.array([j1,j2,j3,j4,j5,j6])
-    if np.alltrue(jvec==0):
-        for i in getrange(0,z1+z2,1):
+    kvec = np.array([k1,k2,k3,k4,k5,k6])
+    if np.alltrue(kvec==0):
+        for i in getrange(0,nu1+nu2,1):
             for p in getrange(i%2,i,2):
-                for u in getrange(0,2*z3+2*z4):
-                    cf = FX(0,0,i,p,u,0,0,0,0,z1,z2,z3,z4) * (1 + (p != 0))
+                for u in getrange(0,2*nu3+2*nu4):
+                    cf = FX(0,0,i,p,u,0,0,0,0,nu1,nu2,nu3,nu4) * (1 + (p != 0))
                     if not np.isclose(cf,0):
                         total[(i+u,(i+1/2,abs(p),u))]+=cf
-    elif np.alltrue(jvec[2:]==0):
-        j = abs(j1)
-        for i in getrange(0,z1+z2,1):
+    elif np.alltrue(kvec[2:]==0):
+        j = abs(k1)
+        for i in getrange(0,nu1+nu2,1):
             for p in getrange(i%2,i,2):
-                for u in getrange(0,2*z3+2*z4):
-                    cf = FX(0,0,i,p,u,j,j,j,j,z1,z2,z3,z4) 
+                for u in getrange(0,2*nu3+2*nu4):
+                    cf = FX(0,0,i,p,u,j,j,j,j,nu1,nu2,nu3,nu4) 
                     if not np.isclose(cf,0):
                         total[(i+u,(i+1/2,abs(j+p),u))]+=cf
                         if p != 0:
                             total[(i+u,(i+1/2,abs(j-p),u))]+=cf
     else:
-        h = (-j5-j6)//2
-        k = (j6-j5)//2
-        n0 = int(np.ceil(max(h,-j5/2,-j6/2))) 
-        for i in getrange(n0,z1 + z2 + (abs(j5)+abs(j6)//2),1):
+        h = (-k5-k6)//2
+        k = (k6-k5)//2
+        n0 = int(np.ceil(max(h,-k5/2,-k6/2))) 
+        for i in getrange(n0,nu1 + nu2 + (abs(k5)+abs(k6)//2),1):
             for p in getrange(h-i,i-h,2):
-                for u in getrange(0,2*z3 + 2*z4 + abs(j3) + abs(j4),1):
-                    cf = FX(h, k, i, p, u, j2 + j3, j2, j1 + j4, j1, z1, z2, z3, z4)
+                for u in getrange(0,2*nu3 + 2*nu4 + abs(k3) + abs(k4),1):
+                    cf = FX(h, k, i, p, u, k2 + k3, k2, k1 + k4, k1, nu1, nu2, nu3, nu4)
                     if not np.isclose(cf,0):
-                        total[(i+u,(i+1/2,abs(j1+j4-h+p),u))]+=cf
+                        total[(i+u,(i+1/2,abs(k1+k4-h+p),u))]+=cf
 
     # add indirect term
     if include_indirect:
-        total['indirect'] = DFCoeff_Ctilde_indirect_piece(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+        total['indirect'] = DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
     return dict(total)
 
-def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
+def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect_terms = True):
     r"""
     Get the coefficient of the disturbing function term:
 
-    Y1^{|j5|+2*N1} * Y2^{|j6|+2*N2} * X1^{|j3|+2*N3} * X2^{|j4|+2*N4}
-     *cos[j1*L2 + j2*L1 + j3 * pomega1 + j4 * w2 + j5 * Omega1 + j6 * Omega2)
+    Y1^{|k5|+2*N1} * Y2^{|k6|+2*N2} * X1^{|k3|+2*N3} * X2^{|k4|+2*N4}
+     *cos[k1*L2 + k2*L1 + k3 * pomega1 + k4 * w2 + k5 * Omega1 + k6 * Omega2)
 
     as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
 
     Arguments:
     ----------
-    j1 : int
+    k1 : int
         Coefficient of outer planet's mean longitude in cosine argument
-    j2 : int
+    k2 : int
         Coefficient of inner planet's mean longitude in cosine argument
-    j3 : int
+    k3 : int
         Coefficient of inner planet's mean longitude in cosine argument
-    j4 : int
+    k4 : int
         Coefficient of outer planet's mean longitude in cosine argument
-    j5 : int
+    k5 : int
         Coefficient of inner planet's longitude of ascending node in cosine argument
-    j6 : int
+    k6 : int
         Coefficient of outer planet's longitude of ascending node in cosine argument
-    N1 : int
-        Select specific term where the exponent of Y1 is |j5|+2*N1
-    N2 : int
-        Select specific term where the exponent of Y2 is |j6|+2*N3
-    N3 : int
-        Select specific term where the exponent of X1 is |j3|+2*N3
-    N4 : int
-        Select specific term where the exponent of X2 is |j4|+2*N4
+    nu1 : int
+        Select specific term where the exponent of Y1 is |k5|+2*nu1
+    nu2 : int
+        Select specific term where the exponent of Y2 is |k6|+2*nu3
+    nu3 : int
+        Select specific term where the exponent of X1 is |k3|+2*nu3
+    nu4 : int
+        Select specific term where the exponent of X2 is |k4|+2*nu4 
+    include_indirect_terms :  boole, optional
+        whether the contribution of indirect terms should be
+        accounted for when computing the coefficients. default
+        is true.
 
     Returns
     -------
@@ -652,19 +666,19 @@ def DFCoeff_C(j1,j2,j3,j4,j5,j6,N1,N2,N3,N4):
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
     terms_total = defaultdict(float)
-    for n3 in range(N3+1):
-        for n4 in range(N4+1):
-            term_dict = DFCoeff_Ctilde(j1,j2,j3,j4,j5,j6,N1,N2,n3,n4)
-            prefactor = Xi(N3-n3,n3+abs(j3)/2,N1+abs(j5)/2) * Xi(N4-n4,n4+abs(j4)/2,N2+abs(j6)/2)
+    for n3 in range(nu3+1):
+        for n4 in range(nu4+1):
+            term_dict = DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,n3,n4,include_indirect_terms)
+            prefactor = Xi(nu3-n3,n3+abs(k3)/2,nu1+abs(k5)/2) * Xi(nu4-n4,n4+abs(k4)/2,nu2+abs(k6)/2)
             if prefactor != 0.:
                 for key,val in term_dict.items():
                     terms_total[key] += prefactor * val
     return dict(terms_total)
 
-def has_indirect_component(j1,j2,j3,j4,j5,j6):
-    two_p = j2 + j4 + 1 
-    two_p1 = -1 * (j1 + j3 - 1)
-    m = j5 - two_p1 + 1
+def has_indirect_component(k1,k2,k3,k4,k5,k6):
+    two_p = k2 + k4 + 1 
+    two_p1 = -1 * (k1 + k3 - 1)
+    m = k5 - two_p1 + 1
     m_is_zero_or_one = m == 0 or m == 1
     return is_zero_or_two(two_p) and is_zero_or_two(two_p1) and m_is_zero_or_one
 
@@ -699,7 +713,8 @@ def deriv_DFCoeff(coeff):
             continue
         p,sjn= key
         s,j,n = sjn
-        dcoeff[(p-1,sjn)] += p * val
+        if p>0:
+            dcoeff[(p-1,sjn)] += p * val
         dcoeff[(p,(s,j,n+1))] += val
     return dict(dcoeff)
 
