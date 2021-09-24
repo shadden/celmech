@@ -257,8 +257,45 @@ def _calc_DFCoeffC_l1_l2_Taylor_coeff(l1,l2,p1,p2,derivs_list):
                     tot=tot+val        
     return tot
 
+def _p1_p2_from_k_nu(kvec,nuvec):
+    r"""
+    Convenience function for calculate integers p1 and p2 
+    defined as 
+        p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
+        p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
+
+    These definitions appear in the formula for the expansion
+    of DF coefficients in powers delta
+    """
+    k1,k2,k3,k4,k5,k6 = kvec
+    nu1,nu2,nu3,nu4 = nuvec
+    p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
+    p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
+    return p1,p2
 
 def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
+    r"""
+    Calculate coefficients of the Taylor series of `Coeff_dict` in 
+    powers math:`\delta_i` and math::`\delta_j` evaluated at semi-major
+    axis ratio math:`\alpha=a_1/a_2`.
+
+    Arguments
+    ---------
+    Coeff_dict : dict
+        Dictionary representation of DF coefficient
+    p1 : int
+        Integer specific to the DF term's (k,nu) values
+        given by
+            p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
+    p2 : int
+        Integer specific to the DF term's (k,nu) values
+        given by 
+            p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
+    lmax : int
+        Maximum power of Taylor expansion.
+    alpha : float
+        Semi-major axis ratio at which to evaluate coefficients.
+    """
     answer = dict()
     C = Coeff_dict
     # Derivatives of C w.r.t. alpha
