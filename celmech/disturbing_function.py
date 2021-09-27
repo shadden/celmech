@@ -72,7 +72,7 @@ def DFArguments_dictionary(Nmax):
                 s1_lo = -1 * s1_hi * _delta(h,k,s)
                 for s1 in range(s1_lo,s1_hi + 1):
                     dj = 2 * h + s + s1
-                    sgn = 1 if dj is 0 else np.sign(dj)
+                    sgn = 1 if dj == 0 else np.sign(dj)
                     j3=-sgn*s
                     j4=-sgn*s1
                     j5=-sgn*(hplusk)
@@ -226,8 +226,10 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
     """
     tot = 0
     for key,val in Coeff_dict.items():
-        if key is 'indirect':
-            tot += val / np.sqrt(alpha)
+        if key[0] == 'indirect':
+            pwer = key[1]
+            rt_alpha_inv = 1 / np.sqrt(alpha) 
+            tot += val * rt_alpha_inv**pwer
         else:
             p,arg = key
             tot += val * alpha**p * laplace_b(*arg,alpha)
@@ -300,14 +302,9 @@ def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
     C = Coeff_dict
     # Derivatives of C w.r.t. alpha
     NC_derivs = [eval_DFCoeff_dict(C,alpha)]
-    # get indirect term to handle separately
-    Cind = C.pop('indirect')
-    alpha_inv = 1/alpha
-    ind_term =  Cind * sqrt(alpha_inv)
     for ltot in range(lmax+1):
         C=deriv_DFCoeff(C)
-        ind_term *= alpha_inv * (-0.5 - ltot) 
-        NC_derivs.append(alpha**(ltot+1) * (eval_DFCoeff_dict(C,alpha) + ind_term ))
+        NC_derivs.append(alpha**(ltot+1) * eval_DFCoeff_dict(C,alpha))
         for lIn in range(ltot+1):
             lOut = ltot - lIn
             answer[(lIn,lOut)] = _calc_DFCoeffC_l1_l2_Taylor_coeff(lIn,lOut,p1,p2,NC_derivs)
@@ -651,15 +648,58 @@ def DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
 
     # add indirect term
     if include_indirect:
-        total['indirect'] = DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        coeff = DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        total[('indirect',1)] = coeff
     return dict(total)
 
-def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect_terms = True):
+def _DFCoeff_mult_by_alpha_power(coeffdict,r):
+    """
+    For a DF coefficient 'coeff' represented by 'coeffdict', 
+    return the new coefficient dictionary  alpha^r * coeff
+    """
+    new = dict()
+    for key,val in coeffdict.items():
+        if key[0]=='indirect':
+            newkey = (key[0],key[1]-2*r)
+        else:
+            p,sjn = key
+            newkey = (p+r,sjn)
+        new[newkey]=val
+    return new
+
+def _DFCoeff_scalar_mult(coeffdict,s):
+    """
+    Return dictionary for s * coeffdict for scalar value 's'
+    """
+    return {key:s*val for key,val in coeffdict.items()}
+
+def _get_alpha_times_derivs_list(coeffdict, ltot):
+    derivs_list=[coeffdict]
+    dcoeff = coeffdict.copy()
+    for l in range(ltot):
+        dcoeff = deriv_DFCoeff(dcoeff)
+        derivs_list.append(_DFCoeff_mult_by_alpha_power(dcoeff,l+1))
+    return derivs_list
+
+
+
+def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms = True):
     r"""
     Get the coefficient of the disturbing function term:
+    
+    .. math ::
 
-    Y1^{|k5|+2*N1} * Y2^{|k6|+2*N2} * X1^{|k3|+2*N3} * X2^{|k4|+2*N4}
-     *cos[k1*L2 + k2*L1 + k3 * pomega1 + k4 * w2 + k5 * Omega1 + k6 * Omega2)
+        |Y_1|^{|k_5|+2\nu_1} 
+        |Y_2|^{|k_6|+2\nu_2} 
+        |X_1|^{|k_3|+2\nu_3} 
+        |X_2|^{|k_4|+2\nu_4} 
+        \delta_1^{l_1}
+        \delta_2^{l_2}
+        \times \cos[
+            k_1 \lambda_2 + k_2 \lambda_1 +
+            k_3 \varpi_1 + k_4 \varpi_2 + 
+            k_5 \Omega_1 + k_6 \Omega_2
+        ]
 
     as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
@@ -686,6 +726,16 @@ def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect_terms = True):
         Select specific term where the exponent of X1 is |k3|+2*nu3
     nu4 : int
         Select specific term where the exponent of X2 is |k4|+2*nu4 
+    l1 : int, optional
+        Select specifc term where exponent of 
+        :math:'\delta_1 = (\Lambda_1 - \Lambda_{1,0})/\Lambda_{1,0})
+        is l1. 
+        Default value is l1 = 0
+    l2 : int, optional
+        Select specifc term where exponent of 
+        :math:'\delta_2 = (\Lambda_2 - \Lambda_{2,0})/\Lambda_{2,0})
+        is l2. 
+        Default value is l2 = 0
     include_indirect_terms :  boole, optional
         whether the contribution of indirect terms should be
         accounted for when computing the coefficients. default
@@ -702,15 +752,36 @@ def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect_terms = True):
 
         where the dictionary entries are in the form { (p,(s,j,n)) : C }
     """
-    terms_total = defaultdict(float)
+    Chat = defaultdict(float)
+    msg = "Integer arguments nu_i and l_i must be non-negative."
+    assert np.alltrue(np.array([nu1,nu2,nu3,nu4,l1,l2])>=0), msg
     for n3 in range(nu3+1):
         for n4 in range(nu4+1):
             term_dict = DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,n3,n4,include_indirect_terms)
             prefactor = Xi(nu3-n3,n3+abs(k3)/2,nu1+abs(k5)/2) * Xi(nu4-n4,n4+abs(k4)/2,nu2+abs(k6)/2)
             if prefactor != 0.:
                 for key,val in term_dict.items():
-                    terms_total[key] += prefactor * val
-    return dict(terms_total)
+                    Chat[key] += prefactor * val
+    ltot = l1 + l2
+    if ltot==0:
+        result = Chat
+    else:
+        result = defaultdict(float)
+        derivs_list = _get_alpha_times_derivs_list(Chat,ltot)
+        l1fact_inv = 1/factorial(l1)
+        l2fact_inv = 1/factorial(l2)
+        prefactor = l1fact_inv * l2fact_inv
+        p1,p2= _p1_p2_from_k_nu([k1,k2,k3,k4,k5,k6],[nu1,nu2,nu3,nu4])
+        for m1 in range(l1+1):
+            for r1 in range(l1-m1+1):
+                for m2 in range(l2+1):
+                    for r2 in range(l2-m2+1):
+                        to_add = _DFCoeff_scalar_mult(derivs_list[r1+r2],prefactor * _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2))
+                        result = _add_dicts(result,to_add)      
+    return result
+
+
+
 
 def has_indirect_component(k1,k2,k3,k4,k5,k6):
     two_p = k2 + k4 + 1 
@@ -745,14 +816,16 @@ def deriv_DFCoeff(coeff):
     """
     dcoeff = defaultdict(float)
     for key,val in coeff.items():
-        if key=='indirect':
-            # Fix!
-            continue
-        p,sjn= key
-        s,j,n = sjn
-        if p>0:
-            dcoeff[(p-1,sjn)] += p * val
-        dcoeff[(p,(s,j,n+1))] += val
+        if key[0]=='indirect':
+            # term \propto \alpha^{-p/2}
+            pwer = key[1]
+            dcoeff[('indirect',pwer + 2)] = -0.5 * pwer * val
+        else:
+            p,sjn= key
+            s,j,n = sjn
+            if p>0:
+                dcoeff[(p-1,sjn)] += p * val
+            dcoeff[(p,(s,j,n+1))] += val
     return dict(dcoeff)
 
 def Xi(N,p,q):
@@ -832,6 +905,7 @@ def DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     else:
         return 0
 
+# SH --- Needs modified to accomodate expansion in delta.
 def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,include_alpha_derivs=False):
     """
     Retrieve the a dictionary with the coefficient values of terms appearing in the Hamiltonian.
@@ -890,9 +964,9 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
     result = dict()
     for kvec,zvec in terms_list:
         C = DFCoeff_C(*kvec,*zvec)
-        coeff = prefactor * eval_DFCoeff_dict(C,alpha)
+        coeff = prefactor * (C,alpha)
         if include_alpha_derivs:
-            ind = C.pop('indirect')
+            ind = C.pop(('indirect',1))
             dC = deriv_DFCoeff(C)
             dcoeff = prefactor * ( eval_DFCoeff_dict(dC,alpha) - 0.5 * ind / np.sqrt(alpha*alpha*alpha))
             result[(kvec,zvec)] = coeff,dcoeff
