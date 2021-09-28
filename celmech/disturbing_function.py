@@ -30,10 +30,10 @@ def DFArguments_dictionary(Nmax):
     
     Arguments are returned as a nested dictionary. 
     The outer level keys are orders. The inner level
-    keys are dj = |j1-j2|, denoting the order of MMR
+    keys are dk = |k1-k2|, denoting the order of MMR
     for which the argument appears. The values of the 
     inner level dictionaries are lists of 
-    tuples containing (j3,j4,j5,j6). 
+    tuples containing (k3,k4,k5,k6). 
     
     {
         0:{0:[(0,0,0,0)],
@@ -73,12 +73,12 @@ def DFArguments_dictionary(Nmax):
                 for s1 in range(s1_lo,s1_hi + 1):
                     dj = 2 * h + s + s1
                     sgn = 1 if dj == 0 else np.sign(dj)
-                    j3=-sgn*s
-                    j4=-sgn*s1
-                    j5=-sgn*(hplusk)
-                    j6=-sgn*(hminusk)
-                    N = abs(j3) + abs(j4) + abs(j5) + abs(j6)
-                    args_dict[N][dj*sgn].append((j3,j4,j5,j6))
+                    k3=-sgn*s
+                    k4=-sgn*s1
+                    k5=-sgn*(hplusk)
+                    k6=-sgn*(hminusk)
+                    N = abs(k3) + abs(k4) + abs(k5) + abs(k6)
+                    args_dict[N][dj*sgn].append((k3,k4,k5,k6))
     return args_dict
 
 def _nucombos_iter(nutot):
