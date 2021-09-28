@@ -338,8 +338,9 @@ class Poincare(object):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
-    def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric"):
+    def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
         self.G = G
+        self.t = t 
         self.coordinates = coordinates
         self.particles = [PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
         try:
@@ -377,7 +378,7 @@ class Poincare(object):
         # Move to COM frame so P0 = 0 in canonical heliocentric coordinates
         sim.move_to_com()
 
-        pvars = Poincare(G=sim.G, coordinates=coordinates)
+        pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
         ps = sim.particles
         Mstar = ps[0].m
         o = reb_calculate_orbits(sim, coordinates=coordinates)
@@ -400,6 +401,7 @@ class Poincare(object):
 
         sim = rebound.Simulation()
         sim.G = self.G
+        sim.t = self.t
         ps = self.particles
         Mstar = ps[1].Mstar # use first Poincare particle to extract Mstar
         sim.add(m=Mstar)
@@ -408,7 +410,7 @@ class Poincare(object):
         return sim
     
     def copy(self):
-        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N])
+        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
 
     @property
     def N(self):
@@ -466,6 +468,9 @@ class PoincareHamiltonian(Hamiltonian):
     @property
     def N(self):
         return len(self.particles)
+
+    @property def t(self):
+        return self.state.t
     
     def state_to_list(self, state):
         ps = state.particles
