@@ -469,7 +469,8 @@ class PoincareHamiltonian(Hamiltonian):
     def N(self):
         return len(self.particles)
 
-    @property def t(self):
+    @property 
+    def t(self):
         return self.state.t
     
     def state_to_list(self, state):
@@ -495,7 +496,6 @@ class PoincareHamiltonian(Hamiltonian):
             ps[i].l = y[vpp*(i-1)+3]
             ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].mu) 
             ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].mu) 
-            
     
     def add_Hkep_term(self, H, index):
         """
@@ -632,7 +632,7 @@ class PoincareHamiltonian(Hamiltonian):
                         k6 = k-h
                         k4 = -s1
                         tot = k3+k4+k5+k6
-                        if -p * tot % q is 0:
+                        if -p * tot % q == 0:
                             k1 = -p * tot // (q)
                             k2 = (p-q) * tot // (q)
                             kvec = np.array([k1,k2,k3,k4,k5,k6],dtype=int)

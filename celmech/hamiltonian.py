@@ -45,15 +45,15 @@ class Hamiltonian(object):
         In addition to the above, one needs to write 2 methods to map between the two objects:
         def state_to_list(self, state): 
             returns a list of values from state in the same order as pqpairs e.g. [P1,Q1,P2,Q2]
-        def update_state_from_list(self, state, y):
+        def update_state_from_list(self, state, y, t):
             updates state object from a list of values y for the variables in the same order as pqpairs
+            and integrator time 't'
         """
         self.state = initial_state
         self.Hparams = Hparams
         self.H = H
         self.pqpairs = pqpairs
         self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
-        
         self._update()
 
     def integrate(self, time, integrator_kwargs={}):
@@ -69,7 +69,7 @@ class Hamiltonian(object):
         integrator_kwargs : dict,optional
             A dictionary of integrator keyword arguments
             to pass to the integrator. ``celmech`` uses
-            the scipy.ode 'lsoda' integrator.  Valid 
+            the scipy.ode 'dop853' integrator.  Valid 
             keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
@@ -79,11 +79,11 @@ class Hamiltonian(object):
             pass
         if not hasattr(self, 'Nderivs'):
             self._update()
-        if time > self.integrator.t:
-            try:
-                self.integrator.integrate(time)
-            except:
-                raise AttributeError("Need to initialize Hamiltonian")
+        try:
+            self.integrator.integrate(time)
+        except:
+            raise AttributeError("Need to initialize Hamiltonian")
+        self.state.t = self.integrator.t
         self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
