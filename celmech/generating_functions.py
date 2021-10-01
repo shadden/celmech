@@ -3,8 +3,9 @@ from .poincare import PoincareHamiltonian
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
+from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
-from .poincare import get_re_im_components
+from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
 import warnings
 
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
@@ -202,7 +203,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         nOut = self.get_mean_motion(indexOut)
         return kvec[0] * nOut + kvec[1] * nIn
 
-    def add_monomial_term(self,kvec,zvec,indexIn=1,indexOut=2,update=True):
+    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
         """
         Add individual monomial term to generating function. The term 
         is specified by 'kvec', which specifies the cosine argument
@@ -210,14 +211,20 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         eccentricities in the Taylor expansion of the 
         cosine coefficient. 
         """
-        if (indexIn,indexOut,(kvec,zvec)) in self.resonance_indices:
-            warnings.warn("Monomial term k=({},{},{},{},{},{}) , z = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*zvec))
+        if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
+            warnings.warn("Monomial term k=({},{},{},{},{},{}) , nu = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*nuvec))
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
-        alpha = self.particles[indexIn].a/self.state.particles[indexOut].a
+        Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
+        alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
+        alpha_val = self.Hparams[alpha_sym]
+        aOut0 = _get_a0_symbol(indexOut)
+        deltaIn = (LambdaIn - Lambda0In) / Lambda0In
+        deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
+
         omega = self.kvec_to_omega(kvec,indexIn,indexOut)
         omega_inv = 1/omega
 	# aIn = LambdaIn * LambdaIn / mIn / mIn / G / MIn
@@ -226,13 +233,18 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         # Resonance components
         #
         k1,k2,k3,k4,k5,k6 = kvec
-        z1,z2,z3,z4 = zvec
-        C = get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4,indexIn,indexOut)
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
-        C_val = eval_DFCoeff_dict(C_dict,alpha)
-        self.Hparams[C] = C_val
-        rtLIn = sqrt(LambdaIn)
-        rtLOut = sqrt(LambdaOut)
+        nu1,nu2,nu3,nu4 = nuvec
+        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
+        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+        Ctot = 0
+        for key,C_val in C_delta_expansion_dict.items():
+            l1,l2=key
+            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
+            self.Hparams[Csym] = C_val
+            Ctot += Csym * deltaIn**l1 * deltaOut**l2
+        rtLIn = sqrt(Lambda0In)
+        rtLOut = sqrt(Lambda0Out)
         xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
         xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
         uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
@@ -246,23 +258,22 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
         QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
         
-        eIn_sq_term = (2 * GammaIn / LambdaIn )**z3
-        eOut_sq_term = (2 * GammaOut / LambdaOut )**z4
-        incIn_sq_term = ( QIn / LambdaIn / 2 )**z1
-        incOut_sq_term = ( QOut / LambdaOut / 2 )**z2
+        eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
+        eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
+        incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
+        incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
         
         # Update internal Hamiltonian
         aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
-        prefactor1 = -G * mIn * mOut * aOut_inv
+        prefactor1 = -G * mIn * mOut / aOut0
         prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
         trig_term = re * sin(k1 * lambdaOut + k2 * lambdaIn) + im * cos(k1 * lambdaOut + k2 * lambdaIn) 
         
         
         # Keep track of resonances
-        self.resonance_indices.append((indexIn,indexOut,(kvec,zvec)))
+        self.resonance_indices.append((indexIn,indexOut,(kvec,nuvec)))
         
-        self.H += prefactor1 * C * prefactor2 * trig_term * omega_inv
+        self.H += prefactor1 * Ctot * prefactor2 * trig_term * omega_inv
 
         if update:
             self._update()
-    
