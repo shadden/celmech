@@ -53,6 +53,7 @@ class Hamiltonian(object):
         self.Hparams = Hparams
         self.H = H
         self.pqpairs = pqpairs
+        self.qpvars_list = [q for p,q in self.pqpairs] + [p for p,q in self.pqpairs]
         self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
         self._update()
 

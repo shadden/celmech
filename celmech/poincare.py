@@ -1,7 +1,8 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from .hamiltonian import Hamiltonian
-from .disturbing_function import get_fg_coeffs , laplace_b
+from .miscellaneous import PoissonBracket
+from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
 from .disturbing_function import DFCoeff_C,get_DFCoeff_symbol,eval_DFCoeff_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
@@ -460,7 +461,7 @@ class PoincareHamiltonian(Hamiltonian):
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
         super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
-
+    
     @property
     def particles(self):
         return self.state.particles
@@ -533,8 +534,7 @@ class PoincareHamiltonian(Hamiltonian):
         k1,k2,k3,k4,k5,k6 = kvec
         nu1,nu2,nu3,nu4 = nuvec
         C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
-        p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
-        p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
+        p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
         C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
         Ctot = 0
         for key,C_val in C_delta_expansion_dict.items():
@@ -708,6 +708,46 @@ class PoincareHamiltonian(Hamiltonian):
         if update:
             self._update() 
 
+    def Lie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian.
+        In other word, compute 
+
+        .. math::
+            \mathcal{L}_{H}f
+
+        where :math:`f` is the argument passed and :math:`\mathcal{L}_H \equiv [\cdot,H]` 
+        is the Lie derivative operator.
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.H,self.qpvars_list,[])
+    def NLie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian
+        with numerical values substituted for parameters. Equivalent to 
+        :meth:`~poincare.Hamiltonian.Lie_deriv` but using the NH attribute 
+        rather than the H attribute to compute brackets.  
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.NH,self.qpvars_list,[])
     def _get_laplace_lagrange_matrices(self):
         set_e_and_inc_zero_rule = {
             S('{0}{1}'.format(var,i)):0
