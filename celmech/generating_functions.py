@@ -1,11 +1,13 @@
 import numpy as np
 from .poincare import PoincareHamiltonian
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
+from sympy import lambdify as sym_lambdify
 from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
 from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
 from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
 from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
+from .hamiltonian import _my_elliptic_e, _lambdify_kwargs
 import warnings
 
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
@@ -277,3 +279,67 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
 
         if update:
             self._update()
+
+    def perturbative_solution(self,expression,free_variables=[],correction_only=False,lambdify=False,time_symbol=None):
+        r"""
+        Calculate a solution for the time evolution of an expression using
+        first-order perturbation theory.
+
+        Arguments
+        ---------
+        expression : sympy expression
+            Expression in terms of canonical variables for which 
+            to compute a perturbative solution.
+        free_variables : list, optional
+            List of canonical variables to leave undetermined in the 
+            derived expression. By default, `free_variables` is empty
+            and numerical values are substituted for all canonical 
+            variables
+        correction_only : bool, optional
+            If `True`, only return the perturbative correction to 
+            the `expression`. I.e., if `expression` is 
+            :math:`f(q,p)` then only return :math:`[f(q,p),\chi(q,p)]`.
+            Otherwise, return :math:`f(p,q) + [f(q,p),\chi(q,p)].
+            Default is `False`.
+        lambdify : bool, optional
+            If `True`, return a function using sympy.lambdify.
+            The list of arguments accepted by the returned function
+            will the list `free_variables`, followed by the 
+            time at which to evaluate the expression.
+        time_symbol : sympy.Symbol, optional
+            Symbol to use for denoting time. If no symbol is given,
+            :math:`t` is used.
+            
+        
+        Returns
+        -------
+        result: sympy expression or function
+            An expression for the solution as a function of time.
+        """
+        subsrule=dict(zip(self.varsymbols,self.state_to_list(self.state)))
+        for var in free_variables:
+            subsrule.pop(var)
+
+        if time_symbol is None:
+            t = symbols('t')
+        else:
+            t = time_symbol
+
+        for i in range(1,self.N):
+            n=self.get_mean_motion(i).subs(self.Hparams)
+            lsymb = symbols("lambda{}".format(i))
+            exprn = n * t + lsymb
+            subsrule[lsymb] = exprn.subs(subsrule)
+
+        if correction_only:
+            pt_solution = self.NLie_deriv(expression)
+        else:
+            pt_solution = expression + self.NLie_deriv(expression)
+        result = pt_solution.subs(subsrule)
+        if lambdify:
+            args = list(free_variables) + [t]
+            return sym_lambdify(args,result , **_lambdify_kwargs)
+        else:
+            return result
+
+
