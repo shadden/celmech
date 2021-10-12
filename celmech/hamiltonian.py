@@ -57,6 +57,48 @@ class Hamiltonian(object):
         self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
         self._update()
 
+    def Lie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian.
+        In other word, compute 
+
+        .. math::
+            \mathcal{L}_{H}f
+
+        where :math:`f` is the argument passed and :math:`\mathcal{L}_H \equiv [\cdot,H]` 
+        is the Lie derivative operator.
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.H,self.qpvars_list,[])
+
+    def NLie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian
+        with numerical values substituted for parameters. Equivalent to 
+        :meth:`~poincare.Hamiltonian.Lie_deriv` but using the NH attribute 
+        rather than the H attribute to compute brackets.  
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.NH,self.qpvars_list,[])
+
     def integrate(self, time, integrator_kwargs={}):
         """
         Evolve Hamiltonian system from current state
