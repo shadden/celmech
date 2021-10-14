@@ -83,7 +83,7 @@ def DFArguments_dictionary(Nmax):
 
 def _nucombos_iter(nutot):
     for nu1 in range(nutot+1):
-        for nu2 in range(nutot+1-z1):
+        for nu2 in range(nutot+1-nu1):
             for nu3 in range(nutot+1-nu1-nu2):
                 nu4 = nutot - nu1 - nu2 - nu3
                 yield (nu1,nu2,nu3,nu4)
@@ -964,7 +964,7 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
     result = dict()
     for kvec,zvec in terms_list:
         C = DFCoeff_C(*kvec,*zvec)
-        coeff = prefactor * (C,alpha)
+        coeff = prefactor * eval_DFCoeff_dict(C,alpha)
         if include_alpha_derivs:
             ind = C.pop(('indirect',1))
             dC = deriv_DFCoeff(C)
