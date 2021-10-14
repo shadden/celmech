@@ -1168,11 +1168,11 @@ def _resonance_arguments_of_fixed_order(j,k,N):
     for N1 in range(k,N+1,2):
         if (N-N1) % 2:
             continue
-        ztot = (N-N1)//2
+        nutot = (N-N1)//2
         for arg in args_dict[N1][k]:
-            for zc in _zcombos_iter(ztot):
+            for nuc in _nucombos_iter(nutot):
                 js = (j,k - j,*arg)
-                args.append((js,zc))
+                args.append((js,nuc))
     return args
 
 def resonant_secular_contribution_dictionary(j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out):
