@@ -294,7 +294,7 @@ In order to avoid coordinate singularities that occur when :math:`I_i=0` or :mat
     \end{eqnarray}
 
 Because the averaged Hamiltonian is independent of the angle variable :math:`\psi`, the action variable :math:`\Psi` is a constant of motion.
-Rather than parameterizing the Hamiltonian in terms of :math:`\Psi`, we introduce a variable :math:`{\cal D}` that has a more straightforward interpretation as the "average" angular momentum deficit of the resonant planet pair. In order to define :math:`{\cal D}`, let us first introduce :math:`\rho_\mathrm{res}` as the value of :math:`\hat{\Lambda}_1/\hat{\Lambda}_2` when the planet pair's period ratio is equal to the nominal resonant period ratio. Explicitly, :math:`\rho_\mathrm{res} = \frac{\beta_1}{\beta_2}\left(\frac{j-k}{j}\right)^{1/3}\left(\frac{M_1}{M_2}\right)^{1/6}`. Then, we define :math:`{\cal D}`, along with an additional constant :math:`\Lambda_{2,\mathrm{res}}`, such that
+Rather than parameterizing the Hamiltonian in terms of :math:`\Psi`, we introduce a variable :math:`{\cal D}` that has a more straightforward interpretation as the "average" angular momentum deficit of the resonant planet pair. In order to define :math:`{\cal D}`, let us first introduce :math:`\rho_\mathrm{res}` as the value of :math:`{\Lambda}_1/{\Lambda}_2` when the planet pair's period ratio is equal to the nominal resonant period ratio. Explicitly, :math:`\rho_\mathrm{res} = \frac{\beta_1}{\beta_2}\left(\frac{j-k}{j}\right)^{1/3}\left(\frac{M_1}{M_2}\right)^{1/6}`. Then, we define :math:`{\cal D}`, along with an additional constant :math:`\Lambda_{2,\mathrm{res}}`, such that
 
 .. math::
         \begin{equation}
@@ -318,7 +318,7 @@ Inverting this equation and solving for :math:`\mathcal{D}` yields
 
 .. math::
     \begin{equation}
-         {\cal D} = \frac{1}{2}\left(x_1^2+y_1^2+x_2^2+y_2^2+x_\mathrm{inc}^2+y_\mathrm{inc}^2\right) + (\Lambda_{2,\mathrm{res}}-\hat{\Lambda}_2) + (\rho_\mathrm{res}\Lambda_{2,\mathrm{res}}-\hat{\Lambda}_1) 
+         {\cal D} = \frac{1}{2}\left(x_1^2+y_1^2+x_2^2+y_2^2+x_\mathrm{inc}^2+y_\mathrm{inc}^2\right) + (\Lambda_{2,\mathrm{res}}-{\Lambda}_2) + (\rho_\mathrm{res}\Lambda_{2,\mathrm{res}}-{\Lambda}_1) 
     \end{equation}
 
 We express :math:`\mathcal{D}` in terms of the planet pair's period ratio by using
