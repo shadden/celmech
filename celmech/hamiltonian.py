@@ -1,6 +1,7 @@
 from sympy import S, diff, lambdify, symbols 
 from scipy.integrate import ode
 import scipy.special
+from .miscellaneous import PoissonBracket
 def _my_elliptic_e(*args):
     if len(args) == 1:
         return scipy.special.ellipe(*args)
