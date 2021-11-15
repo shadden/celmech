@@ -1,5 +1,5 @@
 import numpy as np
-from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
+from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian
 from .miscellaneous import PoissonBracket
 from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
@@ -573,7 +573,84 @@ class PoincareHamiltonian(Hamiltonian):
         self.H += prefactor1 * Ctot * prefactor2 * trig_term
         if update:
             self._update()
-        
+
+    def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',update=True):
+        r"""
+        Add Hamiltonian terms that capture the orbit-averaged effect of 
+        a central body's oblateness parameterized by the :math:`J_2`
+        gravitational harmonic.
+
+        Arguments
+        ---------
+        J2 : float
+            The value of the central body's J2 gravitational
+            harmonic.
+        Rin : float
+            The central body's radius
+        max_ei_order : int, optional
+            Maximum order of expansion in eccentricity and inclination.
+            By default, the value is set to 'None' and no expansion in 
+            eccentricity and inclinaion is done.
+        max_delta_order : int, optional
+            Maxmimum order in :math:`\delta =(\Lambda-\Lambda_0)/\Lambda_0).
+            Default is 'None' and dependence on :math:`Lambda` is exact.
+        particles : list, optional
+            Which particle numbers to add :math:`J_2` terms for. Default
+            is set to all particles.
+        update : bool, optional
+            Whether to update the internal equations of motion used
+            by the PoincareHamiltonian object.
+        """
+        G = symbols('G')
+        J2_s = symbols("J2")
+        Rin_s = symbols(r"R_\mathrm{in}")
+        self.Hparams[J2_s] = J2
+        self.Hparams[Rin_s] = Rin
+        GJ2RinSq = G * J2_s * Rin_s * Rin_s 
+        a0_d = symbols("a0")
+        # dummy variables, substitute later
+        # Lambda_d = symbols("Lambda")
+        Lambda0_d = symbols("Lambda0")
+        delta_d = symbols("delta")
+        Lambda_d = Lambda0_d * (1 + delta_d)
+        kappa_d,eta_d,sigma_d,rho_d = symbols('kappa,eta,sigma,rho')
+        Gamma = (kappa_d * kappa_d + eta_d * eta_d) / 2
+        G = Lambda_d - Gamma
+        omesq = (G / Lambda_d) * (G / Lambda_d)
+        esq = 1 - omesq
+        Q = (sigma_d*sigma_d + rho_d*rho_d) / 2
+        cosI = 1 - Q / G
+        ssq = (1 - cosI) /2 
+        a = a0_d * (1 + delta_d) * (1 + delta_d)
+        rt_omesq = sqrt(1 - esq).expand()
+        num = 3 * (ssq*ssq - ssq) + 1/S(2)
+        denom = rt_omesq * rt_omesq * rt_omesq 
+        full_exprn =  num / denom / a / a / a
+        # Expand to max order if specified.
+        # Otherwise the complete expression is used.
+        if max_ei_order:
+            eps = symbols("epsilon")
+            # e/i expansion
+            eps_exprn = full_exprn.subs({sym:eps*sym for sym in (kappa_d,eta_d,sigma_d,rho_d)})
+            full_exprn = series(eps_exprn,eps,0,max_ei_order+1).removeO().subs({eps:1})
+        if max_delta_order:
+            # delta expansion
+            full_exprn = series(full_exprn,delta_d,0,max_delta_order+1).removeO()
+        Hpert = -1 * GJ2RinSq * full_exprn 
+        if particles is 'all':
+            pids = range(1,self.N)
+        for pid in pids:
+            p = self.particles[pid]
+            m,mu,M,kappa,eta,sigma,rho = symbols('m{0},mu{0},M{0},kappa{0},eta{0},sigma{0},rho{0}'.format(pid)) 
+            Lambda = symbols('Lambda{0}'.format(pid)) 
+            Lambda0 = _get_Lambda0_symbol(pid)
+            delta = (Lambda - Lambda0)/Lambda0
+            a0 = _get_a0_symbol(pid)
+            delta = (Lambda - Lambda0)/Lambda0
+            self.H += M * mu * Hpert.subs({a0_d:a0,delta_d:delta,kappa_d:kappa,eta_d:eta,sigma_d:sigma,rho_d:rho,Lambda0_d:Lambda0})
+        if update:
+            self._update()
+        return full_exprn
     def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
         r"""
         Add all disturbing function terms associated with a p:p-q mean
