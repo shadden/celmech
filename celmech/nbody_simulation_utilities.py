@@ -357,3 +357,38 @@ def align_simulation(sim):
     for p in sim.particles[:sim.N_real]:
         p.x,p.y,p.z = npEulerAnglesTransform(p.xyz,0,theta2,theta1)
         p.vx,p.vy,p.vz = npEulerAnglesTransform(p.vxyz,0,theta2,theta1) 
+def _get_lhat(p):
+    xyz = p.xyz
+    vxyz = p.vxyz
+    lvec = np.cross(xyz,vxyz)
+    lhat = lvec / np.linalg.norm(lvec)
+    return lhat
+from itertools import combinations
+def calculate_mutual_inclinations(sa):
+    """
+    Calculate the mutual inclination between pairs
+    of bodies in a simulation archive
+
+    Arguments
+    ---------
+    sa : rebound.SimulationArchive
+
+    Returns
+    -------
+    imutuals : dictionary
+        Dictionary of mutual inclinations.
+        Keys are pairs of particle numbers, (i,j),
+        where i and j are integers and values are 
+        arrays of mutual inclination values for that 
+        key pair.
+    """
+    combs = combinations(range(1,sa[0].N_real),2)
+    imut = {comb:np.zeros(len(sa)) for comb in combs}
+    for i,sim in enumerate(sa):
+        lhats = [_get_lhat(p) for p in sim.particles[1:]]
+        for comb in combinations(range(1,sa[0].N_real),2):
+            j,k = comb
+            cosimut = lhats[j-1] @ lhats[k-1]
+            imut[comb][i] = np.arccos(cosimut)
+
+    return imut
