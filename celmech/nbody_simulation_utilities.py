@@ -48,11 +48,11 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
     raise TypeError("{} is not a rebound or reboundx simulation archive!".format(sa))
 
 def _get_rebound_simarchive_integration_results(sa,coordinates):
-    if coordinates is 'jacobi':
+    if coordinates == 'jacobi':
         get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
-    elif coordinates is 'heliocentric':
+    elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
-    elif coordinates is 'barycentric':
+    elif coordinates == 'barycentric':
         get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
     else: 
         raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
@@ -88,11 +88,11 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
     return sim_results
 
 def _get_reboundx_simarchive_integration_results(sa,coordinates):
-    if coordinates is 'jacobi':
+    if coordinates == 'jacobi':
         get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
-    elif coordinates is 'heliocentric':
+    elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
-    elif coordinates is 'barycentric':
+    elif coordinates == 'barycentric':
         get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
     else: 
        raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
