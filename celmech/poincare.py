@@ -574,7 +574,7 @@ class PoincareHamiltonian(Hamiltonian):
         if update:
             self._update()
 
-    def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',update=True):
+    def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',update=True,**kwargs):
         r"""
         Add Hamiltonian terms that capture the orbit-averaged effect of 
         a central body's oblateness parameterized by the :math:`J_2`
@@ -602,8 +602,8 @@ class PoincareHamiltonian(Hamiltonian):
             by the PoincareHamiltonian object.
         """
         G = symbols('G')
-        J2_s = symbols("J2")
-        Rin_s = symbols(r"R_\mathrm{in}")
+        J2_s = kwargs.get("J2_symbol",symbols("J2"))
+        Rin_s = kwargs.get("Rin_symbol",symbols(r"R"))
         self.Hparams[J2_s] = J2
         self.Hparams[Rin_s] = Rin
         GJ2RinSq = G * J2_s * Rin_s * Rin_s 
@@ -650,7 +650,62 @@ class PoincareHamiltonian(Hamiltonian):
             self.H += M * mu * Hpert.subs({a0_d:a0,delta_d:delta,kappa_d:kappa,eta_d:eta,sigma_d:sigma,rho_d:rho,Lambda0_d:Lambda0})
         if update:
             self._update()
-        return full_exprn
+    def add_gr_potential_terms(self,c,max_e_order=None,particles = 'all',update=True):
+        r"""
+        Add Hamiltonian terms that capture the orbital precession
+        caused by general relativity by adding a potential term
+        of the form 
+        
+        .. math::
+             \phi_\mathrm{GR} = \frac{3G^2M_*^2}{c^2a^2\sqrt{1-e^2}}
+
+        Arguments
+        ---------
+        c : float
+            The speed of light in the appropriate simulation units.
+            harmonic.
+        max_e_order : int, optional
+            Maximum order of expansion in eccentricity.
+            By default, the value is set to 'None' and no expansion in 
+            eccentricity is done.
+        particles : list, optional
+            Which particle numbers to add :math:`J_2` terms for. Default
+            is set to all particles.
+        update : bool, optional
+            Whether to update the internal equations of motion used
+            by the PoincareHamiltonian object.
+        """
+        G,c_s = symbols('G,c')
+        G_by_c = G / c_s
+        self.Hparams[c_s] = c
+        
+        # dummy variables, substitute later
+        # Lambda_d = symbols("Lambda")
+        a0_d = symbols("a0")
+        Lambda0_d = symbols("Lambda0")
+        kappa_d,eta_d,sigma_d,rho_d = symbols('kappa,eta,sigma,rho')
+        Gamma = (kappa_d * kappa_d + eta_d * eta_d) / 2
+        G = Lambda0_d - Gamma
+        omesq = (G / Lambda0_d) * (G / Lambda0_d)
+        esq = 1 - omesq
+        full_exprn =  -3 * G_by_c * G_by_c / a0_d / a0_d / sqrt(omesq)
+        # Expand to max order if specified.
+        # Otherwise the complete expression is used.
+        if max_e_order:
+            eps = symbols("epsilon")
+            # e expansion
+            eps_exprn = full_exprn.subs({sym:eps*sym for sym in (kappa_d,eta_d)})
+            full_exprn = series(eps_exprn,eps,0,max_e_order+1).removeO().subs({eps:1})
+        if particles is 'all':
+            pids = range(1,self.N)
+        for pid in pids:
+            p = self.particles[pid]
+            m,mu,M,kappa,eta = symbols('m{0},mu{0},M{0},kappa{0},eta{0}'.format(pid)) 
+            Lambda0 = _get_Lambda0_symbol(pid)
+            a0 = _get_a0_symbol(pid)
+            self.H += M * M * mu * full_exprn.subs({a0_d:a0,kappa_d:kappa,eta_d:eta,Lambda0_d:Lambda0})
+        if update:
+            self._update()
     def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
         r"""
         Add all disturbing function terms associated with a p:p-q mean
