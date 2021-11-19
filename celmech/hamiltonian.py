@@ -130,6 +130,10 @@ class Hamiltonian(object):
         self.state.t = self.integrator.t
         self.update_state_from_list(self.state, self.integrator.y)
 
+    def state_to_list(self,state):
+        # this is dumb. overwrite later.
+        return state.to_list()
+
     def _update(self):
         self.NH = self.H # reset to Hamiltonian with all parameters unset
         # 
