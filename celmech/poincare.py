@@ -1,6 +1,6 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
-from .hamiltonian import Hamiltonian
+from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import PoissonBracket
 from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
 from .disturbing_function import DFCoeff_C,get_DFCoeff_symbol,eval_DFCoeff_delta_expansion
@@ -335,7 +335,7 @@ class PoincareParticle(object):
         """ 
         return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
 
-class Poincare(object):
+class Poincare(PhaseSpaceState):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
@@ -343,16 +343,45 @@ class Poincare(object):
         self.G = G
         self.t = t 
         self.coordinates = coordinates
-        self.particles = [PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
-        try:
-            for p in poincareparticles:
-                self.add(m=p.m, Mstar=p.Mstar, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ=p.sQ, q=p.q)
-        except TypeError:
-            raise TypeError("poincareparticles must be a list of PoincareParticle objects")
-    
-    def add(self, **kwargs):
-        self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
-        # TODO: update 0th particle for the remaining COM coordinate
+        # dummy particle for primary
+        star = PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)
+        self.particles = [star] 
+        for p in poincareparticles:
+            if type(p) == PoincareParticle:
+                self.particles.append(p)
+            else:
+                raise TypeError("poincareparticles must be a list of PoincareParticle objects")
+        initial_p_values = []
+        initial_q_values = []
+        pqpairs = []
+        for i,p in enumerate(self.particles):
+            if i==0:
+                continue
+            pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
+            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
+            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
+            pvals = [p.Lambda,p.kappa,p.sigma]
+            qvals = [p.l,p.eta,p.rho]
+            initial_p_values += pvals
+            initial_q_values += qvals
+        initial_values = initial_q_values + initial_p_values
+        super(Poincare,self).__init__(pqpairs,initial_values,t=self.t) 
+
+    def _update_from_values(self,values):
+        for i,p in enumerate(self.particles[1:]):
+            p.l = values[i * N]
+            p.eta = values[i * N + 1]
+            p.rho = values[i * N + 2]
+            p.Lambda = values[i * N + 3]
+            p.kappa = values[i * N + 4]
+            p.sigma = values[i * N + 5]
+        self._values = values
+
+    # 'add' removed until it plays nicely with 
+    # the underlying phase-space state
+    #def add(self, **kwargs):
+    #    self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
+    #    # TODO: update 0th particle for the remaining COM coordinate
 
     @classmethod
     def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
@@ -378,8 +407,8 @@ class Poincare(object):
         sim = sim.copy()
         # Move to COM frame so P0 = 0 in canonical heliocentric coordinates
         sim.move_to_com()
-
-        pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
+        particles = []
+        #pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
         ps = sim.particles
         Mstar = ps[0].m
         o = reb_calculate_orbits(sim, coordinates=coordinates)
@@ -388,8 +417,10 @@ class Poincare(object):
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
             # always pass physical masses, PoincareParticle will calculate appropriate canonical mass based on coord
-            pvars.add(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega)
-        return pvars
+            particle = PoincareParticle(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega,coordinates=coordinates,G=sim.G)
+            particles.append(particle)
+        return cls(G=sim.G,poincareparticles=particles, coordinates=coordinates,t=sim.t)
+
 
     def to_Simulation(self):
         """ 
@@ -460,7 +491,7 @@ class PoincareHamiltonian(Hamiltonian):
 
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
-        super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
+        super(PoincareHamiltonian, self).__init__(H, Hparams, pvars) 
     
     @property
     def particles(self):
@@ -473,30 +504,6 @@ class PoincareHamiltonian(Hamiltonian):
     @property 
     def t(self):
         return self.state.t
-    
-    def state_to_list(self, state):
-        ps = state.particles
-        vpp = 6 # vars per particle
-        y = np.zeros(vpp*(state.N-1)) # remove padded 0th element in ps for y
-        for i in range(1, state.N):
-            y[vpp*(i-1)] = ps[i].kappa
-            y[vpp*(i-1)+1] = ps[i].eta
-            y[vpp*(i-1)+2] = ps[i].Lambda
-            y[vpp*(i-1)+3] = ps[i].l 
-            y[vpp*(i-1)+4] = ps[i].sigma
-            y[vpp*(i-1)+5] = ps[i].rho
-        return y
-
-    def update_state_from_list(self, state, y):
-        ps = state.particles
-        vpp = 6 # vars per particle
-        for i in range(1, state.N):
-            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].mu)
-            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].mu)
-            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].mu
-            ps[i].l = y[vpp*(i-1)+3]
-            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].mu) 
-            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].mu) 
     
     def add_Hkep_term(self, H, index):
         """
