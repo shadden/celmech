@@ -368,13 +368,17 @@ class Poincare(PhaseSpaceState):
         super(Poincare,self).__init__(pqpairs,initial_values,t=self.t) 
 
     def _update_from_values(self,values):
+        Ndof = self.Ndof
+        #print("updating")
         for i,p in enumerate(self.particles[1:]):
-            p.l = values[i * N]
-            p.eta = values[i * N + 1]
-            p.rho = values[i * N + 2]
-            p.Lambda = values[i * N + 3]
-            p.kappa = values[i * N + 4]
-            p.sigma = values[i * N + 5]
+            p.l = values[i * 3]
+            p.eta = values[i * 3 + 1]
+            p.rho = values[i * 3 + 2]
+            p.Lambda = values[Ndof + i * 3]
+            #print("Before kappa = {}".format(p.kappa))
+            p.kappa = values[Ndof + i * 3 + 1]
+            #print("After kappa = {}".format(p.kappa))
+            p.sigma = values[Ndof + i * 3 + 2]
         self._values = values
 
     # 'add' removed until it plays nicely with 
