@@ -1,7 +1,7 @@
 import numpy as np
 from .miscellaneous import PoissonBracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix
-from sympy import trigsimp
+from sympy import trigsimp, simplify
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from . import Poincare
 
@@ -21,6 +21,53 @@ def _get_default_xy_symbols(N):
         symbols("y(1:{})".format(N+1))
     ))
     return default_xy_symbols
+
+# implement new to old state and new to old hamiltonian?
+class CompositeTransformation():
+    def __init__(self, transformations):
+        self.transformations = transformations
+    
+    def old_to_new(self,exprn):
+        for trans in self.transformations:
+            exprn = trans.old_to_new(exprn)
+        return exprn
+
+    def new_to_old(self,exprn):
+        for trans in self.transformations[::-1]:
+            exprn = trans.new_to_old(exprn)
+        return exprn
+
+    def old_to_new_array(self,arr):
+        for trans in self.transformations:
+            arr = trans.old_to_new_array(arr)
+        return arr 
+
+    def new_to_old_array(self,arr):
+        for trans in self.transformations[::-1]:
+            arr = trans.new_to_old(arr)
+        return arr 
+
+    def old_to_new_state(self,state):
+        for trans in self.transformations:
+            state = trans.old_to_new_state(state)
+        return state 
+
+    def old_to_new_hamiltonian(self,ham,do_reduction = False):
+        new_state = self.old_to_new_state(ham.state)
+        newH = self.old_to_new(ham.H)
+        new_ham = Hamiltonian(newH,ham.Hparams,new_state)
+        if do_reduction:
+            new_ham = reduce_hamiltonian(new_ham)
+        return new_ham
+    
+    def _test_new_to_old_canonical(self):
+        pb = lambda q,p: PoissonBracket(q,p,self.transformations[0].old_qpvars_list,[])
+        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for pp,qq in self.transformations[-1].new_pq_pairs]
+
+    def _test_old_to_new_canonical(self):
+        pb = lambda q,p: PoissonBracket(q,p,self.transformations[-1].new_qpvars_list,[])
+        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for pp,qq in self.transformations[0].old_pq_pairs]
+
 
 class CanonicalTransformation():
     def __init__(self,
@@ -68,14 +115,14 @@ class CanonicalTransformation():
             self.new_to_old_simplify_function = lambda x: x
    
     def old_to_new(self,exprn):
-        new_exprn = exprn.subs(self.old_to_new_rule)
-        new_exprn_s = self.old_to_new_simplify_function(new_exprn)
-        return new_exprn_s
+        exprn = exprn.subs(self.old_to_new_rule)
+        exprn = self.old_to_new_simplify_function(exprn)
+        return exprn
 
     def new_to_old(self,exprn):
-        new_exprn = exprn.subs(self.new_to_old_rule)
-        new_exprn_s = self.new_to_old_simplify_function(new_exprn)
-        return new_exprn_s
+        exprn = exprn.subs(self.new_to_old_rule)
+        exprn = self.new_to_old_simplify_function(exprn)
+        return exprn
 
     def old_to_new_array(self,arr):
         return np.array(self._old_to_new_vfunc(*arr))
@@ -88,7 +135,7 @@ class CanonicalTransformation():
         new_state = PhaseSpaceState(self.new_pq_pairs,new_values,t = state.t)
         return new_state
 
-    def old_to_new_hamiltonian(self,ham,do_reduction = True):
+    def old_to_new_hamiltonian(self,ham,do_reduction = False):
         new_state = self.old_to_new_state(ham.state)
         newH = self.old_to_new(ham.H)
         new_ham = Hamiltonian(newH,ham.Hparams,new_state)
@@ -138,7 +185,10 @@ class CanonicalTransformation():
                 o2n.update(id_tr)
                 n2o.update(id_tr)
                 new_pq_pairs.append(pq)
-        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,**kwargs)
+
+        # add a simplify function to remove arctans
+        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
+        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,o2n_simplify,**kwargs)
 
     @classmethod
     def from_poincare_angles_matrix(cls,pvars,Tmtrx,**kwargs):
