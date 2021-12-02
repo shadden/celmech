@@ -11,7 +11,7 @@ import warnings
 def get_Phiprime(k, Xstarres):
     Phiprime = np.nan
     if Xstarres >= 0:
-        warnings.warn("Xstarres passed to get_Phiprime must be 0. Returning nan")
+        warnings.warn("Xstarres passed to get_Phiprime must be < 0. Returning nan")
     if k == 1:
         Phiprime = (4.*Xstarres**3 + 1.)/(3.*Xstarres)
     elif k == 2:
@@ -28,7 +28,7 @@ def get_Xstarres(k, Phiprime):
         if Phiprime >= 1:
             Xstarres = np.sqrt(Phiprime)*np.cos(1./3.*np.arccos(-Phiprime**(-1.5))+2.*np.pi/3.)
         elif Phiprime > 0:
-            Xstarres = np.sqrt(Phiprime)*np.cosh(1./3.*np.arccosh(Phiprime**(-1.5)))
+            Xstarres = -np.sqrt(Phiprime)*np.cosh(1./3.*np.arccosh(Phiprime**(-1.5)))
         elif Phiprime < 0:
             Xstarres = np.sqrt(-Phiprime)*np.sinh(1./3.*np.arcsinh(-abs(Phiprime)**(-1.5)))
     elif k == 2:
