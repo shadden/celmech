@@ -15,6 +15,11 @@ _lambdify_kwargs = {'modules':['numpy', {
     'elliptic_e': _my_elliptic_e
     }]} 
 
+# Make class that tracks conserved quantities
+# and cyclic coordinates as well.
+class ReducedPhaseSpaceState(object):
+    pass
+
 class PhaseSpaceState(object):
     def __init__(self, pqpairs, initial_values,t = 0):
         self.t = t
@@ -223,6 +228,7 @@ def reduce_hamiltonian(ham):
             new_qvals.append(qval)
             new_pvals.append(pval)
     new_vals = np.array(new_qvals + new_pvals)
+    # change to RedcuedPhaseSpaceState
     new_state = PhaseSpaceState(new_pq_pairs, new_vals,state.t)
     new_ham = Hamiltonian(ham.H,new_params,new_state)
     return new_ham
