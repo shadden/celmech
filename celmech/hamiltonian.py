@@ -18,7 +18,33 @@ _lambdify_kwargs = {'modules':['numpy', {
 # Make class that tracks conserved quantities
 # and cyclic coordinates as well.
 class ReducedPhaseSpaceState(object):
-    pass
+    def __init__(self, pqpairs, initial_values,t = 0):
+        self.t = t
+        self.pqpairs = pqpairs
+        self.Ndof  = len(pqpairs)
+        self.qpvars_list = [q for p,q in self.pqpairs] + [p for p,q in self.pqpairs]
+        # numerical values of qpvars-list
+        self._values = array(initial_values)
+
+    def as_rule(self):
+        return dict(zip(self.qpvars_list,self.values))
+    @property 
+    def Ndim(self):
+        return 2 * self.Ndof
+    @property
+    def values(self):
+        return self._values
+    @values.setter
+    def values(self,values):
+        self._update_from_values(values)
+        self._values = values 
+    def _update_from_values(self,values):
+        pass
+    def __repr__(self):
+        string = ''
+        for i, name in enumerate(self.qpvars_list):
+            string += '{0}:{1}\n'.format(name, self._values[i])
+        return string
 
 class PhaseSpaceState(object):
     def __init__(self, pqpairs, initial_values,t = 0):
