@@ -15,6 +15,8 @@ _lambdify_kwargs = {'modules':['numpy', {
     'elliptic_e': _my_elliptic_e
     }]} 
 
+# subclass PhaseSpace State, ham integrates reduced phase space state
+# full values gives additional variables including conserved quantitties
 # Make class that tracks conserved quantities
 # and cyclic coordinates as well.
 class ReducedPhaseSpaceState(object):

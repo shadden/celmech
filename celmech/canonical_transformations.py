@@ -22,86 +22,6 @@ def _get_default_xy_symbols(N):
     ))
     return default_xy_symbols
 
-class CompositeTransformation():
-    def __init__(self, transformations):
-        self.transformations = transformations
-    
-    @property
-    def old_pq_pairs(self):
-        return self.transformations[0].old_pqpairs
-    @property
-    def new_pq_pairs(self):
-        return self.transformations[-1].new_pqpairs
-    @property
-    def old_to_new_rule(self):
-        d = self.transformations[0].old_to_new_rule.copy()
-        for trans in self.transformations[1:]:
-            for key, val in d.items():
-                d[key] = val.subs(trans.old_to_new_rule)
-        return d
-    @property
-    def new_to_old_rule(self):
-        d = self.transformations[-1].new_to_old_rule.copy()
-        for trans in self.transformations[-2::-1]:
-            for key, val in d.items():
-                d[key] = val.subs(trans.new_to_old_rule)
-        return d
-    
-    def old_to_new(self,exprn):
-        for trans in self.transformations:
-            exprn = trans.old_to_new(exprn)
-        return exprn
-
-    def new_to_old(self,exprn):
-        for trans in self.transformations[::-1]:
-            exprn = trans.new_to_old(exprn)
-        return exprn
-
-    def old_to_new_array(self,arr):
-        for trans in self.transformations:
-            arr = trans.old_to_new_array(arr)
-        return arr 
-
-    def new_to_old_array(self,arr):
-        for trans in self.transformations[::-1]:
-            arr = trans.new_to_old(arr)
-        return arr 
-
-    def old_to_new_state(self,state):
-        for trans in self.transformations:
-            state = trans.old_to_new_state(state)
-        return state 
-
-    def new_to_old_state(self,state):
-        for trans in self.transformations[::-1]:
-            state = trans.new_to_old_state(state)
-        return state 
-    
-    def old_to_new_hamiltonian(self,ham,do_reduction = False):
-        new_state = self.old_to_new_state(ham.state)
-        newH = self.old_to_new(ham.H)
-        new_ham = Hamiltonian(newH,ham.Hparams,new_state)
-        if do_reduction:
-            new_ham = reduce_hamiltonian(new_ham)
-        return new_ham
-    
-    def new_to_old_hamiltonian(self,ham,do_reduction = False):
-        old_state = self.new_to_old_state(ham.state)
-        oldH = self.new_to_old(ham.H)
-        old_ham = Hamiltonian(oldH,ham.Hparams,old_state)
-        if do_reduction:
-            old_ham = reduce_hamiltonian(old_ham)
-        return old_ham
-    
-    def _test_new_to_old_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.transformations[0].old_qpvars_list,[])
-        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for pp,qq in self.transformations[-1].new_pq_pairs]
-
-    def _test_old_to_new_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.transformations[-1].new_qpvars_list,[])
-        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for pp,qq in self.transformations[0].old_pq_pairs]
-
-
 class CanonicalTransformation():
     def __init__(self,
             old_pq_pairs,
@@ -294,3 +214,19 @@ class CanonicalTransformation():
         o2n.update(dict(zip(rhos,rho_exprns)))
         
         return cls(pvars.pqpairs,PQvars,o2n,n2o, old_to_new_simplify = _termwise_trigsimp)
+
+    @classmethod
+    def Composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
+        oldpq = transformations[0].old_pq_pairs
+        newpq = transformations[-1].new_pq_pairs
+
+        o2n = transformations[0].old_to_new_rule.copy()
+        for trans in transformations[1:]:
+            for key, val in o2n.items():
+                o2n[key] = val.subs(trans.old_to_new_rule)
+        n2o = transformations[-1].new_to_old_rule.copy()
+        for trans in transformations[-2::-1]:
+            for key, val in n2o.items():
+                n2o[key] = val.subs(trans.new_to_old_rule)
+    
+        return cls(oldpq, newpq, o2n, n2o, old_to_new_simplify, new_to_old_simplify)
