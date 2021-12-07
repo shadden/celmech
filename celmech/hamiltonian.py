@@ -1,5 +1,7 @@
-from sympy import S, diff, lambdify, symbols, Matrix
+from sympy import S, diff, lambdify, symbols, Matrix, Expr
+import pprint
 from numpy import array
+from collections import OrderedDict
 import numpy as np
 from scipy.integrate import ode
 import scipy.special
@@ -19,63 +21,47 @@ _lambdify_kwargs = {'modules':['numpy', {
 # full values gives additional variables including conserved quantitties
 # Make class that tracks conserved quantities
 # and cyclic coordinates as well.
-class ReducedPhaseSpaceState(object):
-    def __init__(self, pqpairs, initial_values,t = 0):
-        self.t = t
-        self.pqpairs = pqpairs
-        self.Ndof  = len(pqpairs)
-        self.qpvars_list = [q for p,q in self.pqpairs] + [p for p,q in self.pqpairs]
-        # numerical values of qpvars-list
-        self._values = array(initial_values)
 
-    def as_rule(self):
-        return dict(zip(self.qpvars_list,self.values))
-    @property 
-    def Ndim(self):
-        return 2 * self.Ndof
-    @property
-    def values(self):
-        return self._values
-    @values.setter
-    def values(self,values):
-        self._update_from_values(values)
-        self._values = values 
-    def _update_from_values(self,values):
-        pass
-    def __repr__(self):
-        string = ''
-        for i, name in enumerate(self.qpvars_list):
-            string += '{0}:{1}\n'.format(name, self._values[i])
-        return string
+# Do we make the base object an OrderedDict so that it's updated if user tries to set it? (currently can only read)
+# add a needs_update the Hamiltonian, so we can keep track of it and only call once before integration etc.?
+# if base is an ordered dict of reduced phase state, how do we tell it to update when we access teh full dit?
+
+# OrderedDict for values
 
 class PhaseSpaceState(object):
-    def __init__(self, pqpairs, initial_values,t = 0):
+    def __init__(self, qpvars, values, t = 0):
         self.t = t
-        self.pqpairs = pqpairs
-        self.Ndof  = len(pqpairs)
-        self.qpvars_list = [q for p,q in self.pqpairs] + [p for p,q in self.pqpairs]
-        # numerical values of qpvars-list
-        self._values = array(initial_values)
+        self.val = OrderedDict(zip(qpvars, values))  
 
-    def as_rule(self):
-        return dict(zip(self.qpvars_list,self.values))
+    @property
+    def qpvars_list(self):
+        return list(self.val.keys()) 
+    @property
+    def qppairs(self):
+        return [(self.qpvars_list[i], self.qpvars_list[i+self.Ndof]) for i in range(self.Ndof)]
+    @property 
+    def Ndof(self):
+        return int(len(self.val)/2)
     @property 
     def Ndim(self):
-        return 2 * self.Ndof
+        return len(self.val)
     @property
     def values(self):
-        return self._values
+        return list(self.val.values()) 
     @values.setter
     def values(self,values):
         self._update_from_values(values)
-        self._values = values 
+        for key, value in zip(self.qpvars_list, values):
+            self.val[key] = value
     def _update_from_values(self,values):
         pass
+    def __str__(self):
+        s = "t={0}".format(self.t)
+        for var, val in self.val.items():
+            s += ", {0}={1}".format(var, val)
+        return s
     def __repr__(self):
-        string = ''
-        for i, name in enumerate(self.qpvars_list):
-            string += '{0}:{1}\n'.format(name, self._values[i])
-        return string
+        return "PhaseSpaceState(qpvars={0}, values={1}, t={2})".format(self.qpvars_list, self.values, self.t)
 
 class Hamiltonian(object):
     """
@@ -98,14 +84,11 @@ class Hamiltonian(object):
         Arguments
         ---------
         H : sympy expression
-            Hamiltonian made up only of sympy symbols in pqpairs and keys in Hparams
-        pqpairs : list
-            list of momentum, position pairs [(P1, Q1), (P2, Q2)], where each element is a sympy symbol
+            Hamiltonian made up only of sympy symbols in state.qppairs and keys in Hparams
         Hparams : dict
             dictionary from sympy symbols for the constant parameters in H to their value
-        initial_conditions : object
-            Arbitrary object for holding the dynamical state.
-        
+        state : PhaseSpaceState 
+            Object for holding the dynamical state.
         
         In addition to the above, one needs to write 2 methods to map between the two objects:
         def state_to_list(self, state): 
@@ -120,8 +103,8 @@ class Hamiltonian(object):
         self._update()
 
     @property
-    def pqpairs(self):
-        return self.state.pqpairs
+    def qppairs(self):
+        return self.state.qppairs
 
     @property
     def qpvars_list(self):
@@ -186,6 +169,7 @@ class Hamiltonian(object):
             keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
+        # can we remove this block?
         try:
             time /= self.state.params['tau'] # scale time if defined
         except:
@@ -249,9 +233,9 @@ def reduce_hamiltonian(ham):
     new_pq_pairs= []
     new_qvals = []
     new_pvals = []
-    for pq_pair in state.pqpairs:
-        p,q = pq_pair
-        pval,qval = pq_val_rule[p],pq_val_rule[q]
+    for qp_pair in state.qppairs:
+        q,p = qp_pair
+        pval,qval = ham.state.val[p],ham.state.val[q]
         if p not in ham.H.free_symbols:
             new_params[q] = qval
         elif q not in ham.H.free_symbols:
