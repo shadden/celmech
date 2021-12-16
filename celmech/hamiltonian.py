@@ -17,21 +17,32 @@ _lambdify_kwargs = {'modules':['numpy', {
     'elliptic_e': _my_elliptic_e
     }]} 
 
-# subclass PhaseSpace State, ham integrates reduced phase space state
+# units in canonical transformation, Ham doesn't know about that
+
+# All params and units are owned by Hamiltonians. PhaseSpaceStates are just numbers with no
+# knowledge of units. 
+
+# tracked and untracked variables handled by Hamiltonian
+# we do want to be able to set things in phasespacestate from hamiltonian and update hamiltonian
+# state is a property in hamiltonian that sets update if we call setter, and can handle the logic on 
+# which phasepsacestate variables to return based on which dof are being tracked or not
+
 # full values gives additional variables including conserved quantitties
-# Make class that tracks conserved quantities
-# and cyclic coordinates as well.
 
-# Do we make the base object an OrderedDict so that it's updated if user tries to set it? (currently can only read)
-# add a needs_update the Hamiltonian, so we can keep track of it and only call once before integration etc.?
-# if base is an ordered dict of reduced phase state, how do we tell it to update when we access teh full dit?
+# can't set poincare unless you use the base variables. same issue as rebound that you can't set e.g. ecc 
+# you'd have to pass all 6 orbital elements
+# --> don't let pham.particles change the state, only read. Much simpler
 
-# OrderedDict for values
+# PoincareHamiltonian owns the parameters (G, mass). 
+# Every time you call pham.particles it reconstructs a PoincareParticles array from phasespacestate
+# don't have Poincare subclass PhaseSpaceState?
 
+# H handles params, PhaseSpaceState never knows about params
+# Anything that knows about both (like Poincare) is a separate thing that doesn't know (or subclass either)
 class PhaseSpaceState(object):
     def __init__(self, qpvars, values, t = 0):
         self.t = t
-        self.val = OrderedDict(zip(qpvars, values))  
+        self.val = OrderedDict(zip(qpvars, values))
 
     @property
     def qpvars_list(self):
@@ -50,11 +61,8 @@ class PhaseSpaceState(object):
         return list(self.val.values()) 
     @values.setter
     def values(self,values):
-        self._update_from_values(values)
         for key, value in zip(self.qpvars_list, values):
             self.val[key] = value
-    def _update_from_values(self,values):
-        pass
     def __str__(self):
         s = "t={0}".format(self.t)
         for var, val in self.val.items():
