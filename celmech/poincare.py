@@ -413,6 +413,7 @@ class Poincare(PhaseSpaceState):
     A class representing a collection of Poincare particles constituting a planetary system.
     """
     def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
+        # additional variables that need storing in addition to phasespacestate variables
         self.G = G
         self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
@@ -513,6 +514,7 @@ class Poincare(PhaseSpaceState):
     def copy(self):
         return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
 
+# If we wanted Poincare.from_Hamiltonian, would need PoincareHamiltonian to hold both m_0 (for star) and coordinates
 class PoincareHamiltonian(Hamiltonian):
     """
     A class representing the Hamiltonian governing the dynamical evolution of a system of particles,
@@ -537,14 +539,9 @@ class PoincareHamiltonian(Hamiltonian):
     """
     def __init__(self, pvars):
         Hparams = {symbols('G'):pvars.G}
-        pqpairs = []
         ps = pvars.particles
         H = S(0) 
-        Hparams[symbols("m_0")] = ps[1].Mstar # needed for Poincare.from_Hamiltonian
         for i in range(1, pvars.N):
-            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
-            pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
-            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
             Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M

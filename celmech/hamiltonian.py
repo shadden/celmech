@@ -29,27 +29,17 @@ _lambdify_kwargs = {'modules':['numpy', {
 
 # full values gives additional variables including conserved quantitties
 
-# can't set poincare unless you use the base variables. same issue as rebound that you can't set e.g. ecc 
-# you'd have to pass all 6 orbital elements
-# --> don't let pham.particles change the state, only read. Much simpler
-
-# PoincareHamiltonian owns the parameters (G, mass). 
-# Every time you call pham.particles it reconstructs a PoincareParticles array from phasespacestate
-# don't have Poincare subclass PhaseSpaceState?
-
-# H handles params, PhaseSpaceState never knows about params
-# Anything that knows about both (like Poincare) is a separate thing that doesn't know (or subclass either)
 class PhaseSpaceState(object):
     def __init__(self, qpvars, values, t = 0):
         self.t = t
         self.val = OrderedDict(zip(qpvars, values))
 
     @property
-    def qpvars_list(self):
+    def qpvars(self):
         return list(self.val.keys()) 
     @property
     def qppairs(self):
-        return [(self.qpvars_list[i], self.qpvars_list[i+self.Ndof]) for i in range(self.Ndof)]
+        return [(self.qpvars[i], self.qpvars[i+self.Ndof]) for i in range(self.Ndof)]
     @property 
     def Ndof(self):
         return int(len(self.val)/2)
@@ -61,7 +51,7 @@ class PhaseSpaceState(object):
         return list(self.val.values()) 
     @values.setter
     def values(self,values):
-        for key, value in zip(self.qpvars_list, values):
+        for key, value in zip(self.qpvars, values):
             self.val[key] = value
     def __str__(self):
         s = "t={0}".format(self.t)
@@ -69,7 +59,7 @@ class PhaseSpaceState(object):
             s += ", {0}={1}".format(var, val)
         return s
     def __repr__(self):
-        return "PhaseSpaceState(qpvars={0}, values={1}, t={2})".format(self.qpvars_list, self.values, self.t)
+        return "PhaseSpaceState(qpvars={0}, values={1}, t={2})".format(self.qpvars, self.values, self.t)
 
 class Hamiltonian(object):
     """
@@ -87,7 +77,7 @@ class Hamiltonian(object):
     pqpars : list
         List of canonical variable pairs. 
     """
-    def __init__(self, H, Hparams, state):
+    def __init__(self, H, Hparams, state, untracked_qpvars=None):
         """
         Arguments
         ---------
@@ -108,6 +98,10 @@ class Hamiltonian(object):
         self.state = state
         self.Hparams = Hparams
         self.H = H
+        if untracked_qpvars:
+            self.untracked_qpvars = untracked_qpvars
+        else:
+            self.untracked_qpvars = []
         self._update()
 
     @property
@@ -115,8 +109,16 @@ class Hamiltonian(object):
         return self.state.qppairs
 
     @property
-    def qpvars_list(self):
-        return self.state.qpvars_list
+    def qpvars(self):
+        return self.state.qpvars
+   
+    @property
+    def values(self):
+        return self.state.values
+
+    @property
+    def full_qpvars(self):
+        return self.state.qpvars
 
     def Lie_deriv(self,exprn):
         r"""
@@ -139,7 +141,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self.H,self.qpvars_list,[])
+        return PoissonBracket(exprn,self.H,self.qpvars,[])
 
     def NLie_deriv(self,exprn):
         r"""
@@ -158,7 +160,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self.NH,self.qpvars_list,[])
+        return PoissonBracket(exprn,self.NH,self.qpvars,[])
 
     def integrate(self, time, integrator_kwargs={}):
         """
@@ -206,14 +208,14 @@ class Hamiltonian(object):
         for keyval in function_keyval_pairs:
             self.NH = self.NH.subs(keyval[0],keyval[1])
         
-        qpvars = self.qpvars_list
+        qpvars = self.qpvars
         Ndim = self.state.Ndim
         self.Energy = lambdify(qpvars,self.NH,'numpy')
         self.derivs = {}
         self.Nderivs = []
         flow = []
         Nflow = []
-        for v in self.qpvars_list:
+        for v in self.qpvars:
             deriv = self.Lie_deriv(v)
             Nderiv = self.NLie_deriv(v)
             self.derivs[v] = self.Lie_deriv(v)

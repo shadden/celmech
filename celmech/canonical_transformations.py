@@ -8,12 +8,12 @@ from . import Poincare
 def _termwise_trigsimp(exprn):
     return exprn.func(*[trigsimp(a) for a in exprn.args])
 
-def _get_default_pq_symbols(N):
-    default_pq_symbols=list(zip(
-        symbols("P(1:{})".format(N+1)),
-        symbols("Q(1:{})".format(N+1))
+def _get_default_qp_symbols(N):
+    default_qp_symbols=list(zip(
+        symbols("Q(1:{})".format(N+1)),
+        symbols("P(1:{})".format(N+1))
     ))
-    return default_pq_symbols
+    return default_qp_symbols
 
 def _get_default_xy_symbols(N):
     default_xy_symbols=list(zip(
@@ -24,36 +24,33 @@ def _get_default_xy_symbols(N):
 
 class CanonicalTransformation():
     def __init__(self,
-            old_pq_pairs,
-            new_pq_pairs,
+            old_qpvars,
+            new_qpvars,
             old_to_new_rule = None,
             new_to_old_rule = None,
             old_to_new_simplify = None,
             new_to_old_simplify = None,
             **kwargs
     ):
-
-        self.old_pq_pairs = old_pq_pairs
-        self.old_qpvars_list = [q for p,q in old_pq_pairs] + [p for p,q in old_pq_pairs]
-
-        self.new_pq_pairs = new_pq_pairs
-        self.new_qpvars_list = [q for p,q in new_pq_pairs] + [p for p,q in new_pq_pairs]
+        self.old_qpvars = old_qpvars
+        self.new_qpvars = new_qpvars
+        
         if not (old_to_new_rule or new_to_old_rule):
             raise ValueError("Must specify at least one of 'old_to_new_rule' or 'new_to_old_rule'!")
         if old_to_new_rule:
             self.old_to_new_rule = old_to_new_rule
         else:
-            eqs = [v - self.new_to_old_rule[v] for v in self.new_qpvars_list]
-            self.old_to_new_rule = solve(eqs,self.old_qpvars_list)
+            eqs = [v - self.new_to_old_rule[v] for v in self.new_qpvars]
+            self.old_to_new_rule = solve(eqs,self.old_qpvars)
         
         if new_to_old_rule:
             self.new_to_old_rule = new_to_old_rule
         else:
-            eqs = [v - self.old_to_new_rule[v] for v in self.old_qpvars_list] 
-            self.new_to_old_rule = solve(eqs,self.new_qpvars_list)
+            eqs = [v - self.old_to_new_rule[v] for v in self.old_qpvars] 
+            self.new_to_old_rule = solve(eqs,self.new_qpvars)
         
-        qpv_new = self.new_qpvars_list
-        qpv_old = self.old_qpvars_list
+        qpv_new = self.new_qpvars
+        qpv_old = self.old_qpvars
         self._old_to_new_vfunc = lambdify(qpv_old,[self.new_to_old_rule[v] for v in qpv_new])
         self._new_to_old_vfunc = lambdify(qpv_new,[self.old_to_new_rule[v] for v in qpv_old])
 
@@ -85,12 +82,12 @@ class CanonicalTransformation():
 
     def old_to_new_state(self,state):
         new_values = self.old_to_new_array(state.values)
-        new_state = PhaseSpaceState(self.new_pq_pairs,new_values,t=state.t)
+        new_state = PhaseSpaceState(self.new_qpvars,new_values,t=state.t)
         return new_state
 
     def new_to_old_state(self,state):
         old_values = self.new_to_old_array(state.values)
-        old_state = PhaseSpaceState(self.old_pq_pairs,old_values,t=state.t)
+        old_state = PhaseSpaceState(self.old_qpvars,old_values,t=state.t)
         return old_state
     
     def old_to_new_hamiltonian(self,ham,do_reduction = False):
@@ -110,67 +107,90 @@ class CanonicalTransformation():
         return old_ham
     
     def _test_new_to_old_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.old_qpvars_list,[])
-        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for pp,qq in self.new_pq_pairs]
+        pb = lambda q,p: PoissonBracket(q,p,self.old_qpvars,[])
+        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for qq,pp in self.new_qppairs]
 
     def _test_old_to_new_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.new_qpvars_list,[])
-        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for pp,qq in self.old_pq_pairs]
+        pb = lambda q,p: PoissonBracket(q,p,self.new_qpvars,[])
+        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for qq,pp in self.old_qppairs]
+   
+    @property 
+    def Ndof(self):
+        return int(len(self.old_qpvars)/2)
+
+    @property
+    def old_qppairs(self):
+        return [(self.old_qpvars[i], self.old_qpvars[i+self.Ndof]) for i in range(self.Ndof)]
+    
+    @property
+    def new_qppairs(self):
+        return [(self.new_qpvars[i], self.new_qpvars[i+self.Ndof]) for i in range(self.Ndof)]
 
     @classmethod
-    def from_type2_generating_function(cls,F2func,old_pq_pairs,new_pq_pairs,**kwargs):
-        old_vars = [v for qp in old_pq_pairs for v in qp] 
-        new_vars = [v for qp in new_pq_pairs for v in qp] 
-        eqs = [p - diff(F2func,q) for p,q in old_pq_pairs]
-        eqs += [Q - diff(F2func,P) for P,Q in new_pq_pairs]
-        o2n = solve(eqs,old_vars)
-        return cls(old_pq_pairs,new_pq_pairs,old_to_new_rule = o2n,**kwargs) 
+    def from_type2_generating_function(cls,F2func,old_qpvars,new_qpvars,**kwargs):
+        Ndof = int(len(old_qpvars)/2)
+        old_qppairs = [(old_qpvars[i], old_qpvars[i+Ndof]) for i in range(Ndof)]
+        new_qppairs = [(new_qpvars[i], new_qpvars[i+Ndof]) for i in range(Ndof)]
+        eqs = [p - diff(F2func,q) for q,p in old_qppairs]
+        eqs += [Q - diff(F2func,P) for Q,P in new_qppairs]
+        o2n = solve(eqs,old_qpvars)
+        return cls(old_qpvars,new_qpvars,old_to_new_rule=o2n,**kwargs) 
     @classmethod
-    def CartesianToPolar(cls,old_pq_pairs,indices,**kwargs):
+    def CartesianToPolar(cls,old_qpvars,indices,**kwargs):
+        Ndof = int(len(old_qpvars)/2)
+        old_qppairs = [(old_qpvars[i], old_qpvars[i+Ndof]) for i in range(Ndof)]
         N = len(indices)
-        newPQs = kwargs.get("polar_symbols",_get_default_pq_symbols(N))
-        new_pq_pairs = []
+        newQPs = kwargs.get("polar_symbols",_get_default_qp_symbols(N))
+        new_q, new_p = [], []
         o2n,n2o = dict(),dict()
-        for i,pq in enumerate(old_pq_pairs):
+        for i,qp in enumerate(old_qppairs):
             if i in indices:
-                x,y = pq
-                P,Q = newPQs.pop(0)
+                y,x = qp 
+                Q,P = newQPs.pop(0)
                 o2n.update({ x:sqrt(2*P) * cos(Q) , y:sqrt(2*P) * sin(Q)})
                 n2o.update({P:(x*x +y*y)/2, Q:atan2(y,x)})
-                new_pq_pairs.append((P,Q))
+                new_q.append(Q)
+                new_p.append(P)
             # keep indentity transformation if index not passed
             else:
-                id_tr = dict(zip(pq,pq))
+                id_tr = dict(zip(qp,qp))
                 o2n.update(id_tr)
                 n2o.update(id_tr)
-                new_pq_pairs.append(pq)
+                new_q.append(qp[0])
+                new_p.append(qp[1])
 
         # add a simplify function to remove arctans
         o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
-        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,o2n_simplify,**kwargs)
+        new_qpvars = new_q + new_p
+        return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
     @classmethod
-    def PolarToCartesian(cls,old_pq_pairs,indices,**kwargs):
+    def PolarToCartesian(cls,old_qpvars,indices,**kwargs):
+        Ndof = int(len(old_qpvars)/2)
+        old_qppairs = [(old_qpvars[i], old_qpvars[i+Ndof]) for i in range(Ndof)]
         N = len(indices)
         newXYs = kwargs.get("cartesian_symbols",_get_default_xy_symbols(N))
-        new_pq_pairs = []
+        new_q, new_p = [], []
         o2n,n2o = dict(),dict()
-        for i,pq in enumerate(old_pq_pairs):
+        for i,qp in enumerate(old_qppairs):
             if i in indices:
                 x,y = newXYs.pop(0)
-                P,Q = pq
+                Q,P = qp 
                 n2o.update({ x:sqrt(2*P) * cos(Q) , y:sqrt(2*P) * sin(Q)})
                 o2n.update({P:(x*x +y*y)/2, Q:atan2(y,x)})
-                new_pq_pairs.append((x,y))
+                new_q.append(y)
+                new_p.append(x)
             # keep identity transformation if index not passed
             else:
-                id_tr = dict(zip(pq,pq))
+                id_tr = dict(zip(qp,qp))
                 o2n.update(id_tr)
                 n2o.update(id_tr)
-                new_pq_pairs.append(pq)
+                new_q.append(qp[0])
+                new_p.append(qp[1])
 
         # add a simplify function to remove arctans
         o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
-        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,o2n_simplify,**kwargs)
+        new_qpvars = new_q + new_p
+        return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
 
     @classmethod
     def from_poincare_angles_matrix(cls,pvars,Tmtrx,**kwargs):
@@ -182,9 +202,9 @@ class CanonicalTransformation():
         except:
             raise ValueError("'Tmtrx' could not be shaped into a {0}x{0} array".format(Ndof))
         Tmtrx = Matrix(Tmtrx)
-        PQvars = kwargs.get("PQvars",_get_default_pq_symbols(Ndof))
+        QPvars = kwargs.get("PQvars",_get_default_qp_symbols(Ndof))
         Npl = pvars.N - 1
-        old_varslist = pvars.qpvars_list
+        old_varslist = pvars.qpvars
         old_angvars = [old_varslist[3*i + 0] for i in range(Npl)] # lambdas
         old_angvars += [atan2(old_varslist[3*i + 1],old_varslist[3*(i+Npl) + 1]) for i in range(Npl)] # gammas
         old_angvars += [atan2(old_varslist[3*i + 2],old_varslist[3*(i+Npl) + 2]) for i in range(Npl)] # qs
@@ -192,12 +212,12 @@ class CanonicalTransformation():
         old_actvars += [(old_varslist[3*i + 1]**2 + old_varslist[3*(i+Npl) + 1]**2) / 2 for i in range(Npl)] # Gammas
         old_actvars += [(old_varslist[3*i + 2]**2 + old_varslist[3*(i+Npl) + 2]**2) / 2 for i in range(Npl)] # Qs
 
-        n2o = dict(zip([Q for P,Q in PQvars],Tmtrx * Matrix(old_angvars)))
-        n2o.update(dict(zip([P for P,Q in PQvars],Tmtrx.inv().transpose() * Matrix(old_actvars))))
+        n2o = dict(zip([Q for Q,P in QPvars],Tmtrx * Matrix(old_angvars)))
+        n2o.update(dict(zip([P for Q,P in QPvars],Tmtrx.inv().transpose() * Matrix(old_actvars))))
         
         o2n=dict()
-        old2new_angvars = Tmtrx.inv() * Matrix([Q for P,Q in PQvars])
-        old2new_actvars = Tmtrx.transpose() * Matrix([P for P,Q in PQvars])
+        old2new_angvars = Tmtrx.inv() * Matrix([Q for Q,P in QPvars])
+        old2new_actvars = Tmtrx.transpose() * Matrix([P for Q,P in QPvars])
         Lambdas,lambdas = [[old_varslist[3*i + N] for i in range(Npl)] for N in (3*Npl,0)]
         kappas,etas,sigmas,rhos = [[old_varslist[3*i + N] for i in range(Npl)] for N in (1 + 3*Npl,1,2 + 3*Npl,2)]
 
@@ -212,13 +232,14 @@ class CanonicalTransformation():
         o2n.update(dict(zip(etas,eta_exprns)))
         o2n.update(dict(zip(sigmas,sigma_exprns)))
         o2n.update(dict(zip(rhos,rho_exprns)))
-        
-        return cls(pvars.pqpairs,PQvars,o2n,n2o, old_to_new_simplify = _termwise_trigsimp)
+       
+        new_qpvars = [Q for Q,P in QPvars] + [P for Q,P in QPvars]
+        return cls(pvars.qpvars,new_qpvars,o2n,n2o,old_to_new_simplify=_termwise_trigsimp)
 
     @classmethod
     def Composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
-        oldpq = transformations[0].old_pq_pairs
-        newpq = transformations[-1].new_pq_pairs
+        old_qpvars = transformations[0].old_qpvars
+        new_qpvars = transformations[-1].new_qpvars
 
         o2n = transformations[0].old_to_new_rule.copy()
         for trans in transformations[1:]:
@@ -229,4 +250,4 @@ class CanonicalTransformation():
             for key, val in n2o.items():
                 n2o[key] = val.subs(trans.new_to_old_rule)
     
-        return cls(oldpq, newpq, o2n, n2o, old_to_new_simplify, new_to_old_simplify)
+        return cls(old_qpvars, new_qpvars, o2n, n2o, old_to_new_simplify, new_to_old_simplify)
