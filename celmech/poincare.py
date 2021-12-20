@@ -479,6 +479,7 @@ class PoincareHamiltonian(Hamiltonian):
         pqpairs = []
         ps = pvars.particles
         H = S(0) 
+        self.Lambda0s = [None] + [_get_Lambda0_symbol(i) for i in range(1,pvars.N)]
         for i in range(1, pvars.N):
             pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
             pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
@@ -486,7 +487,7 @@ class PoincareHamiltonian(Hamiltonian):
             Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
-            Hparams[_get_Lambda0_symbol(i)] = ps[i].Lambda
+            Hparams[self.Lambda0s[i]] = ps[i].Lambda
             Hparams[_get_a0_symbol(i)] = ps[i].a
             for j in range(i+1,pvars.N):
                 alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))
