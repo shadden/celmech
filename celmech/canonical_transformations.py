@@ -1,7 +1,7 @@
 import numpy as np
 from .miscellaneous import PoissonBracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix
-from sympy import trigsimp
+from sympy import trigsimp, simplify
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from . import Poincare
 
@@ -21,6 +21,86 @@ def _get_default_xy_symbols(N):
         symbols("y(1:{})".format(N+1))
     ))
     return default_xy_symbols
+
+class CompositeTransformation():
+    def __init__(self, transformations):
+        self.transformations = transformations
+    
+    @property
+    def old_pq_pairs(self):
+        return self.transformations[0].old_pqpairs
+    @property
+    def new_pq_pairs(self):
+        return self.transformations[-1].new_pqpairs
+    @property
+    def old_to_new_rule(self):
+        d = self.transformations[0].old_to_new_rule.copy()
+        for trans in self.transformations[1:]:
+            for key, val in d.items():
+                d[key] = val.subs(trans.old_to_new_rule)
+        return d
+    @property
+    def new_to_old_rule(self):
+        d = self.transformations[-1].new_to_old_rule.copy()
+        for trans in self.transformations[-2::-1]:
+            for key, val in d.items():
+                d[key] = val.subs(trans.new_to_old_rule)
+        return d
+    
+    def old_to_new(self,exprn):
+        for trans in self.transformations:
+            exprn = trans.old_to_new(exprn)
+        return exprn
+
+    def new_to_old(self,exprn):
+        for trans in self.transformations[::-1]:
+            exprn = trans.new_to_old(exprn)
+        return exprn
+
+    def old_to_new_array(self,arr):
+        for trans in self.transformations:
+            arr = trans.old_to_new_array(arr)
+        return arr 
+
+    def new_to_old_array(self,arr):
+        for trans in self.transformations[::-1]:
+            arr = trans.new_to_old(arr)
+        return arr 
+
+    def old_to_new_state(self,state):
+        for trans in self.transformations:
+            state = trans.old_to_new_state(state)
+        return state 
+
+    def new_to_old_state(self,state):
+        for trans in self.transformations[::-1]:
+            state = trans.new_to_old_state(state)
+        return state 
+    
+    def old_to_new_hamiltonian(self,ham,do_reduction = False):
+        new_state = self.old_to_new_state(ham.state)
+        newH = self.old_to_new(ham.H)
+        new_ham = Hamiltonian(newH,ham.Hparams,new_state)
+        if do_reduction:
+            new_ham = reduce_hamiltonian(new_ham)
+        return new_ham
+    
+    def new_to_old_hamiltonian(self,ham,do_reduction = False):
+        old_state = self.new_to_old_state(ham.state)
+        oldH = self.new_to_old(ham.H)
+        old_ham = Hamiltonian(oldH,ham.Hparams,old_state)
+        if do_reduction:
+            old_ham = reduce_hamiltonian(old_ham)
+        return old_ham
+    
+    def _test_new_to_old_canonical(self):
+        pb = lambda q,p: PoissonBracket(q,p,self.transformations[0].old_qpvars_list,[])
+        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for pp,qq in self.transformations[-1].new_pq_pairs]
+
+    def _test_old_to_new_canonical(self):
+        pb = lambda q,p: PoissonBracket(q,p,self.transformations[-1].new_qpvars_list,[])
+        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for pp,qq in self.transformations[0].old_pq_pairs]
+
 
 class CanonicalTransformation():
     def __init__(self,
@@ -68,14 +148,14 @@ class CanonicalTransformation():
             self.new_to_old_simplify_function = lambda x: x
    
     def old_to_new(self,exprn):
-        new_exprn = exprn.subs(self.old_to_new_rule)
-        new_exprn_s = self.old_to_new_simplify_function(new_exprn)
-        return new_exprn_s
+        exprn = exprn.subs(self.old_to_new_rule)
+        exprn = self.old_to_new_simplify_function(exprn)
+        return exprn
 
     def new_to_old(self,exprn):
-        new_exprn = exprn.subs(self.new_to_old_rule)
-        new_exprn_s = self.new_to_old_simplify_function(new_exprn)
-        return new_exprn_s
+        exprn = exprn.subs(self.new_to_old_rule)
+        exprn = self.new_to_old_simplify_function(exprn)
+        return exprn
 
     def old_to_new_array(self,arr):
         return np.array(self._old_to_new_vfunc(*arr))
@@ -85,16 +165,29 @@ class CanonicalTransformation():
 
     def old_to_new_state(self,state):
         new_values = self.old_to_new_array(state.values)
-        new_state = PhaseSpaceState(self.new_pq_pairs,new_values,t = state.t)
+        new_state = PhaseSpaceState(self.new_pq_pairs,new_values,t=state.t)
         return new_state
 
-    def old_to_new_hamiltonian(self,ham,do_reduction = True):
+    def new_to_old_state(self,state):
+        old_values = self.new_to_old_array(state.values)
+        old_state = PhaseSpaceState(self.old_pq_pairs,old_values,t=state.t)
+        return old_state
+    
+    def old_to_new_hamiltonian(self,ham,do_reduction = False):
         new_state = self.old_to_new_state(ham.state)
         newH = self.old_to_new(ham.H)
         new_ham = Hamiltonian(newH,ham.Hparams,new_state)
         if do_reduction:
             new_ham = reduce_hamiltonian(new_ham)
         return new_ham
+    
+    def new_to_old_hamiltonian(self,ham,do_reduction = False):
+        old_state = self.new_to_old_state(ham.state)
+        oldH = self.new_to_old(ham.H)
+        old_ham = Hamiltonian(oldH,ham.Hparams,old_state)
+        if do_reduction:
+            old_ham = reduce_hamiltonian(old_ham)
+        return old_ham
     
     def _test_new_to_old_canonical(self):
         pb = lambda q,p: PoissonBracket(q,p,self.old_qpvars_list,[])
@@ -113,32 +206,51 @@ class CanonicalTransformation():
         o2n = solve(eqs,old_vars)
         return cls(old_pq_pairs,new_pq_pairs,old_to_new_rule = o2n,**kwargs) 
     @classmethod
-    def PolarCartesianTransformation(cls,old_pq_pairs,indices_to_polar,indices_to_cartesian,**kwargs):
-        N2polar = len(indices_to_polar)
-        N2cart = len(indices_to_cartesian)
-        newPQs = kwargs.get("polar_symbols",_get_default_pq_symbols(N2polar))
-        newXYs = kwargs.get("cartesian_symbols",_get_default_xy_symbols(N2cart))
+    def CartesianToPolar(cls,old_pq_pairs,indices,**kwargs):
+        N = len(indices)
+        newPQs = kwargs.get("polar_symbols",_get_default_pq_symbols(N))
         new_pq_pairs = []
         o2n,n2o = dict(),dict()
         for i,pq in enumerate(old_pq_pairs):
-            if i in indices_to_polar:
+            if i in indices:
                 x,y = pq
                 P,Q = newPQs.pop(0)
                 o2n.update({ x:sqrt(2*P) * cos(Q) , y:sqrt(2*P) * sin(Q)})
                 n2o.update({P:(x*x +y*y)/2, Q:atan2(y,x)})
                 new_pq_pairs.append((P,Q))
-            elif i in indices_to_cartesian:
-                x,y = newXYs.pop(0)
-                P,Q = pq
-                n2o.update({ x:sqrt(2*P) * cos(Q) , y:sqrt(2*P) * sin(Q)})
-                o2n.update({P:(x*x +y*y)/2, Q:atan2(y,x)})
-                new_pq_pairs.append((x,y))
+            # keep indentity transformation if index not passed
             else:
                 id_tr = dict(zip(pq,pq))
                 o2n.update(id_tr)
                 n2o.update(id_tr)
                 new_pq_pairs.append(pq)
-        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,**kwargs)
+
+        # add a simplify function to remove arctans
+        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
+        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,o2n_simplify,**kwargs)
+    @classmethod
+    def PolarToCartesian(cls,old_pq_pairs,indices,**kwargs):
+        N = len(indices)
+        newXYs = kwargs.get("cartesian_symbols",_get_default_xy_symbols(N))
+        new_pq_pairs = []
+        o2n,n2o = dict(),dict()
+        for i,pq in enumerate(old_pq_pairs):
+            if i in indices:
+                x,y = newXYs.pop(0)
+                P,Q = pq
+                n2o.update({ x:sqrt(2*P) * cos(Q) , y:sqrt(2*P) * sin(Q)})
+                o2n.update({P:(x*x +y*y)/2, Q:atan2(y,x)})
+                new_pq_pairs.append((x,y))
+            # keep identity transformation if index not passed
+            else:
+                id_tr = dict(zip(pq,pq))
+                o2n.update(id_tr)
+                n2o.update(id_tr)
+                new_pq_pairs.append(pq)
+
+        # add a simplify function to remove arctans
+        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
+        return cls(old_pq_pairs,new_pq_pairs,o2n,n2o,o2n_simplify,**kwargs)
 
     @classmethod
     def from_poincare_angles_matrix(cls,pvars,Tmtrx,**kwargs):

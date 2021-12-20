@@ -43,6 +43,11 @@ class PhaseSpaceState(object):
         self._values = values 
     def _update_from_values(self,values):
         pass
+    def __repr__(self):
+        string = ''
+        for i, name in enumerate(self.qpvars_list):
+            string += '{0}:{1}\n'.format(name, self._values[i])
+        return string
 
 class Hamiltonian(object):
     """
