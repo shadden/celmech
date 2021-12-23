@@ -362,8 +362,6 @@ class PoincareParticle(object):
 
 class PoincareParticles(MutableMapping):
     """
-    This class allows the user to access particles like a dictionary using the particle's 1) index 2) hash 3) string (which will be converted to hash).
-    Allows for negative indices and slicing.
     """
     def __init__(self, poincare):
         self.poincare = poincare 
@@ -398,7 +396,7 @@ class PoincareParticles(MutableMapping):
         raise AttributeError("Can't set Poincare particle attributes")
 
     def __delitem__(self, key):
-        pass
+        raise AttributeError("deleting variables not implemented.")
 
     def __iter__(self):
         for p in self[1:self.poincare.N]:

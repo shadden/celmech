@@ -1,4 +1,5 @@
 from sympy import S, diff, lambdify, symbols, Matrix, Expr
+from collections import MutableMapping
 import pprint
 from numpy import array
 from collections import OrderedDict
@@ -17,6 +18,11 @@ _lambdify_kwargs = {'modules':['numpy', {
     'elliptic_e': _my_elliptic_e
     }]} 
 
+# Should reduce hamiltonian only check for cyclic q, and then set both q and p as parameters? 
+# There are cases where p shows up in hamiltonian but not q
+
+# Do we call update in fullqp setter? Do we add a needs_update that only gets called on integrate(or others)?
+
 # units in canonical transformation, Ham doesn't know about that
 
 # All params and units are owned by Hamiltonians. PhaseSpaceStates are just numbers with no
@@ -32,34 +38,67 @@ _lambdify_kwargs = {'modules':['numpy', {
 class PhaseSpaceState(object):
     def __init__(self, qpvars, values, t = 0):
         self.t = t
-        self.val = OrderedDict(zip(qpvars, values))
+        self.qp = OrderedDict(zip(qpvars, values))
 
     @property
     def qpvars(self):
-        return list(self.val.keys()) 
+        return list(self.qp.keys()) 
     @property
     def qppairs(self):
         return [(self.qpvars[i], self.qpvars[i+self.Ndof]) for i in range(self.Ndof)]
     @property 
     def Ndof(self):
-        return int(len(self.val)/2)
+        return int(len(self.qp)/2)
     @property 
     def Ndim(self):
-        return len(self.val)
+        return len(self.qp)
     @property
     def values(self):
-        return list(self.val.values()) 
+        return list(self.qp.values()) 
     @values.setter
     def values(self,values):
         for key, value in zip(self.qpvars, values):
-            self.val[key] = value
+            self.qp[key] = value
     def __str__(self):
         s = "t={0}".format(self.t)
-        for var, val in self.val.items():
+        for var, val in self.qp.items():
             s += ", {0}={1}".format(var, val)
         return s
     def __repr__(self):
         return "PhaseSpaceState(qpvars={0}, values={1}, t={2})".format(self.qpvars, self.values, self.t)
+
+class Fullqp(MutableMapping):
+    def __init__(self, hamiltonian):
+        self.hamiltonian = hamiltonian
+
+    def __getitem__(self, key):
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in Hparams (for reduce_hamiltonian)
+            return self.hamiltonian.qp[key]
+        except:
+            try:
+                return self.hamiltonian.Hparams[key]
+            except:
+                raise AttributeError('Variable {0} not found'.format(key))
+
+    def __setitem__(self, key, value):
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in Hparams (for reduce_hamiltonian)
+            self.hamiltonian.qp[key] = value
+        except:
+            try:
+                self.hamiltonian.Hparams[key] = value
+                # NEED TO CALL UPDATE OR SET FLAG!
+            except:
+                raise AttributeError('Variable {0} not found'.format(key))
+
+    def __delitem__(self, key):
+        raise AttributeError("deleting variables not implemented.")
+
+    def __iter__(self):
+        for key in self.hamiltonian.full_qpvars:
+            yield key
+
+    def __len__(self):
+        return len(self.hamiltonian.full_qpvars)
 
 class Hamiltonian(object):
     """
@@ -77,7 +116,7 @@ class Hamiltonian(object):
     pqpars : list
         List of canonical variable pairs. 
     """
-    def __init__(self, H, Hparams, state, untracked_qpvars=None):
+    def __init__(self, H, Hparams, state, full_qpvars=None):
         """
         Arguments
         ---------
@@ -98,12 +137,26 @@ class Hamiltonian(object):
         self.state = state
         self.Hparams = Hparams
         self.H = H
-        if untracked_qpvars:
-            self.untracked_qpvars = untracked_qpvars
-        else:
-            self.untracked_qpvars = []
+        self._full_qpvars = full_qpvars
         self._update()
+   
 
+    @property
+    def t(self):
+        return self.state.t
+
+    @property 
+    def Ndof(self):
+        return self.state.Ndof
+
+    @property 
+    def Ndim(self):
+        return self.state.Ndim
+    
+    @property
+    def qp(self):
+        return self.state.qp
+    
     @property
     def qppairs(self):
         return self.state.qppairs
@@ -115,10 +168,30 @@ class Hamiltonian(object):
     @property
     def values(self):
         return self.state.values
+    
+    @property 
+    def full_Ndof(self):
+        return int(self.full_Ndim/2)
+
+    @property 
+    def full_Ndim(self):
+        return len(self.full_qpvars)
+    
+    @property
+    def full_qp(self):
+        full_qp = Fullqp(self)
+        return full_qp
 
     @property
     def full_qpvars(self):
-        return self.state.qpvars
+        if self._full_qpvars:
+            return self._full_qpvars
+        else:
+            return self.qpvars
+    
+    @property
+    def full_values(self):
+        return list(self.full_qp.values())
 
     def Lie_deriv(self,exprn):
         r"""
@@ -235,27 +308,32 @@ class Hamiltonian(object):
         self.integrator.set_integrator('dop853')# ('lsoda') #
         self.integrator.set_initial_value(self.state.values)
 
+# should this be a member function?
 def reduce_hamiltonian(ham):
     state = ham.state
     new_params = ham.Hparams.copy()
-    free_symbols = ham.H.free_symbols
-    pq_val_rule = ham.state.as_rule()
-    new_pq_pairs= []
-    new_qvals = []
-    new_pvals = []
-    for qp_pair in state.qppairs:
+    #pq_val_rule = ham.state.as_rule()
+    #new_pq_pairs= []
+    untracked_q, untracked_p = [], []
+    new_q, new_p = [], []
+    new_qvals, new_pvals = [], []
+    qppairs = [(state.qpvars[i], state.qpvars[i+state.Ndof]) for i in range(state.Ndof)]
+    for qp_pair in qppairs:
         q,p = qp_pair
-        pval,qval = ham.state.val[p],ham.state.val[q]
-        if p not in ham.H.free_symbols:
+        pval,qval = state.qp[p],state.qp[q]
+        if q not in ham.H.free_symbols or p not in ham.H.free_symbols: # if q is cyclic, p is conserved and we ignore that dof
+            untracked_q.append(q)
+            untracked_p.append(p)
             new_params[q] = qval
-        elif q not in ham.H.free_symbols:
             new_params[p] = pval
         else:
-            new_pq_pairs.append(pq_pair)
+            new_q.append(q)
+            new_p.append(p)
             new_qvals.append(qval)
             new_pvals.append(pval)
     new_vals = np.array(new_qvals + new_pvals)
-    # change to RedcuedPhaseSpaceState
-    new_state = PhaseSpaceState(new_pq_pairs, new_vals,state.t)
-    new_ham = Hamiltonian(ham.H,new_params,new_state)
+    new_qpvars = new_q + new_p
+    untracked_qpvars = untracked_q + untracked_p
+    new_state = PhaseSpaceState(new_qpvars, new_vals,state.t)
+    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars=ham.qpvars)
     return new_ham
