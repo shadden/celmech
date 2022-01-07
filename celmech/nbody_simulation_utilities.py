@@ -48,11 +48,11 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
     raise TypeError("{} is not a rebound or reboundx simulation archive!".format(sa))
 
 def _get_rebound_simarchive_integration_results(sa,coordinates):
-    if coordinates is 'jacobi':
+    if coordinates == 'jacobi':
         get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
-    elif coordinates is 'heliocentric':
+    elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
-    elif coordinates is 'barycentric':
+    elif coordinates == 'barycentric':
         get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
     else: 
         raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
@@ -88,11 +88,11 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
     return sim_results
 
 def _get_reboundx_simarchive_integration_results(sa,coordinates):
-    if coordinates is 'jacobi':
+    if coordinates == 'jacobi':
         get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
-    elif coordinates is 'heliocentric':
+    elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
-    elif coordinates is 'barycentric':
+    elif coordinates == 'barycentric':
         get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
     else: 
        raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
@@ -357,3 +357,38 @@ def align_simulation(sim):
     for p in sim.particles[:sim.N_real]:
         p.x,p.y,p.z = npEulerAnglesTransform(p.xyz,0,theta2,theta1)
         p.vx,p.vy,p.vz = npEulerAnglesTransform(p.vxyz,0,theta2,theta1) 
+def _get_lhat(p):
+    xyz = p.xyz
+    vxyz = p.vxyz
+    lvec = np.cross(xyz,vxyz)
+    lhat = lvec / np.linalg.norm(lvec)
+    return lhat
+from itertools import combinations
+def calculate_mutual_inclinations(sa):
+    """
+    Calculate the mutual inclination between pairs
+    of bodies in a simulation archive
+
+    Arguments
+    ---------
+    sa : rebound.SimulationArchive
+
+    Returns
+    -------
+    imutuals : dictionary
+        Dictionary of mutual inclinations.
+        Keys are pairs of particle numbers, (i,j),
+        where i and j are integers and values are 
+        arrays of mutual inclination values for that 
+        key pair.
+    """
+    combs = combinations(range(1,sa[0].N_real),2)
+    imut = {comb:np.zeros(len(sa)) for comb in combs}
+    for i,sim in enumerate(sa):
+        lhats = [_get_lhat(p) for p in sim.particles[1:]]
+        for comb in combinations(range(1,sa[0].N_real),2):
+            j,k = comb
+            cosimut = lhats[j-1] @ lhats[k-1]
+            imut[comb][i] = np.arccos(cosimut)
+
+    return imut

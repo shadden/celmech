@@ -1,6 +1,7 @@
 from sympy import S, diff, lambdify, symbols 
 from scipy.integrate import ode
 import scipy.special
+from .miscellaneous import PoissonBracket
 def _my_elliptic_e(*args):
     if len(args) == 1:
         return scipy.special.ellipe(*args)
@@ -45,16 +46,59 @@ class Hamiltonian(object):
         In addition to the above, one needs to write 2 methods to map between the two objects:
         def state_to_list(self, state): 
             returns a list of values from state in the same order as pqpairs e.g. [P1,Q1,P2,Q2]
-        def update_state_from_list(self, state, y):
+        def update_state_from_list(self, state, y, t):
             updates state object from a list of values y for the variables in the same order as pqpairs
+            and integrator time 't'
         """
         self.state = initial_state
         self.Hparams = Hparams
         self.H = H
         self.pqpairs = pqpairs
+        self.qpvars_list = [q for p,q in self.pqpairs] + [p for p,q in self.pqpairs]
         self.varsymbols = [var for pqpair in self.pqpairs for var in pqpair]
-        
         self._update()
+
+    def Lie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian.
+        In other word, compute 
+
+        .. math::
+            \mathcal{L}_{H}f
+
+        where :math:`f` is the argument passed and :math:`\mathcal{L}_H \equiv [\cdot,H]` 
+        is the Lie derivative operator.
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.H,self.qpvars_list,[])
+
+    def NLie_deriv(self,exprn):
+        r"""
+        Return the Lie derivative of an expression with respect to the Hamiltonian
+        with numerical values substituted for parameters. Equivalent to 
+        :meth:`~poincare.Hamiltonian.Lie_deriv` but using the NH attribute 
+        rather than the H attribute to compute brackets.  
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to take the Lie derivative of.
+
+        Returns
+        -------
+        sympy expression
+            sympy expression for the resulting derivative.
+        """
+        return PoissonBracket(exprn,self.NH,self.qpvars_list,[])
 
     def integrate(self, time, integrator_kwargs={}):
         """
@@ -69,7 +113,7 @@ class Hamiltonian(object):
         integrator_kwargs : dict,optional
             A dictionary of integrator keyword arguments
             to pass to the integrator. ``celmech`` uses
-            the scipy.ode 'lsoda' integrator.  Valid 
+            the scipy.ode 'dop853' integrator.  Valid 
             keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
@@ -79,11 +123,11 @@ class Hamiltonian(object):
             pass
         if not hasattr(self, 'Nderivs'):
             self._update()
-        if time > self.integrator.t:
-            try:
-                self.integrator.integrate(time)
-            except:
-                raise AttributeError("Need to initialize Hamiltonian")
+        try:
+            self.integrator.integrate(time)
+        except:
+            raise AttributeError("Need to initialize Hamiltonian")
+        self.state.t = self.integrator.t
         self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):

@@ -160,104 +160,178 @@ and
 Spatial Resonance Equations
 ---------------------------
 
-:class:`celmech.numerical_resonance_models.SpatialResonanceEquations` provides equations of motion governing a mean-motion resonance between a planet pair on mutually inclined orbits. To study the dynamics of a :math:`p:p-q` MMR, we perform a transformation from the usual :ref:`Poincare canonical variables<poincare>` to new canonical angle variables
+The :class:`~celmech.numerical_resonance_models.SpatialResonanceEquations` class provides equations of motion governing a mean-motion resonance between a planet pair on mutually inclined orbits. 
+To study the dynamics of a :math:`j:j-k` MMR, we will perform a canonical transformation from the usual :ref:`Poincare canonical variables<poincare>` to new canonical variables as in the planar case above.
+However, before proceeding with this transformation, we follow `Malige (2002) <https://ui.adsabs.harvard.edu/abs/2002CeMDA..84..283M/abstract>`_ and use the invariance of the system's angular momentum vector direction to reduce the number of degrees of freedom by one.
+This reduction is accomplished by first adopting a coordinate system in which the system's angular momentum vector lies along the :math:`z`-axis.
+Next, complex canonical variables :math:`y_i=\sqrt{Q_i}e^{-\mathrm{i} q_i}` are introduced and the reduced Hamiltonian is written by replacing the complex canonical variables :math:`y_i` with the expressions
 
-   .. math::
-        \begin{align}
-            \begin{pmatrix}\sigma_1\\ \sigma_2 \\ \phi \\ \psi \\ \tilde{r}  \\  \tilde{s} \end{pmatrix}
-            =
-        \begin{pmatrix}
-        -s & 1+s & 1 & 0 & 0 & 0\\
-        -s & 1+s & 0 & 1 & 0 & 0\\
-        -s & 1+s & 0 & 0 &  1/2 & 1/2 \\
-        -1/q & 1/q & 0 & 0 & 0 & 0 \\
-        -s & 1+s & 0 & 0 & 0 & 0 \\
-        0 & 0 & 0 & 0 &  1/2 & -1/2 \\
-        \end{pmatrix}
-        \cdot
-        \begin{pmatrix}\lambda_1 \\ \lambda_2 \\ \gamma_1 \\ \gamma_2 \\ q_1 \\ q_2 \end{pmatrix}
-        \label{eq:equations_of_motion:angles}
-        \end{align}
-
-where :math:`s = (p-q)/{q}`, along with new conjugate momenta defined implicitly in terms of the old momentum variables as
-  .. math::
-
+.. math::
         \begin{eqnarray}
-        \Lambda_1 &=& -s\tilde{R} -\Psi/q - s(I_1 + I_2 + \Phi)\nonumber\\
-        \Lambda_2 &=&  (s+1)\tilde{R} + \Psi/q + (s+1)(I_1 + I_2 + \Phi)\nonumber\\
-        \Gamma_i &=& I_i \nonumber\\
-        Q_1 &=& \frac{1}{2}(\Phi + \tilde{S}) \nonumber\\
-        Q_2 &=& \frac{1}{2}(\Phi - \tilde{S})
+            y_1 &=& \mathrm{i} \frac{y}{\sqrt{2}}
+            \sqrt{1 +
+                \frac{\Lambda_2 - \Gamma_2 - \Lambda_1 + \Gamma_1}
+                {\Lambda_1 + \Lambda_2 - \Gamma_2 - \Gamma_1 - y\bar{y}}
+            }
+            \\
+            y_2 &=& -\mathrm{i} \frac{y}{\sqrt{2}}
+            \sqrt{1 +
+                \frac{\Lambda_2 - \Gamma_2 - \Lambda_1 + \Gamma_1}
+                {\Lambda_1 + \Lambda_2 - \Gamma_2 - \Gamma_1 - y\bar{y}}
+            }~,
         \end{eqnarray}
 
-The Hamiltonian is independent of the new angle variable :math:`\tilde r`, so the quantity
-    .. math::
-                \begin{eqnarray}
-                    \tilde{R} &=& \Lambda_1+\Lambda_2-Q_1-Q_2-\Gamma_1-\Gamma_2
-                \end{eqnarray}
+which introduce the new complex canonical variable :math:`y`. Finally, the new canonical variable :math:`y` can be written as :math:`y=\sqrt{Q}e^{-\mathrm{i}q}`, introducing the canonical coordinate-momentum pair :math:`(q,Q)`. In terms of orbital elements, the new variables are
 
-is conserved. The value of :math:`\tilde{R} =C_z`, where :math:`C_z` is the :math:`z`-component of the total angular momentum. If coordinates are chosen such that the :math:`z`-axis coincides with the direction of the total angular momentum vector, then  :math:`2{\tilde s} = (\Omega_2-\Omega_1)=\pi` and
+.. math::
+        Q=2\mu_1\sqrt{M_1a_1(1-e_1^2)}\sin^2(I_1/2) +2\mu_2\sqrt{M_2a_2(1-e_2^2)}\sin^2(I_2/2)
 
-    .. math::
-        \begin{equation}
-          \tilde{S} =  2\frac{(s+1)I_1 + s I_2+\frac{\Psi}{q}+(s+1/2)(\tilde{R}+ \Phi)}{\tilde{R}}{\Phi}
-        \end{equation}
+and :math:`q=-\frac{1}{2}(\Omega_1+\Omega_2)`.
 
-(see, e.g., `Malige (2002) <https://ui.adsabs.harvard.edu/abs/2002CeMDA..84..283M/abstract>`_). 
-The :class:`SpatialResonanceEquations<celmech.numerical_resonance_models.SpatialResonanceEquations>` class assumes the system's angular momentum is oriented along the positive :math:`z`-axis and the equations of motion are formulated in the reduced phase-space spanned by the canonical coordinates :math:`(\sigma_1,\sigma_2,\phi,\psi)` and their conjugate momenta. 
-The phase space is further reduced by numerically averaging over the fase angle :math:`psi`, similar to the :class:`PlanarResonanceEquations<celmech.numerical_resonance_models.PlanarResonanceEquations>` class.
-This leaves us with the Hamiltonian
-        .. math::
-                H(\sigma_i,\phi,I_i,\Phi;\Psi,\tilde{R}) =  -\sum_{i=1}^{2}\frac{G^2M_i^2\mu^3}{2\Lambda_i^2} +  \int_{0}^{2\pi}
-                \left(\frac{\tilde{\pmb{r}_1}\cdot \tilde{\pmb{r}_2}}{m_0}-\frac{G m_1 m_2}{|\pmb{r}_1 - \pmb{r}_2|} \right) d\psi
+Now we introduce the new canonical angle variables
 
+.. math::
+        \begin{align}
+            \begin{pmatrix}\sigma_1\\ \sigma_2 \\ \phi \\ \psi \\ l  \end{pmatrix}
+            =
+        \begin{pmatrix} 
+        -s & 1+s & 1 & 0 & 0 \\
+        -s & 1+s & 0 & 1 & 0 \\
+        -s & 1+s & 0 & 0 & 1 \\
+        -1/k & 1/k & 0 & 0 & 0 \\
+        -s & 1+s & 0 & 0 & 0 
+        \end{pmatrix}
+        \cdot
+        \begin{pmatrix}\lambda_1 \\ \lambda_2 \\ \gamma_1 \\ \gamma_2 \\ q  \end{pmatrix}
+        \label{eq:equations_of_motion:new_angles}
+        \end{align}
+
+where :math:`s = (j-k)/{k}`, along with their conjugate action variables
+
+  .. math::
+        \begin{align}
+            \begin{pmatrix}I_1 \\ I_2 \\ \Phi \\ \Psi \\ L  \end{pmatrix}
+            =
+        \begin{pmatrix} 
+        0 & 0 & 1 & 0 & 0 \\
+        0 & 0 & 0 & 1 & 0 \\
+        0 & 0 & 0 & 0 & 1 \\
+        -j & k-j & 0 & 0 & 0 \\
+        1 & 1 & -1 & -1 & -1 
+        \end{pmatrix}
+        \cdot
+        \begin{pmatrix}\Lambda_1 \\ \Lambda_2 \\ \Gamma_1 \\ \Gamma_2 \\ Q  \end{pmatrix}~.
+        \label{eq:equations_of_motion:new_actions}
+        \end{align}
+        
+After this canonical transformation, the Hamiltonian is independent of the angle variables :math:`l` so the quantity
+
+.. math::
+        \begin{eqnarray}
+            L &=& \Lambda_1+\Lambda_2-Q-\Gamma_1-\Gamma_2
+        \end{eqnarray}
+
+is conserved, reflecting the conservation of the system's total angular momentum. 
+The phase space is further reduced by numerically averaging over the fast angle :math:`\psi`, similar to the :class:`PlanarResonanceEquations<celmech.numerical_resonance_models.PlanarResonanceEquations>` class. 
+We also eliminate the explicit dependence of our equations of motion on the value of the total angular momentum by introducing a simultaneous re-scaling of the Hamiltonian and the action variables that preserves the form of Hamilton's equations. In order to do so, let us first define the reference semi-major axes :math:`a_{1,0}` and :math:`a_{2,0}` such that
+
+.. math::
+    \begin{equation*}
+        L=\mu_1\sqrt{GM_1a_{1,0}} + \mu_2\sqrt{GM_2a_{2,0}}
+    \end{equation*}
+
+and
+
+.. math::
+    \begin{equation*}
+        a_{1,0}=\left(\frac{M_1}{M_2}\right)^{1/3}\left(\frac{j-k}{j}\right)^{2/3}a_{2,0}~.
+    \end{equation*}
+
+In other words,  :math:`a_{1,0}` is defined as the nominal location of an exact resonance with a planet situated at :math:`a_{2,0}`. We then re-scale the Hamiltonian and the action variable, dividing each by a factor of :math:`(\mu_1 + \mu_2)\sqrt{GM_*a_{2,0}}` so that the new Hamiltonian and canonical action variables are given by
+
+.. math::
+        \begin{eqnarray}
+            \{\mathcal{H},{I}_1,{I}_2,{\Phi},{\Psi}\}
+           \rightarrow  
+                \frac{1}{(\mu_1+\mu_2)\sqrt{GM_*a_{2,0}}}
+                    \times
+                \{\mathcal{H},I_1,I_2,\Phi,\Psi\}~.
+        \end{eqnarray}
+
+and the re-scaled angular momentum, :math:`{L}= \beta_2 + \beta_1\sqrt{a_{1,0}/a_{2,0}}`, is a constant.
+In terms of the newly re-scaled variables, the averaged Hamiltonian is then
+
+.. math::
+    \mathcal{H}(\sigma_1,\sigma_2,\phi,{I}_1,{I}_2,{\Phi};{\Psi}) =
+    H_\mathrm{kep}({I}_1,{I}_2,{\Phi};{\Psi}) + 
+    \epsilon \bar{H}_\mathrm{int}(\sigma_1,\sigma_2,\phi,{I}_1,{I}_2,{\Phi};{\Psi})
 
 where 
-        .. math::
-                -\Psi/q = (1+s)\Lambda_1 + s\Lambda_2 
 
-is a conserved quantity of the resonant dynamics.
+.. math::
+    \begin{eqnarray}
+    H_\mathrm{kep} &=& -n_{2,0}\sum_{i=1}^2\frac{\beta_i^3(1+m_i/M_*)^{1/2}}{2{\Lambda}_i^2}\\
+     \bar{H}_\mathrm{int}&=&\frac{n_{2,0}}{2\pi}\int_{-\pi}^{\pi}\left(\frac{a_{2,0}}{GM_*}\pmb{v}_1\cdot\pmb{v}_2-\frac{a_{2,0}}{|\pmb{r}_2-\pmb{r}_1|}  \right)d\psi
+    \end{eqnarray}
 
-The :class:`SpatialResonanceEquations<celmech.numerical_resonance_models.SpatialResonanceEquations>` class further simplifies the equations of motion by rescaling the action variables and Hamiltonian after an appropriate choice of units. 
-This re-scaling is accomplisehd by first defining the reference semi-major axes :math:`a_{i,0}` such that
+with
+:math:`\beta_i=\frac{\mu_i}{\mu_1+\mu_2}\sqrt{1+m_i/M_*}`, 
+:math:`n_{2,0} = \sqrt{GM_*a_{2,0}^{-3}}`,
+:math:`\epsilon = \frac{m_1m_2}{M_*(\mu_1+\mu_2)}`, and
 
-        .. math::
-                \begin{align}
-                C_z &= \mu_1\sqrt{GM_1a_{1,0}} + \mu_2\sqrt{GM_2a_{2,0}}\\
-                a_{1,0}&=\left(\frac{M_1}{M_2}\right)^{1/3}\left(\frac{p-q}{p}\right)^{2/3}a_{2,0}~,
-                \end{align}
-then rescaling all action variables and the Hamiltonian by a factor of :math:`(\mu_1+\mu_2)\sqrt{G M_*a_{2,0}}` so that the new canonical action variables become 
-        .. math::
-                \Lambda_i = \beta_i\sqrt{a_{i}/a_{2,0}}
-where :math:`\beta_i = \frac{\mu_i}{\mu_1+\mu_2}\sqrt{1+m_i/M_*}` and the Hamiltonian becomes
-        .. math::
-                \begin{align}
-                H&=-\sum_{i=1}^{2}\frac{\sqrt{1+m_i/M_*}\beta_i^3}{2\Lambda_i^2} + \epsilon H_{1}\\
-                H_1&=\frac{a_{2,0}}{GM_*}\pmb{v_1}\cdot\pmb{v_2} - \frac{a_{2,0}}{|\pmb{r}_2 - \pmb{r_2}|} 
-                \end{align}
+.. math::
+    \begin{align*}
+        {\Lambda}_1 &= -s{L}-{\Psi}/k - s({I}_1 + {I}_2 + {\Phi})= \beta_1\sqrt{a_{1}/a_{2,0}}\\
+        {\Lambda}_2 &= (s+1){L} + {\Psi}/k + (s+1)({I}_1 + {I}_2 + {\Phi})= \beta_2\sqrt{a_{2}/a_{2,0}}~.
+    \end{align*}
 
-First, note that after our reductions, the Hamiltonian is parameterized by two conserved quantites, :math:`(\tilde{R},\Psi)`. We are alternatively free to choose any linear combination of these quantities to parameterize the Hamiltonian.
-In order to do so, we define :math:`f = \frac{\mu_1}{\mu_2}\sqrt{\frac{M_*+m_1}{M_*+m_2}}\left(\frac{p-q}{p}\right)^{1/3}\left({M_*+m_1}{M_*+m_2}\right)^{1/6}`, the value of :math:`\Lambda_1/\Lambda_2` at exact resonance, and write
+In order to avoid coordinate singularities that occur when :math:`I_i=0` or :math:`\Phi=0`, the :class:`~celmech.numerical_resonance_models.SpatialResonanceEquations` class formulates the Hamiltonian in terms of the canonical variables
 
-    .. math::
-            \begin{equation}
+.. math::
+    \begin{eqnarray}
+    (y_i,x_i) &=& (\sqrt{2I_i}\sin\sigma_i,\sqrt{2I_i}\cos\sigma_i)\nonumber\\
+    (y_\mathrm{inc},x_\mathrm{inc}) &=& (\sqrt{2\Phi}\sin\phi,\sqrt{2\Phi}\cos\phi)~.
+    \end{eqnarray}
+
+Because the averaged Hamiltonian is independent of the angle variable :math:`\psi`, the action variable :math:`\Psi` is a constant of motion.
+Rather than parameterizing the Hamiltonian in terms of :math:`\Psi`, we introduce a variable :math:`{\cal D}` that has a more straightforward interpretation as the "average" angular momentum deficit of the resonant planet pair. In order to define :math:`{\cal D}`, let us first introduce :math:`\rho_\mathrm{res}` as the value of :math:`{\Lambda}_1/{\Lambda}_2` when the planet pair's period ratio is equal to the nominal resonant period ratio. Explicitly, :math:`\rho_\mathrm{res} = \frac{\beta_1}{\beta_2}\left(\frac{j-k}{j}\right)^{1/3}\left(\frac{M_1}{M_2}\right)^{1/6}`. Then, we define :math:`{\cal D}`, along with an additional constant :math:`\Lambda_{2,\mathrm{res}}`, such that
+
+.. math::
+        \begin{equation}
             \begin{pmatrix}
-                 -\Psi/q\\
-                 \tilde{R}
+             -\Psi/k\\
+                {L}
             \end{pmatrix}
             = 
             \begin{pmatrix}
-                s + (1+s) f & 0 \\
-                (1+f) & -1
-            \end{pmatrix}
-            \cdot
-            \begin{pmatrix}
-                \Lambda_{2,\text{res}} \\
-                {\cal D}
-            \end{pmatrix}~.
-            \end{equation}
+            s + (1+s) \rho_\mathrm{res} & 0 \\
+            (1+\rho_\mathrm{res}) & -1
+        \end{pmatrix}
+        \cdot
+        \begin{pmatrix}
+            \Lambda_{2,\text{res}} \\
+            {\cal D}
+        \end{pmatrix}~.
+        \end{equation}
 
-The newly defined quantity :math:`\Lambda_{2,\text{res}}` simply sets the semi-major axis scale of the system.
+Inverting this equation and solving for :math:`\mathcal{D}` yields
+
+.. math::
+    \begin{equation}
+         {\cal D} = \frac{1}{2}\left(x_1^2+y_1^2+x_2^2+y_2^2+x_\mathrm{inc}^2+y_\mathrm{inc}^2\right) + (\Lambda_{2,\mathrm{res}}-{\Lambda}_2) + (\rho_\mathrm{res}\Lambda_{2,\mathrm{res}}-{\Lambda}_1) 
+    \end{equation}
+
+We express :math:`\mathcal{D}` in terms of the planet pair's period ratio by using
+:math:`\Delta \equiv \frac{j-k}{j}\frac{P_2}{P_1} - 1 \approx 3\left(\frac{\delta\hat{\Lambda}_{2}}{\Lambda_{2,\mathrm{res}}}-\frac{\delta\hat{\Lambda}_{1}}{\rho_\mathrm{res}\Lambda_{2,\mathrm{res}}}\right)=3\frac{\delta\hat{\Lambda}_{2}}{\Lambda_{2,\mathrm{res}}}\left(1+\frac{s}{(1+s)\rho_\mathrm{res}}\right)`, allowing us to write 
+
+.. math::
+    \begin{eqnarray}
+    {\cal D} = \frac{1}{2}\left(x_1^2+y_1^2+x_2^2+y_2^2+x_\mathrm{inc}^2+y_\mathrm{inc}^2\right) - \frac{1}{3}
+    \frac{\rho_\mathrm{res}\Lambda_{2,\mathrm{res}}}{s + \rho_\mathrm{res}(1+s)} \Delta
+    \end{eqnarray}
+
+In other words, :math:`\mathcal{D}` sets the value of the pair's angular momentum deficit when the planets' period ratio is at the exact resonant value (:math:`\Delta=0`).
+
 API
 ---
 
