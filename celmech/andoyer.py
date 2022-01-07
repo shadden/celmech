@@ -91,6 +91,14 @@ def get_Hsep(k, Phiprime):
         warnings.warn("There is no separatrix for the passed value of Phiprime")
     return Hsep
 
+def get_H(andvars):
+    X = andvars.X
+    Y = andvars.Y
+    k = andvars.params['k']
+    Phiprime = andvars.Phiprime
+    H = (X**2 + Y**2)**2 - 3*Phiprime/2*(X**2+Y**2)+(X**2+Y**2)**((k-1)/2)*X 
+    return H
+
 def get_Xsep(k, Phiprime):
     Xinner, Xouter = np.nan, np.nan
     if k==1:
@@ -217,6 +225,7 @@ class Andoyer(object):
     
     @property
     def dP(self):
+        # this is devitation of P2/P1 away from j/(j-k), so 1.51 has dP = 0.01 from 3:2
         return (self.Phi-self.B)*self.params['Phi0']
 
     @property
@@ -352,6 +361,24 @@ class Andoyer(object):
         andvars.Y = np.sqrt(2.*Phi)*np.sin(phi)
 
         return andvars
+   
+    @classmethod
+    def from_dPstar(cls, j, k, dP, phi, dPstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        # this is specifically for first order MMRs. Could generalize following dPstar on ipad
+        # is there something interesting in Xstar*dPstar = -Phi0/8
+        # work out for higher k, might see pattern there
+        if k != 1:
+            raise
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
+        Phi0 = andvars.params['Phi0']
+        Xstar = -Phi0/8/dPstar
+        andvars.Phiprime = get_Phiprime(k, Xstar)
+
+        Phi = andvars.dP_to_Phi(dP, andvars.Phiprime)
+        andvars.X = np.sqrt(2.*Phi)*np.cos(phi)
+        andvars.Y = np.sqrt(2.*Phi)*np.sin(phi)
+
+        return andvars
     
     @classmethod
     def from_Poincare(cls, pvars, j, k, a10, i1=1, i2=2):
@@ -430,13 +457,13 @@ class Andoyer(object):
     def dP_to_Phi(self, dP, Phiprime):
         p = self.params
         B = 3.*Phiprime/8.
-        Phi = (dP + B)/p['Phi0']
+        Phi = B + dP/p['Phi0']
         return Phi
     
     def Phi_to_dP(self, Phi, Phiprime):
         p = self.params
         B = 3.*Phiprime/8.
-        dP = Phi*p['Phi0'] - B
+        dP = p['Phi0'](Phi - B)
         return dP 
 
     def Zs_to_sGammas(self, Z, phiZ, Zcom, phiZcom):
