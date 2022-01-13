@@ -1,4 +1,5 @@
 import numpy as np
+from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import PoissonBracket
@@ -77,10 +78,61 @@ class PoincareParticle(object):
     q, Omega: float
       These variables specify the node longitude. Any one can be passed. If none passed, defaults to 0
     """
-    def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None):
+    def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None, skappa=None, seta=None, ssigma=None, srho=None, kappa=None, eta=None, sigma=None, rho=None):
         """
         We store Cartesian components of specific actions to support test particles
         """
+        self.G = G  
+        self.coordinates = coordinates
+
+        massError = False
+        if m is not None and Mstar is not None: # passed both physical masses
+            if mu is not None or M is not None: # also passed one of others
+                massError = True
+            else: # calculate from physical masses
+                if coordinates == 'democratic heliocentric':
+                    self.mu = m
+                    self.M = Mstar
+                elif coordinates == 'canonical heliocentric':
+                    self.mu = m*Mstar/(Mstar + m)
+                    self.M = Mstar+m
+                else:
+                    raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heiocentric")
+        else: # didn't pass both physical masses
+            if m is not None or Mstar is not None: # passed only one physical mass
+                massError = True
+            elif mu is None or M is None: # didn't pass both can. masses
+                massError = True
+            else:
+                self.mu = mu
+                self.M = M
+
+        if massError == True:   
+            raise AttributeError("Have to either pass physical masses (m, Mstar) or 'canonical masses' (mu and M). Can't mix or pass both.")
+
+        # if the variables we actually store are passed then we save them and are done
+        num = num_passed([sLambda, l, skappa, seta, ssigma, srho])
+        if num == 6:
+            self.sLambda = sLambda
+            self.l = l
+            self.skappa = skappa
+            self.seta = seta
+            self.ssigma = ssigma
+            self.srho = srho
+            return
+        
+        # if passed our massive variables, just normalize by mu
+        num = num_passed([Lambda, l, kappa, eta, sigma, rho])
+        if num == 6:
+            self.sLambda = Lambda/self.mu
+            self.l = l
+            self.skappa = kappa/np.sqrt(self.mu) # these are all sqrt(Gamma) variables so norm by sqrt(mass)
+            self.seta = eta/np.sqrt(self.mu)
+            self.ssigma = sigma/np.sqrt(self.mu)
+            self.srho = rho/np.sqrt(self.mu)
+            return
+
+        # need to calculate the variables we store
         num = num_passed([sLambda, Lambda, a])
         if num == 0:
             raise AttributeError("Must pass exactly 1 of Lambda, sLambda (specific Lambda, i.e., per unit mass), and a.")
@@ -110,35 +162,8 @@ class PoincareParticle(object):
         if num == 0:
             l = 0 # default
        
-        self.G = G  
         self.l = l
-        self.coordinates = coordinates
 
-        massError = False
-        if m is not None and Mstar is not None: # passed both physical masses
-            if mu is not None or M is not None: # also passed one of others
-                massError = True
-            else: # calculate from physical masses
-                if coordinates == 'democratic heliocentric':
-                    self.mu = m
-                    self.M = Mstar
-                elif coordinates == 'canonical heliocentric':
-                    self.mu = m*Mstar/(Mstar + m)
-                    self.M = Mstar+m
-                else:
-                    raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heiocentric")
-        else: # didn't pass both physical masses
-            if m is not None or Mstar is not None: # passed only one physical mass
-                massError = True
-            elif mu is None or M is None: # didn't pass both can. masses
-                massError = True
-            else:
-                self.mu = mu
-                self.M = M
-
-        if massError == True:   
-            raise AttributeError("Have to either pass physical masses (m, Mstar) or 'canonical masses' (mu and M). Can't mix or pass both.")
-        
         if pomega is not None:
             gamma = -pomega
         if Omega is not None:
@@ -335,51 +360,91 @@ class PoincareParticle(object):
         """ 
         return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
 
+class PoincareParticles(MutableMapping):
+    """
+    """
+    def __init__(self, poincare):
+        self.poincare = poincare 
+
+    def __getitem__(self, i):
+        # go from int key and generate a PoincareParticle
+        # need G and masses
+        if i == 0:
+            raise AttributeError("No Poincare elements for the central star")
+        p = self.poincare
+        if isinstance(i, slice):
+            return [self[i] for i in range(*i.indices(p.N))]
+
+        if i < 0: # accept negative indices
+            i += p.N
+        if i < 0 or i >= p.N:
+            raise AttributeError("Index {0} used to access particles out of range.".format(i))
+        
+        val = p.values
+        j = i-1 # index starting at 0 instead of 1
+        l = val[j * 3]
+        eta = val[j * 3 + 1]
+        rho = val[j * 3 + 2]
+        Lambda = val[p.Ndof + j * 3]
+        kappa = val[p.Ndof + j * 3 + 1]
+        sigma = val[p.Ndof + j * 3 + 2]
+        # THIS WILL FAIL FOR TEST PARTICLES
+        return PoincareParticle(coordinates=p.coordinates, G=p.G, m=p.masses[i], Mstar=p.masses[0], l=l, eta=eta, rho=rho, Lambda=Lambda, kappa=kappa, sigma=sigma)
+
+    def __setitem__(self, key, value):
+        # we could allow user to set only the stored variables sLambda, l, skappa etc.
+        raise AttributeError("Can't set Poincare particle attributes")
+
+    def __delitem__(self, key):
+        raise AttributeError("deleting variables not implemented.")
+
+    def __iter__(self):
+        for p in self[1:self.poincare.N]:
+            yield p
+
+    def __len__(self):
+        return self.poincare.N
+
+# Poincare is a phasespacestate with G, masses and coordinates
 class Poincare(PhaseSpaceState):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
     def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
+        # additional variables that need storing in addition to phasespacestate variables
         self.G = G
-        self.t = t 
+        self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
-        # dummy particle for primary
-        star = PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)
-        self.particles = [star] 
-        for p in poincareparticles:
-            if type(p) == PoincareParticle:
-                self.particles.append(p)
-            else:
-                raise TypeError("poincareparticles must be a list of PoincareParticle objects")
+
         initial_p_values = []
         initial_q_values = []
-        pqpairs = []
-        for i,p in enumerate(self.particles):
-            if i==0:
-                continue
-            pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
-            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
-            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
-            pvals = [p.Lambda,p.kappa,p.sigma]
-            qvals = [p.l,p.eta,p.rho]
+        qvars = []
+        pvars = []
+
+        for i,particle in enumerate(poincareparticles):
+            q = list(symbols("lambda{0}, eta{0}, rho{0}".format(i+1)))
+            p = list(symbols("Lambda{0}, kappa{0}, sigma{0}".format(i+1)))
+            pvals = [particle.Lambda,particle.kappa,particle.sigma]
+            qvals = [particle.l,particle.eta,particle.rho]
             initial_p_values += pvals
             initial_q_values += qvals
+            qvars += q
+            pvars += p
+        qpvars = qvars + pvars
         initial_values = initial_q_values + initial_p_values
-        super(Poincare,self).__init__(pqpairs,initial_values,t=self.t) 
+        super(Poincare,self).__init__(qpvars,initial_values,t=t) 
+    
+    @property
+    def N(self):
+        """
+        Return total number of bodies, including central star (analogous to REBOUND sim.N)
+        """
+        return int(self.Ndof/3) + 1 # +1 for star
 
-    def _update_from_values(self,values):
-        Ndof = self.Ndof
-        #print("updating")
-        for i,p in enumerate(self.particles[1:]):
-            p.l = values[i * 3]
-            p.eta = values[i * 3 + 1]
-            p.rho = values[i * 3 + 2]
-            p.Lambda = values[Ndof + i * 3]
-            #print("Before kappa = {}".format(p.kappa))
-            p.kappa = values[Ndof + i * 3 + 1]
-            #print("After kappa = {}".format(p.kappa))
-            p.sigma = values[Ndof + i * 3 + 2]
-        self._values = values
+    @property
+    def particles(self):
+        particles = PoincareParticles(self)
+        return particles
 
     # 'add' removed until it plays nicely with 
     # the underlying phase-space state
@@ -425,7 +490,6 @@ class Poincare(PhaseSpaceState):
             particles.append(particle)
         return cls(G=sim.G,poincareparticles=particles, coordinates=coordinates,t=sim.t)
 
-
     def to_Simulation(self):
         """ 
         Convert Poincare object to a REBOUND simulation in COM frame.
@@ -448,10 +512,7 @@ class Poincare(PhaseSpaceState):
     def copy(self):
         return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
 
-    @property
-    def N(self):
-        return len(self.particles)
-
+# If we wanted Poincare.from_Hamiltonian, would need PoincareHamiltonian to hold both m_0 (for star) and coordinates
 class PoincareHamiltonian(Hamiltonian):
     """
     A class representing the Hamiltonian governing the dynamical evolution of a system of particles,
@@ -476,14 +537,10 @@ class PoincareHamiltonian(Hamiltonian):
     """
     def __init__(self, pvars):
         Hparams = {symbols('G'):pvars.G}
-        pqpairs = []
         ps = pvars.particles
         H = S(0) 
         self.Lambda0s = [None] + [_get_Lambda0_symbol(i) for i in range(1,pvars.N)]
         for i in range(1, pvars.N):
-            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
-            pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
-            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
             Hparams[symbols("mu{0}".format(i))] = ps[i].mu
             Hparams[symbols("m{0}".format(i))] = ps[i].m
             Hparams[symbols("M{0}".format(i))] = ps[i].M
