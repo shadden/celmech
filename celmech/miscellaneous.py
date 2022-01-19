@@ -1,4 +1,5 @@
 import numpy as np
+from sympy import symbols, series
 from scipy.special import k0,k1,p_roots
 import warnings
 from . import clibcelmech
@@ -503,10 +504,50 @@ def PoissonBracket(f,g,re_varslist,complex_varslist):
         Omega_c =Matrix(-1j * getOmegaMatrix(len(complex_varslist)//2))
         gradf_c = Matrix([diff(f,v) for v in complex_varslist])
         gradg_c = Matrix([diff(g,v) for v in complex_varslist])
-        br +=  gradf_c.dot(Omega_c.dot(gradg_c))
+        br +=  gradf_c.dot(Omega_c * gradg_c)
     if len(re_varslist)>0:
         Omega_re=Matrix(getOmegaMatrix(len(re_varslist)//2))
         gradf_re = Matrix([diff(f,v) for v in re_varslist])
         gradg_re = Matrix([diff(g,v) for v in re_varslist])
-        br+= gradf_re.dot(Omega_re.dot(gradg_re))
+        br+= gradf_re.dot(Omega_re * gradg_re)
     return br
+
+def truncated_expansion(exprn,order_rules,max_order):
+    r"""
+    Expand a sympy expression up to a maximum order in a
+    small book-keeping parameter after assigning variables 
+    appearing in the expression a given order using the 
+    `order_rules` argument.
+
+    Arguments
+    ---------
+    exprn : sympy expression
+        The original expression from which to calculate
+        expansion.
+    order_rules : dict
+        A dictionary specifying what order various variables
+        should be assumed to have in the book-keeping parameter.
+        Each key-value pair `{n:[x_1,x_2,..,x_m]}` in `order_rules`
+        specifies that a set of variables 
+
+        .. math::
+            (x_1,...,x_m) \sim \mathcal{O}(\epsilon^n)
+        
+        where :math:`\epsilon` is the book-keeping parameter.
+    max_order : int
+        The order at which the resulting series expansion in 
+        the book-keeping parameter :math:`\epsilon` should
+        be truncated.
+
+    Returns
+    -------
+    sympy expression
+    """
+    eps = symbols("epsilon")
+    assert eps not in exprn.free_symbols, "Epsilon appears as a free symbols in 'exprn'."
+    rule = dict()
+    for n,variables in order_rules.items():
+        rule.update({v:eps**n * v for v in variables})
+    sexprn = series(exprn.subs(rule),eps,0,max_order+1)
+    result = sexprn.removeO().subs({eps:1})
+    return result

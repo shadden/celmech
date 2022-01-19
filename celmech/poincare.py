@@ -706,8 +706,10 @@ class PoincareHamiltonian(Hamiltonian):
             # delta expansion
             full_exprn = series(full_exprn,delta_d,0,max_delta_order+1).removeO()
         Hpert = -1 * GJ2RinSq * full_exprn 
-        if particles is 'all':
+        if particles == 'all':
             pids = range(1,self.N)
+        else:
+            pids = particles
         for pid in pids:
             p = self.particles[pid]
             m,mu,M,kappa,eta,sigma,rho = symbols('m{0},mu{0},M{0},kappa{0},eta{0},sigma{0},rho{0}'.format(pid)) 
