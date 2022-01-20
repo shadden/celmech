@@ -280,6 +280,23 @@ class CanonicalTransformation():
 
     @classmethod
     def RescaleTransformation(cls,ham, scale, cartesian_pairs = [], **kwargs):
+        r"""
+        Get a canonical transformation that simulatneously rescales the Hamiltonian
+        and canonical momenta by a common factor. 
+
+        Arguments
+        ---------
+        ham : Hamiltonain
+            The Hamiltonian to which the transformation will be applied.
+        scale : symbol or real
+            Re-scaling factor. 
+            The new momenta will be given by p' = scale * p
+            and the new Hamiltonian will be H' = scale * H.
+        cartesian pairs : list
+            List of indices of Cartesian-style canonical pairs.
+            These pairs will be recscaled such that 
+            (y',x') = sqrt(scale) * (y,x)
+        """
         o2n = dict()
         n2o = dict()
         rtscale = sqrt(scale)
@@ -305,7 +322,10 @@ class CanonicalTransformation():
     def Composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
         old_qpvars = transformations[0].old_qpvars
         new_qpvars = transformations[-1].new_qpvars
-
+        scale = sympy.Mul(*[t.Hscale for t in transformations])
+        params = dict()
+        for t in transformations:
+            params.update(t.params)
         o2n = transformations[0].old_to_new_rule.copy()
         for trans in transformations[1:]:
             for key, val in o2n.items():
@@ -315,4 +335,4 @@ class CanonicalTransformation():
             for key, val in n2o.items():
                 n2o[key] = val.subs(trans.new_to_old_rule)
     
-        return cls(old_qpvars, new_qpvars, o2n, n2o, old_to_new_simplify, new_to_old_simplify)
+        return cls(old_qpvars, new_qpvars, o2n, n2o, old_to_new_simplify, new_to_old_simplify,Hscale=scale,params=params)
