@@ -6,6 +6,8 @@ from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from . import Poincare
 
 def _termwise_trigsimp(exprn):
+    if len(exprn.args)==0:
+        return exprn
     return exprn.func(*[trigsimp(a) for a in exprn.args])
 
 def _get_default_qp_symbols(N):
@@ -30,16 +32,20 @@ class CanonicalTransformation():
             new_to_old_rule = None,
             old_to_new_simplify = None,
             new_to_old_simplify = None,
+            params = {},
             **kwargs
     ):
         self.old_qpvars = old_qpvars
         self.new_qpvars = new_qpvars
-        
+        self.params = params
+        self.Hscale = kwargs.get('Hscale',1)
+
         if not (old_to_new_rule or new_to_old_rule):
             raise ValueError("Must specify at least one of 'old_to_new_rule' or 'new_to_old_rule'!")
         if old_to_new_rule:
             self.old_to_new_rule = old_to_new_rule
         else:
+            self.new_to_old_rule = new_to_old_rule
             eqs = [v - self.new_to_old_rule[v] for v in self.new_qpvars]
             self.old_to_new_rule = solve(eqs,self.old_qpvars)
         
@@ -48,11 +54,6 @@ class CanonicalTransformation():
         else:
             eqs = [v - self.old_to_new_rule[v] for v in self.old_qpvars] 
             self.new_to_old_rule = solve(eqs,self.new_qpvars)
-        
-        qpv_new = self.new_qpvars
-        qpv_old = self.old_qpvars
-        self._old_to_new_vfunc = lambdify(qpv_old,[self.new_to_old_rule[v] for v in qpv_new])
-        self._new_to_old_vfunc = lambdify(qpv_new,[self.old_to_new_rule[v] for v in qpv_old])
 
         if old_to_new_simplify:
             self.old_to_new_simplify_function = old_to_new_simplify
@@ -63,16 +64,30 @@ class CanonicalTransformation():
             self.new_to_old_simplify_function = new_to_old_simplify
         else:
             self.new_to_old_simplify_function = lambda x: x
+
+        qpv_new = self.new_qpvars
+        qpv_old = self.old_qpvars
+        self._old_to_new_vfunc = lambdify(qpv_old,[self.Nnew_to_old(v) for v in qpv_new])
+        self._new_to_old_vfunc = lambdify(qpv_new,[self.Nold_to_new(v) for v in qpv_old])
    
     def old_to_new(self,exprn):
         exprn = exprn.subs(self.old_to_new_rule)
         exprn = self.old_to_new_simplify_function(exprn)
         return exprn
+    def Nold_to_new(self,exprn):
+        exprn = self.old_to_new(exprn)
+        Nexprn = exprn.subs(self.params)
+        return Nexprn
 
     def new_to_old(self,exprn):
         exprn = exprn.subs(self.new_to_old_rule)
         exprn = self.new_to_old_simplify_function(exprn)
         return exprn
+    def Nnew_to_old(self,exprn):
+        exprn = self.new_to_old(exprn)
+        Nexprn = exprn.subs(self.params)
+        return Nexprn
+
 
     def old_to_new_array(self,arr):
         return np.array(self._old_to_new_vfunc(*arr))
@@ -92,27 +107,30 @@ class CanonicalTransformation():
     
     def old_to_new_hamiltonian(self,ham,do_reduction = False):
         new_state = self.old_to_new_state(ham.state)
-        newH = self.old_to_new(ham.H)
-        new_ham = Hamiltonian(newH,ham.Hparams,new_state)
+        newH =  self.old_to_new(ham.H)
+        newH = newH.func(*[a*self.Hscale for a in newH.args])
+        new_pars = ham.Hparams.copy()
+        new_pars.update(self.params)
+        new_ham = Hamiltonian(newH,new_pars,new_state)
         if do_reduction:
             new_ham = reduce_hamiltonian(new_ham)
         return new_ham
     
     def new_to_old_hamiltonian(self,ham,do_reduction = False):
         old_state = self.new_to_old_state(ham.state)
-        oldH = self.new_to_old(ham.H)
+        oldH = self.new_to_old(ham.H) / self.Hscale
         old_ham = Hamiltonian(oldH,ham.Hparams,old_state)
         if do_reduction:
             old_ham = reduce_hamiltonian(old_ham)
         return old_ham
     
     def _test_new_to_old_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.old_qpvars,[])
-        return [pb(self.new_to_old_rule[qq],self.new_to_old_rule[pp]).simplify() for qq,pp in self.new_qppairs]
+        pb = lambda q,p: PoissonBracket(q,p,self.old_qpvars,[]) / self.Hscale
+        return [pb(self.new_to_old(qq),self.new_to_old(pp)).simplify() for qq,pp in self.new_qppairs]
 
     def _test_old_to_new_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.new_qpvars,[])
-        return [pb(self.old_to_new_rule[qq],self.old_to_new_rule[pp]).simplify() for qq,pp in self.old_qppairs]
+        pb = lambda q,p: PoissonBracket(q,p,self.new_qpvars,[]) * self.Hscale
+        return [pb(self.old_to_new(qq),self.old_to_new(pp)).simplify() for qq,pp in self.old_qppairs]
    
     @property 
     def Ndof(self):
@@ -134,7 +152,8 @@ class CanonicalTransformation():
         eqs = [p - diff(F2func,q) for q,p in old_qppairs]
         eqs += [Q - diff(F2func,P) for Q,P in new_qppairs]
         o2n = solve(eqs,old_qpvars)
-        return cls(old_qpvars,new_qpvars,old_to_new_rule=o2n,**kwargs) 
+        n2o = solve(eqs,new_qpvars)
+        return cls(old_qpvars,new_qpvars,old_to_new_rule=o2n,new_to_old_rule = n2o)
     @classmethod
     def CartesianToPolar(cls,old_qpvars,indices,**kwargs):
         Ndof = int(len(old_qpvars)/2)
@@ -160,7 +179,7 @@ class CanonicalTransformation():
                 new_p.append(qp[1])
 
         # add a simplify function to remove arctans
-        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
+        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args]) if len(x.args) > 0 else x
         new_qpvars = new_q + new_p
         return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
     @classmethod
@@ -188,7 +207,7 @@ class CanonicalTransformation():
                 new_p.append(qp[1])
 
         # add a simplify function to remove arctans
-        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args])
+        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args]) if len(x.args) > 0 else x
         new_qpvars = new_q + new_p
         return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
 
@@ -235,6 +254,52 @@ class CanonicalTransformation():
        
         new_qpvars = [Q for Q,P in QPvars] + [P for Q,P in QPvars]
         return cls(pvars.qpvars,new_qpvars,o2n,n2o,old_to_new_simplify=_termwise_trigsimp)
+
+    @classmethod
+    def Lambdas_to_delta_Lambdas(cls,pham):
+        r"""
+        Generate a canonical transformation applicable to a 
+        PoincareHamiltonian object, `pham`, that replaces 
+        the canonical momenta :math:`\Lambda_i` conjugate to 
+        the mean longitudes :math:`\lambda_i` with new momenta
+        :math:`\delta\Lambda_i = \Lambda_i - \Lambda_{i,0}`.
+        """
+        Lambda0s = pham.Lambda0s[1:]
+        N = pham.N
+        Lambdas = symbols("Lambda(1:{})".format(N))
+        dLambdas = symbols(r"\delta\Lambda_{{(1:{})}}".format(N))
+        o2n = {L:L0+dL for L,L0,dL in zip(Lambdas,Lambda0s,dLambdas)}
+        n2o = {dL:(L-L0) for L,L0,dL in zip(Lambdas,Lambda0s,dLambdas)}
+        L2dL= dict(zip(Lambdas,dLambdas))
+        qpnew = [v.subs(L2dL) for v in pham.qpvars]
+        qpold = pham.qpvars
+        o2n_full={v:v.subs(o2n) for v in pham.qpvars}
+        n2o_full={v:v.subs(n2o) for v in qpnew}
+        params = {L0:pham.Hparams[L0] for L0 in Lambda0s}
+        return cls(qpold,qpnew,o2n_full,n2o_full,params = params)
+
+    @classmethod
+    def RescaleTransformation(cls,ham, scale, cartesian_pairs = [], **kwargs):
+        o2n = dict()
+        n2o = dict()
+        rtscale = sqrt(scale)
+        for i,qp in enumerate(ham.qppairs):
+            q,p = qp
+            if i in cartesian_pairs:
+                o2n[p] = p / rtscale 
+                o2n[q] = q / rtscale 
+                n2o[p] = p * rtscale 
+                n2o[q] = q * rtscale 
+            else:
+                o2n[p] = p / scale 
+                n2o[p] = p * scale 
+        return cls(ham.qpvars,ham.qpvars,o2n,n2o,Hscale = scale,**kwargs)
+
+    @classmethod
+    def PoincareRescaleTransformation(cls,pham,scale,**kwargs):
+        N = pham.N
+        cart_pairs = [3*i + 1 for i in range(N-1)] + [3*i + 2 for i in range(N-1)]
+        return cls.RescaleTransformation(pham,scale,cart_pairs,**kwargs)
 
     @classmethod
     def Composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
