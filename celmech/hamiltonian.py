@@ -36,7 +36,43 @@ _lambdify_kwargs = {'modules':['numpy', {
 # full values gives additional variables including conserved quantitties
 
 class PhaseSpaceState(object):
+    """
+    A general class for describing the phase-space state
+    of a Hamiltonian dynamical system.
+    
+    Attributes
+    ----------
+    qp : OrderedDict
+        An ordered dictionary containing the canonical
+        coordiantes and momenta as keys and their numerical
+        values as dictionary values.
+    qpvars : list
+        List of variable symbols used for the canonical
+        coordinates and momenta.
+    qppairs : list
+        A list of the 2-tuples :math:`(q_i,p_i)`.
+    Ndof : int
+        The number of degrees of freedom.
+    values : list
+        List of the numerical values of `qpvars`.
+    """
     def __init__(self, qpvars, values, t = 0):
+        """
+        Arguments
+        ---------
+        qpvars : list of symbols
+            List of symbols to use for the canonical coordiantes
+            and momenta. The list should be of length 2*N for an
+            integer N with entries 0,...,N-1 representing the
+            canonical coordiante variables and entries N,...,2*N-1
+            representing the corresponding conjugate momenta.
+        values : array-like
+            The numerical values assigned to the canonical coordiantes
+            and momenta.
+        t : float, optional
+            The current time of system represented by the phase-space
+            state. Default value is 0.
+        """
         self.t = t
         self.qp = OrderedDict(zip(qpvars, values))
 
@@ -335,5 +371,5 @@ def reduce_hamiltonian(ham):
     new_qpvars = new_q + new_p
     untracked_qpvars = untracked_q + untracked_p
     new_state = PhaseSpaceState(new_qpvars, new_vals,state.t)
-    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars=ham.qpvars)
+    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars=ham.full_qpvars)
     return new_ham

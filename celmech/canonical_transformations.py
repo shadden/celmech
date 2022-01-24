@@ -1,6 +1,6 @@
 import numpy as np
 from .miscellaneous import PoissonBracket
-from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix
+from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul
 from sympy import trigsimp, simplify
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from . import Poincare
@@ -95,10 +95,6 @@ class CanonicalTransformation():
     def new_to_old_array(self,arr):
         return np.array(self._new_to_old_vfunc(*arr))
 
-    def old_to_new_state(self,state):
-        new_values = self.old_to_new_array(state.values)
-        new_state = PhaseSpaceState(self.new_qpvars,new_values,t=state.t)
-        return new_state
 
     def new_to_old_state(self,state):
         old_values = self.new_to_old_array(state.values)
@@ -106,12 +102,36 @@ class CanonicalTransformation():
         return old_state
     
     def old_to_new_hamiltonian(self,ham,do_reduction = False):
-        new_state = self.old_to_new_state(ham.state)
+        # Get full values
+        new_values = self.old_to_new_array(ham.full_values)
+        # The full set of q,p variables
+        full = set(ham.full_qpvars)
+        # Only q,p variables that are active
+        active = set(ham.qpvars)
+        # Ignorable q,p variables
+        ignorable = full.difference(active)
+        
+        # A boolean array indicating which new q,p vars will be active variables.
+        is_active = [var not in ignorable for var in self.new_qpvars]
+
+        # The list of new active q,p variables.
+        new_vars_reduced = [var for var,activeQ in zip(self.new_qpvars,is_active) if activeQ]
+
+        # New state consisting only of active variables.
+        new_state = PhaseSpaceState(new_vars_reduced,new_values[is_active],ham.state.t)
+        
+        # New, transformed Hamiltonian expression
         newH =  self.old_to_new(ham.H)
+
+        # Rescale Hamiltonian.
+        # Warning--- this will not work properly if the top-level function is not sympy.Add
+        # This should probably be treated more carefully.
         newH = newH.func(*[a*self.Hscale for a in newH.args])
         new_pars = ham.Hparams.copy()
         new_pars.update(self.params)
-        new_ham = Hamiltonian(newH,new_pars,new_state)
+        # New Hamiltonian: the new state only contains active variables
+        # but full_qpvars kwarg is passed the full set of new q,p variables.
+        new_ham = Hamiltonian(newH,new_pars,new_state,full_qpvars = self.new_qpvars)
         if do_reduction:
             new_ham = reduce_hamiltonian(new_ham)
         return new_ham
@@ -322,7 +342,7 @@ class CanonicalTransformation():
     def Composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
         old_qpvars = transformations[0].old_qpvars
         new_qpvars = transformations[-1].new_qpvars
-        scale = sympy.Mul(*[t.Hscale for t in transformations])
+        scale = Mul(*[t.Hscale for t in transformations])
         params = dict()
         for t in transformations:
             params.update(t.params)
