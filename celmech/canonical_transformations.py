@@ -1,7 +1,9 @@
 import numpy as np
 from .miscellaneous import PoissonBracket
-from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul
-from sympy import trigsimp, simplify
+from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul,S
+from sympy import trigsimp, simplify, postorder_traversal, powsimp
+from sympy import Add
+from sympy.simplify.fu import TR10,TR10i
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from . import Poincare
 
@@ -9,7 +11,17 @@ def _termwise_trigsimp(exprn):
     if len(exprn.args)==0:
         return exprn
     return exprn.func(*[trigsimp(a) for a in exprn.args])
-
+def _exprn_contains_funcs(exprn,funcs):
+    for arg in postorder_traversal(exprn):
+        if arg.func in funcs:
+            return True
+    return False
+def _get_default_qpxy_symbols(N,cartesian_indices):
+    qppairs = _get_default_qp_symbols(N)
+    xypairs = _get_default_xy_symbols(N)
+    func = lambda i: (xypairs[i][1],xypairs[i][0]) if i in cartesian_indices else qppairs[i]
+    varpairs = list(map(func,range(N)))
+    return varpairs
 def _get_default_qp_symbols(N):
     default_qp_symbols=list(zip(
         symbols("Q(1:{})".format(N+1)),
@@ -105,14 +117,42 @@ class CanonicalTransformation():
         # Get full values
         new_values = self.old_to_new_array(ham.full_values)
         # The full set of q,p variables
-        full = set(ham.full_qpvars)
+        old_full = set(ham.full_qpvars)
         # Only q,p variables that are active
-        active = set(ham.qpvars)
+        old_active = set(ham.qpvars)
         # Ignorable q,p variables
-        ignorable = full.difference(active)
+        old_ignorable = old_full.difference(old_active)
+
+        # New, transformed Hamiltonian expression
+        newH =  self.old_to_new(ham.H)
         
-        # A boolean array indicating which new q,p vars will be active variables.
-        is_active = [var not in ignorable for var in self.new_qpvars]
+        new_pars = ham.Hparams.copy()
+        new_pars.update(self.params)
+
+        # Handle possible cases where ignorable coordinates get transformed:
+        #   First, remove old ingorable coordinates from the new Hparams dictionary
+        for ig in old_ignorable:
+            new_pars.pop(ig,None)
+        #   Next, loop through new variable pairs and detect ingorable ones.
+        #       'is_active' stores a boolean array indicating which new q,p vars 
+        #       will be active variables.
+        is_active = np.ones(2*self.Ndof,dtype=bool)
+        for i,qpnew in enumerate(self.new_qppairs):
+            qnew,pnew = qpnew
+            vars_set_qnew = self.new_to_old(qnew).free_symbols
+            vars_set_pnew = self.new_to_old(pnew).free_symbols
+            vars_set_qpnew = vars_set_qnew.union(vars_set_pnew)
+            # A new DOF is ignorable if its expression in terms of 
+            # old variables does not involve any of the old active 
+            # variables.
+            is_ignorable = len(old_active.intersection(vars_set_qpnew)) == 0 
+            if is_ignorable:
+                is_active[i] = False
+                is_active[i+self.Ndof] = False
+                #if qnew in newH.free_symbols:
+                new_pars[qnew] = new_values[i]
+                #if pnew in newH.free_symbols:
+                new_pars[pnew] = new_values[i+self.Ndof]
 
         # The list of new active q,p variables.
         new_vars_reduced = [var for var,activeQ in zip(self.new_qpvars,is_active) if activeQ]
@@ -120,15 +160,14 @@ class CanonicalTransformation():
         # New state consisting only of active variables.
         new_state = PhaseSpaceState(new_vars_reduced,new_values[is_active],ham.state.t)
         
-        # New, transformed Hamiltonian expression
-        newH =  self.old_to_new(ham.H)
 
         # Rescale Hamiltonian.
         # Warning--- this will not work properly if the top-level function is not sympy.Add
         # This should probably be treated more carefully.
+        if self.Hscale != 1:
+            assert newH.func == Add,"Re-scaling requires the top level node of the Hamiltonian expression tree must be sympy.Add"
         newH = newH.func(*[a*self.Hscale for a in newH.args])
-        new_pars = ham.Hparams.copy()
-        new_pars.update(self.params)
+
         # New Hamiltonian: the new state only contains active variables
         # but full_qpvars kwarg is passed the full set of new q,p variables.
         new_ham = Hamiltonian(newH,new_pars,new_state,full_qpvars = self.new_qpvars)
@@ -199,7 +238,10 @@ class CanonicalTransformation():
                 new_p.append(qp[1])
 
         # add a simplify function to remove arctans
-        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args]) if len(x.args) > 0 else x
+        atan2_simplify = lambda exprn: TR10i(simplify(TR10(exprn))) if _exprn_contains_funcs(exprn,[atan2]) else powsimp(exprn)
+        n2o_simplify = lambda x: x.func(*[atan2_simplify(a) for a in x.args]) if len(x.args) > 0 else x
+        kwargs.setdefault("old_to_new_simplify",_termwise_trigsimp)
+        kwargs.setdefault("new_to_old_simplify",n2o_simplify)
         new_qpvars = new_q + new_p
         return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
     @classmethod
@@ -226,10 +268,62 @@ class CanonicalTransformation():
                 new_q.append(qp[0])
                 new_p.append(qp[1])
 
-        # add a simplify function to remove arctans
-        o2n_simplify = lambda x: x.func(*[simplify(trigsimp(a)) for a in x.args]) if len(x.args) > 0 else x
+        # A simplify function to remove arctans
+        atan2_simplify = lambda exprn: TR10i(simplify(TR10(exprn))) if _exprn_contains_funcs(exprn,[atan2]) else powsimp(exprn)
+        o2n_simplify = lambda x: x.func(*[atan2_simplify(a) for a in x.args]) if len(x.args) > 0 else x
+        kwargs.setdefault("old_to_new_simplify",o2n_simplify)
         new_qpvars = new_q + new_p
-        return cls(old_qpvars,new_qpvars,o2n,n2o,o2n_simplify,**kwargs)
+        return cls(old_qpvars,new_qpvars,o2n,n2o,**kwargs)
+
+    @classmethod
+    def FromLinearAngleTransformation(cls,old_qpvars,Tmtrx,old_cartesian_indices=[],new_cartesian_indices=[],**kwargs):
+        try:
+            Ndof = len(old_qpvars)//2
+            Tmtrx = np.array(Tmtrx).reshape(Ndof,Ndof)
+        except:
+            raise ValueError("'Tmtrx' could not be shaped into a {0}x{0} array".format(Ndof))
+        old_qp_pairs = list(zip(old_qpvars[:Ndof],old_qpvars[Ndof:]))
+        new_qp_pairs = kwargs.get("QPvars",_get_default_qpxy_symbols(Ndof,new_cartesian_indices))
+
+        new_coords = Matrix([q for q,p in new_qp_pairs])
+        new_momenta = Matrix([p for q,p in new_qp_pairs])
+
+        to_angle = lambda i,qp,cartesian_indices: atan2(*qp) if i in cartesian_indices else qp[0] 
+        to_action = lambda i,qp,cartesian_indices: (qp[0]**2 + qp[1]**2)/S(2) if i in cartesian_indices else qp[1] 
+
+        old_angvars = Matrix([to_angle(i,qp,old_cartesian_indices) for i,qp in enumerate(old_qp_pairs)])
+        old_actvars = Matrix([to_action(i,qp,old_cartesian_indices) for i,qp in enumerate(old_qp_pairs)])
+        new_angvars = Matrix([to_angle(i,qp,new_cartesian_indices) for i,qp in enumerate(new_qp_pairs)])
+        new_actvars = Matrix([to_action(i,qp,new_cartesian_indices) for i,qp in enumerate(new_qp_pairs)])
+
+        Tmtrx = Matrix(Tmtrx)
+        Tmtrx_inv  = Tmtrx.inv()
+
+        n2o = dict()
+        for i,qp_new,ang_exprn,act_exprn in zip(range(Ndof),new_qp_pairs,Tmtrx * old_angvars,Tmtrx_inv.T * old_actvars):
+            qnew,pnew = qp_new
+            if i in new_cartesian_indices:
+                n2o[qnew] = simplify(sqrt(2*act_exprn) * TR10i(TR10(sin(ang_exprn))))
+                n2o[pnew] = simplify(sqrt(2*act_exprn) * TR10i(TR10(cos(ang_exprn))))
+            else:
+                n2o[qnew] = ang_exprn
+                n2o[pnew] = act_exprn
+        
+        o2n = dict()
+        for i,qp_old,ang_exprn,act_exprn in zip(range(Ndof),old_qp_pairs,Tmtrx_inv * new_angvars,Tmtrx.T * new_actvars):
+            qold,pold = qp_old
+            if i in old_cartesian_indices:
+                o2n[qold] = simplify(sqrt(2*act_exprn) * TR10i(TR10(sin(ang_exprn))))
+                o2n[pold] = simplify(sqrt(2*act_exprn) * TR10i(TR10(cos(ang_exprn))))
+            else:
+                o2n[qold] = ang_exprn
+                o2n[pold] = act_exprn
+        
+        new_ang_vars = set([new_qp_pairs[i][0] for i in range(Ndof) if i not in new_cartesian_indices])
+        simplify_trig = lambda a: simplify(TR10i(a.expand())) if len(new_ang_vars.intersection(a.free_symbols))>0 else a
+        o2n_simplify = lambda x: x.func(*[simplify_trig(arg) for arg in x.args]) if len(x.args)>0 else x
+        kwargs.setdefault("old_to_new_simplify",o2n_simplify)
+        return cls(old_qpvars,list(new_coords) + list(new_momenta), o2n, n2o,**kwargs)
 
     @classmethod
     def from_poincare_angles_matrix(cls,pvars,Tmtrx,**kwargs):
@@ -241,7 +335,7 @@ class CanonicalTransformation():
         except:
             raise ValueError("'Tmtrx' could not be shaped into a {0}x{0} array".format(Ndof))
         Tmtrx = Matrix(Tmtrx)
-        QPvars = kwargs.get("PQvars",_get_default_qp_symbols(Ndof))
+        QPvars = kwargs.get("QPvars",_get_default_qp_symbols(Ndof))
         Npl = pvars.N - 1
         old_varslist = pvars.qpvars
         old_angvars = [old_varslist[3*i + 0] for i in range(Npl)] # lambdas
@@ -299,15 +393,15 @@ class CanonicalTransformation():
         return cls(qpold,qpnew,o2n_full,n2o_full,params = params)
 
     @classmethod
-    def RescaleTransformation(cls,ham, scale, cartesian_pairs = [], **kwargs):
+    def RescaleTransformation(cls,qppairs, scale, cartesian_pairs = [], **kwargs):
         r"""
         Get a canonical transformation that simulatneously rescales the Hamiltonian
         and canonical momenta by a common factor. 
 
         Arguments
         ---------
-        ham : Hamiltonain
-            The Hamiltonian to which the transformation will be applied.
+        qppairs : list of 2-tuples
+            Pairs of canonically conjugate variable symbols.
         scale : symbol or real
             Re-scaling factor. 
             The new momenta will be given by p' = scale * p
@@ -320,7 +414,8 @@ class CanonicalTransformation():
         o2n = dict()
         n2o = dict()
         rtscale = sqrt(scale)
-        for i,qp in enumerate(ham.qppairs):
+        qpvars = [q for q,p in qppairs] + [p for q,p in qppairs]
+        for i,qp in enumerate(qppairs):
             q,p = qp
             if i in cartesian_pairs:
                 o2n[p] = p / rtscale 
@@ -330,7 +425,7 @@ class CanonicalTransformation():
             else:
                 o2n[p] = p / scale 
                 n2o[p] = p * scale 
-        return cls(ham.qpvars,ham.qpvars,o2n,n2o,Hscale = scale,**kwargs)
+        return cls(qpvars,qpvars,o2n,n2o,Hscale = scale,**kwargs)
 
     @classmethod
     def PoincareRescaleTransformation(cls,pham,scale,**kwargs):
@@ -344,15 +439,19 @@ class CanonicalTransformation():
         new_qpvars = transformations[-1].new_qpvars
         scale = Mul(*[t.Hscale for t in transformations])
         params = dict()
+        n2o = dict()
+        for var in new_qpvars:
+            var_exprn = var
+            for t in reversed(transformations):
+                var_exprn = t.new_to_old(var_exprn)
+            n2o[var] = var_exprn
+        o2n = dict()
+        for var in old_qpvars:
+            var_exprn = var
+            for t in transformations:
+                var_exprn = t.old_to_new(var_exprn)
+            o2n[var] = var_exprn
         for t in transformations:
             params.update(t.params)
-        o2n = transformations[0].old_to_new_rule.copy()
-        for trans in transformations[1:]:
-            for key, val in o2n.items():
-                o2n[key] = val.subs(trans.old_to_new_rule)
-        n2o = transformations[-1].new_to_old_rule.copy()
-        for trans in transformations[-2::-1]:
-            for key, val in n2o.items():
-                n2o[key] = val.subs(trans.new_to_old_rule)
     
         return cls(old_qpvars, new_qpvars, o2n, n2o, old_to_new_simplify, new_to_old_simplify,Hscale=scale,params=params)

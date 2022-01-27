@@ -371,5 +371,5 @@ def reduce_hamiltonian(ham):
     new_qpvars = new_q + new_p
     untracked_qpvars = untracked_q + untracked_p
     new_state = PhaseSpaceState(new_qpvars, new_vals,state.t)
-    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars=ham.full_qpvars)
+    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars = ham.full_qpvars)
     return new_ham
