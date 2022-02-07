@@ -35,7 +35,7 @@ In classical disturbing function expansions, the cosine amplitudes :math:`c_{\pm
 
                 c_{\bf k}(\alpha,e_i,e_j,I_i,I_j) = e_i^{|k_3|}e_j^{|k_4|}s_i^{|k_5|}s_j^{|k_6|}\sum_{z_1,z_2,z_3,z_4=0}^\infty \tilde{C}_{\bf k}^{(z_1,z_2,z_3,z_4)}(\alpha)s_i^{2z_1}s_j^{2z_2}e_i^{2z_3}e_j^{2z_4}
 
-``celmech`` offers the capability to compute the individual disturbing function coefficients through the function :func:`celmech.disturbing_function.DFCoeff_Cbar`.
+``celmech`` offers the capability to compute the individual disturbing function coefficients through the function :func:`celmech.disturbing_function.df_coefficient_Ctilde`.
 
 Since ``celmech`` formulates equations of motion in terms of canonical variables rather than orbital elements, it is often more convenient to formulate the Taylor series expansion of the disturbing function as 
 
@@ -60,7 +60,10 @@ If :math:`k_3>0` then one makes the replacement :math:`\bar{X_i}^{-k_3}\rightarr
 Note that :math:`{C}_{\bf k}^{(0,0,0,0)} = \tilde{C}_{\bf k}^{(0,0,0,0)}`.
 
 
-The functions :func:`celmech.disturbing_function.DFCoeff_Cbar` and :func:`celmech.disturbing_function.DFCoeff_C` return results as dictionaries where the keys represent Laplace coefficients and values represent their coefficients. These dictionaries can be evaluated at a specific semi-major axis ratio, :math:`\alpha`, using the function :func:`celmech.disturbing_function.eval_DFCoeff_dict`.
+The functions :func:`celmech.disturbing_function.df_coefficient_Ctilde` and :func:`celmech.disturbing_function.df_coefficient_C` 
+return results as dictionaries where the keys represent Laplace coefficients and values represent their coefficients. 
+These dictionaries can be evaluated at a specific semi-major axis ratio, :math:`\alpha`, using the function 
+:func:`celmech.disturbing_function.evaluate_df_coefficient_dict`.
 
 API
 ---
