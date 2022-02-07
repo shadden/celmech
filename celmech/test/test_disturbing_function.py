@@ -2,7 +2,7 @@ import rebound
 import unittest
 import math
 import numpy as np
-from celmech.disturbing_function import laplace_b, DFCoeff_C,DFCoeff_Cbar, get_fg_coeffs, eval_DFCoeff_dict
+from celmech.disturbing_function import laplace_b, df_coefficient_C,df_coefficient_Ctilde, get_fg_coefficients, evaluate_df_coefficient_dict
 from random import random, seed
 
 class TestDisturbingFunction(unittest.TestCase):
@@ -87,52 +87,52 @@ class TestDisturbingFunction(unittest.TestCase):
             self.assertAlmostEqual(getattr(obj1, attr), getattr(obj2, attr), delta=delta)
 
     def compare_DF_coeffs(self,df1,df2,delta=1.e-12):
-        val1 = eval_DFCoeff_dict(df1,self.alpha)
-        val2 = eval_DFCoeff_dict(df2,self.alpha)
+        val1 = evaluate_df_coefficient_dict(df1,self.alpha)
+        val2 = evaluate_df_coefficient_dict(df2,self.alpha)
         self.assertAlmostEqual(val1,val2,delta=delta)
 
-    def test_DFCoeff_C(self):
+    def test_df_coefficient_C(self):
         # cos[0]
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 self.LaskarRobutel['C1'],
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1*e1*cos[w1-w2]
         j1,j2,j3,j4,j5,j6 = 0,0,1,-1,0,0
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C2'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1^2
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 0,0,1,0
         self.compare_DF_coeffs(
                 {key:val/2 for key,val in self.LaskarRobutel['C3'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1*e*inc1*inc*cos(w-w1+Omega-Omega1)
         j1,j2,j3,j4,j5,j6 = 0,0,1,-1,1,-1
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C4'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1*e*inc^2*cos(w-w1)
         j1,j2,j3,j4,j5,j6 = 0,0,1,-1,0,0
         z1,z2,z3,z4  = 1,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C7'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1*e*inc1^2*cos(w-w1)
         j1,j2,j3,j4,j5,j6 = 0,0,1,-1,0,0
         z1,z2,z3,z4  = 0,1,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C7'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
 
         # C8
@@ -140,70 +140,70 @@ class TestDisturbingFunction(unittest.TestCase):
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:4*val for key,val in self.LaskarRobutel['C8'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,-1,+1,+1,-1
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:-4*val for key,val in self.LaskarRobutel['C8'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,-1,-1,2,0
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:-2*val for key,val in self.LaskarRobutel['C8'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,-1,-1,0,2
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:-2*val for key,val in self.LaskarRobutel['C8'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # C9
         j1,j2,j3,j4,j5,j6 = 0,0,0,-2,2,0
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C9'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,-2,0,2
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C9'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,-2,1,1
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:-4*val for key,val in self.LaskarRobutel['C9'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # C11
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 1,0,1,0
         self.compare_DF_coeffs(
                 {key:val for key,val in self.LaskarRobutel['C11'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 0,1,0,1
         self.compare_DF_coeffs(
                 {key:val for key,val in self.LaskarRobutel['C11'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # C12
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
         z1,z2,z3,z4  = 1,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C12'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
         z1,z2,z3,z4  = 0,1,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C12'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
 
         # e1^2e2^2 cos(2w1-2w2)
@@ -211,31 +211,31 @@ class TestDisturbingFunction(unittest.TestCase):
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C10'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # e1^4
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 0,0,2,0
         self.compare_DF_coeffs(
                 self.LaskarRobutel['C13'],
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # inc^4
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,0,0
         z1,z2,z3,z4  = 2,0,0,0
         self.compare_DF_coeffs(
                 self.LaskarRobutel['C14'],
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         self.compare_DF_coeffs(
                 self.LaskarRobutel['C14'],
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,0,2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,0,2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,2,-2
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C14'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
 
         # C15
@@ -244,32 +244,32 @@ class TestDisturbingFunction(unittest.TestCase):
         z1,z2,z3,z4  = 0,0,1,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C15'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,0,0,1,-1
         z1,z2,z3,z4  = 0,0,0,1
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C15'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         # C17
         j1,j2,j3,j4,j5,j6 = 0,0,-2,0,2,0
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C17'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,-2,0,0,2
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:2*val for key,val in self.LaskarRobutel['C17'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         j1,j2,j3,j4,j5,j6 = 0,0,-2,0,1,1
         z1,z2,z3,z4  = 0,0,0,0
         self.compare_DF_coeffs(
                 {key:-4*val for key,val in self.LaskarRobutel['C17'].items()},
-                DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
         )
         
         # e1^2e2^2 
@@ -278,10 +278,10 @@ class TestDisturbingFunction(unittest.TestCase):
             z1,z2,z3,z4  = zvec
             self.compare_DF_coeffs(
                     {key:factor*val for key,val in self.LaskarRobutel['C18'].items()},
-                    DFCoeff_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
+                    df_coefficient_C(j1,j2,j3,j4,j5,j6,z1,z2,z3,z4)
             )
     def test_get_fg_coffs(self):
-        f,g = get_fg_coeffs(17,3)
+        f,g = get_fg_coefficients(17,3)
         self.assertAlmostEqual(f,-5.603736926452656)
         self.assertAlmostEqual(g,6.2337962206883) 
 

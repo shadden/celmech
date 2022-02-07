@@ -2,15 +2,15 @@ import numpy as np
 import warnings
 from . import Poincare
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, atan2, expand_trig,diff,Matrix,Poly
-from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .disturbing_function import df_coefficient_C,evaluate_df_coefficient_dict,get_df_coefficient_symbol
 from scipy.linalg import expm
 from .rk_integrator import RKIntegrator, _rk_methods 
 from scipy.linalg import expm
 from celmech.miscellaneous import getOmegaMatrix, _machine_eps
 from collections import defaultdict
 
-from celmech.disturbing_function import SecularTermsList
-from celmech.disturbing_function import DFCoeff_C, _add_dicts,_consolidate_dictionary_terms
+from celmech.disturbing_function import secular_terms_list
+from celmech.disturbing_function import df_coefficient_C, _add_dicts,_consolidate_dictionary_terms
 from celmech.disturbing_function import terms_list_to_HamiltonianCoefficients_dict
 from celmech.disturbing_function import resonant_secular_contribution_dictionary
 from celmech.poisson_series import DFTermSeries
@@ -67,9 +67,8 @@ class LaplaceLagrangeSystem(Poincare):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
         self.params = {S('G'):self.G}
         for i,particle in enumerate(self.particles):
-            if i is not 0:
-                m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i)) 
-                self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
+            m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i+1)) 
+            self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float).eps
@@ -95,7 +94,7 @@ class LaplaceLagrangeSystem(Poincare):
         -------
         system : :class:`celmech.secular.LaplaceLagrangeSystem`
         """
-        return cls(pvars.G,pvars.particles[1:])
+        return cls(pvars.G,pvars.particles)
 
     @classmethod
     def from_Simulation(cls,sim):
@@ -293,12 +292,12 @@ class LaplaceLagrangeSystem(Poincare):
     
     def _update(self):
         G = symbols('G')
-        ecc_diag_coeff = DFCoeff_C(*[0 for _ in range(6)],0,0,1,0)
-        inc_diag_coeff = DFCoeff_C(*[0 for _ in range(6)],1,0,0,0)
+        ecc_diag_coeff = df_coefficient_C(*[0 for _ in range(6)],0,0,1,0)
+        inc_diag_coeff = df_coefficient_C(*[0 for _ in range(6)],1,0,0,0)
         js_dpomega = 0,0,1,-1,0,0
         js_dOmega = 0,0,0,0,1,-1
-        ecc_off_coeff = DFCoeff_C(*js_dpomega,0,0,0,0)
-        inc_off_coeff = DFCoeff_C(*js_dOmega,0,0,0,0)
+        ecc_off_coeff = df_coefficient_C(*js_dpomega,0,0,0,0)
+        inc_off_coeff = df_coefficient_C(*js_dOmega,0,0,0,0)
         l1,l2=0,0
         for i in xrange(1,self.N):
             for j in xrange(1,self.N):
@@ -311,20 +310,20 @@ class LaplaceLagrangeSystem(Poincare):
                 alpha = particleIn.a / particleOut.a
                 mIn,muIn,MIn,LambdaIn = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexIn)) 
                 mOut,muOut,MOut,LambdaOut = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexOut)) 
-                Cecc_diag = get_DFCoeff_symbol(*[0 for _ in range(6)],0,0,1,0,l1,l2,indexIn,indexOut)
-                Cinc_diag = get_DFCoeff_symbol(*[0 for _ in range(6)],1,0,0,0,l1,l2,indexIn,indexOut)
+                Cecc_diag = get_df_coefficient_symbol(*[0 for _ in range(6)],0,0,1,0,l1,l2,indexIn,indexOut)
+                Cinc_diag = get_df_coefficient_symbol(*[0 for _ in range(6)],1,0,0,0,l1,l2,indexIn,indexOut)
                 aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
                 prefactor = -G * mIn * mOut * aOut_inv
-                self.params[Cecc_diag] = eval_DFCoeff_dict(ecc_diag_coeff,alpha)
-                self.params[Cinc_diag] = eval_DFCoeff_dict(inc_diag_coeff,alpha)
+                self.params[Cecc_diag] = evaluate_df_coefficient_dict(ecc_diag_coeff,alpha)
+                self.params[Cinc_diag] = evaluate_df_coefficient_dict(inc_diag_coeff,alpha)
                 if i > j:
                     particleIn = self.particles[indexIn]
-                    Cecc = get_DFCoeff_symbol(*js_dpomega,0,0,0,0,l1,l2,indexIn,indexOut)
-                    Cinc = get_DFCoeff_symbol(*js_dOmega,0,0,0,0,l1,l2,indexIn,indexOut)
+                    Cecc = get_df_coefficient_symbol(*js_dpomega,0,0,0,0,l1,l2,indexIn,indexOut)
+                    Cinc = get_df_coefficient_symbol(*js_dOmega,0,0,0,0,l1,l2,indexIn,indexOut)
                     alpha = particleIn.a/particleOut.a
                     assert alpha<1, "Particles must be in order by increasing semi-major axis!"
-                    Necc_coeff = eval_DFCoeff_dict(ecc_off_coeff,alpha)
-                    Ninc_coeff = eval_DFCoeff_dict(inc_off_coeff,alpha)
+                    Necc_coeff = evaluate_df_coefficient_dict(ecc_off_coeff,alpha)
+                    Ninc_coeff = evaluate_df_coefficient_dict(inc_off_coeff,alpha)
                     self.params[Cecc] = Necc_coeff
                     self.params[Cinc] = Ninc_coeff
                     ecc_entry = prefactor  * Cecc / sqrt(LambdaIn) / sqrt(LambdaOut)
@@ -366,10 +365,10 @@ class LaplaceLagrangeSystem(Poincare):
         mIn,muIn,MIn,LambdaIn = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut = symbols('m{0},mu{0},M{0},Lambda{0}'.format(indexOut)) 
         l1,l2 = 0,0
-        CIn = get_DFCoeff_symbol(*[jres,1-jres,-1,0,0,0],0,0,0,0,l1,l2,indexIn,indexOut)
-        COut = get_DFCoeff_symbol(*[jres,1-jres,0,-1,0,0],0,0,0,0,l1,l2,indexIn,indexOut)
-        self.params[CIn] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,-1,0,0,0],0,0,0,0),alpha)
-        self.params[COut] = eval_DFCoeff_dict(DFCoeff_C(*[jres,1-jres,0,-1,0,0],0,0,0,0),alpha)
+        CIn = get_df_coefficient_symbol(*[jres,1-jres,-1,0,0,0],0,0,0,0,l1,l2,indexIn,indexOut)
+        COut = get_df_coefficient_symbol(*[jres,1-jres,0,-1,0,0],0,0,0,0,l1,l2,indexIn,indexOut)
+        self.params[CIn] = evaluate_df_coefficient_dict(df_coefficient_C(*[jres,1-jres,-1,0,0,0],0,0,0,0),alpha)
+        self.params[COut] = evaluate_df_coefficient_dict(df_coefficient_C(*[jres,1-jres,0,-1,0,0],0,0,0,0),alpha)
         aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
         eps = -G * mIn * mOut * aOut_inv
         omegaIn = G * G * MIn * MIn * muIn**3 / (LambdaIn**3)
@@ -398,7 +397,7 @@ def _get_pair_SecularHamiltonian_coefficients(Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lamb
     """
     Calculate the coefficients appearing in secular Hamiltonian expansion.
     """
-    terms = SecularTermsList(Nmin,Nmax)
+    terms = secular_terms_list(Nmin,Nmax)
     extra_args = G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out
     dsec = terms_list_to_HamiltonianCoefficients_dict(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
     for j,k in res_jk_list:
