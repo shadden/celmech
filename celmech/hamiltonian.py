@@ -319,7 +319,7 @@ class Hamiltonian(object):
         
         qpvars = self.qpvars
         Ndim = self.state.Ndim
-        self.Energy = lambdify(qpvars,self.NH,'numpy')
+        self.Energy = lambdify(qpvars,self.NH,**_lambdify_kwargs)
         self.derivs = {}
         self.Nderivs = []
         flow = []
@@ -334,10 +334,10 @@ class Hamiltonian(object):
         self.flow = Matrix(flow)
         self.jac = Matrix(Ndim,Ndim, lambda i,j: diff(flow[i],qpvars[j]))
 
-        self.Nderivs = [lambdify(qpvars,fun) for fun in Nflow]
-        self.Nflow = lambdify(qpvars,Nflow)
+        self.Nderivs = [lambdify(qpvars,fun,**_lambdify_kwargs) for fun in Nflow]
+        self.Nflow = lambdify(qpvars,Nflow,**_lambdify_kwargs)
         NjacMtrx = Matrix(Ndim,Ndim, lambda i,j: diff(Nflow[i],qpvars[j]))
-        self.Njac = lambdify(qpvars,NjacMtrx)
+        self.Njac = lambdify(qpvars,NjacMtrx,**_lambdify_kwargs)
         self.integrator = ode(
                 lambda t,y: self.Nflow(*y),
                 jac = lambda t,y: self.Njac(*y))
