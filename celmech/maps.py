@@ -174,7 +174,7 @@ class EncounterMap():
         theta,x = X
         eps = self.eps
         x1 = x + eps * self.f(theta)
-        theta1 = theta + 2*np.pi * x1
+        theta1 = theta + 2*np.pi * (x1 - self.J)
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
 
