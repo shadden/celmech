@@ -35,7 +35,7 @@ except:
     # Might fails on python3 versions, but not important
     pass
 
-from .andoyer import Andoyer, AndoyerHamiltonian
+
 from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
 
 __all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","LaplaceLagrangeSystem"]
