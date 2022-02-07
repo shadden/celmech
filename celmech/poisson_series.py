@@ -1,8 +1,8 @@
 import numpy as np
 from ctypes import *
-from .disturbing_function import  DFCoeff_C,eval_DFCoeff_dict,ResonanceTermsList
+from .disturbing_function import  df_coefficient_C,evaluate_df_coefficient_dict,resonance_terms_list
 #from . import clibcelmech
-from celmech.disturbing_function import DFArguments_dictionary
+from celmech.disturbing_function import df_arguments_dictionary
 #libname = "/Users/shadden/Projects/celmech/src/libcelmech.so"
 #clibcelmech = CDLL(libname)
 from . import clibcelmech
@@ -54,7 +54,7 @@ _evaluate_series_and_jacobian.argtypes = [
 ] + [(4 * c_double) for _ in range(4)] + [(64 * c_double) for _ in range(2)]
 _evaluate_series_and_jacobian.restype = None
 
-def get_generic_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
+def get_generic_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9}".format(
         k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
     )
@@ -63,7 +63,7 @@ def get_term_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     X,Xprime,Y,Yprime = symbols('X,Xprime,Y,Yprime')
     Xbar,Xprimebar,Ybar,Yprimebar = symbols('Xbar,Xbarprime,Ybar,Ybarprime')
     l,lprime = symbols('lambda,lambdaprime')
-    coeff = get_generic_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
+    coeff = get_generic_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4)
 
     term = coeff * exp(I * (k1 * lprime + k2 * l))
     term *= X**k3 if k3>0 else Xbar**(-k3)
@@ -145,13 +145,13 @@ class DFTermSeries(object):
         prefactor = -G * mIn * mOut * aOut_inv
         assert alpha0 < 1, "Particles are not in order by semi-major axis."
         resterm_dictionary  = {
-                (ks,zs):prefactor * eval_DFCoeff_dict(DFCoeff_C(*ks,*zs),alpha0)
+                (ks,zs):prefactor * evaluate_df_coefficient_dict(df_coefficient_C(*ks,*zs),alpha0)
                 for ks,zs in resterm_list
                 }
         return cls(resterm_dictionary,Lambda0In,Lambda0Out)
     @classmethod
     def from_resonance_range(cls,j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out):
-        terms = ResonanceTermsList(j,k,Nmin,Nmax)
+        terms = resonance_terms_list(j,k,Nmin,Nmax)
         return cls.from_resonance_list(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out)
 
     def _evaluate(self,lambda_arr, xy_arr):

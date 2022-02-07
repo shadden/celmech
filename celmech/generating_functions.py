@@ -4,8 +4,8 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from sympy import lambdify as sym_lambdify
 from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
-from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
-from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import df_coefficient_C,evaluate_df_coefficient_dict,get_df_coefficient_symbol
 from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
 from .hamiltonian import _my_elliptic_e, _lambdify_kwargs
 import warnings
@@ -138,9 +138,9 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         variables from osculating
         to mean canonical variables.
         """
-        y_osc = self.state_to_list(self.state)
+        y_osc = self.state.values
         y_mean = self.osculating_to_mean_state_vector(y_osc)
-        self.update_state_from_list(self.state,y_mean)
+        self.state.values = y_mean
 
     def mean_to_osculating(self,**integrator_kwargs):
         """
@@ -148,9 +148,9 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         variables from osculating
         to mean canonical variables.
         """
-        y_mean = self.state_to_list(self.state)
+        y_mean = self.state.values
         y_osc = self.mean_to_osculating_state_vector(y_mean)
-        self.update_state_from_list(self.state,y_osc)
+        self.state.values = y_osc
 
     def add_zeroth_order_term(self,indexIn=1,indexOut=2,update=True):
         r"""
@@ -236,13 +236,13 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         #
         k1,k2,k3,k4,k5,k6 = kvec
         nu1,nu2,nu3,nu4 = nuvec
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        C_dict = df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
         p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
-        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+        C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
         Ctot = 0
         for key,C_val in C_delta_expansion_dict.items():
             l1,l2=key
-            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
+            Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
             self.Hparams[Csym] = C_val
             Ctot += Csym * deltaIn**l1 * deltaOut**l2
         rtLIn = sqrt(Lambda0In)

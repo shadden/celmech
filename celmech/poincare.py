@@ -3,8 +3,8 @@ from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import PoissonBracket
-from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
-from .disturbing_function import DFCoeff_C,get_DFCoeff_symbol,eval_DFCoeff_delta_expansion
+from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
 import rebound
@@ -359,7 +359,9 @@ class PoincareParticle(object):
         Returns a string with the state of the particle.
         """ 
         return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
-
+class Star():
+    def __init__(self,m):
+        self.m = m
 class PoincareParticles(MutableMapping):
     """
     """
@@ -370,7 +372,8 @@ class PoincareParticles(MutableMapping):
         # go from int key and generate a PoincareParticle
         # need G and masses
         if i == 0:
-            raise AttributeError("No Poincare elements for the central star")
+            return Star(self.poincare.masses[0])
+            #raise AttributeError("No Poincare elements for the central star")
         p = self.poincare
         if isinstance(i, slice):
             return [self[i] for i in range(*i.indices(p.N))]
@@ -413,7 +416,7 @@ class Poincare(PhaseSpaceState):
     def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
         # additional variables that need storing in addition to phasespacestate variables
         self.G = G
-        self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
+        self.masses = [poincareparticles[1].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
 
         initial_p_values = []
@@ -602,13 +605,13 @@ class PoincareHamiltonian(Hamiltonian):
         #
         k1,k2,k3,k4,k5,k6 = kvec
         nu1,nu2,nu3,nu4 = nuvec
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        C_dict = df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
         p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
-        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+        C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
         Ctot = 0
         for key,C_val in C_delta_expansion_dict.items():
             l1,l2=key
-            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
+            Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
             self.Hparams[Csym] = C_val
             Ctot += Csym * deltaIn**l1 * deltaOut**l2
         rtLIn = sqrt(Lambda0In)
@@ -767,7 +770,7 @@ class PoincareHamiltonian(Hamiltonian):
             # e expansion
             eps_exprn = full_exprn.subs({sym:eps*sym for sym in (kappa_d,eta_d)})
             full_exprn = series(eps_exprn,eps,0,max_e_order+1).removeO().subs({eps:1})
-        if particles is 'all':
+        if particles == 'all':
             pids = range(1,self.N)
         for pid in pids:
             p = self.particles[pid]
