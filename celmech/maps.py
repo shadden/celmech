@@ -133,7 +133,7 @@ class EncounterMap():
         da = self.da0
         m = self.m
         da4 = da*da*da*da
-        return 2 * m /da4 / 3
+        return 8 * m /da4 / 9
 
     @J.setter
     def J(self,value):
@@ -174,7 +174,7 @@ class EncounterMap():
         theta,x = X
         eps = self.eps
         x1 = x + eps * self.f(theta)
-        theta1 = theta + 2*np.pi * (x1 - self.J)
+        theta1 = theta + 2*np.pi * (x1 + self.J)
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
 
