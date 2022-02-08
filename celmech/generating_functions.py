@@ -222,7 +222,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         
         Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
         alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
-        alpha_val = self.Hparams[alpha_sym]
+        alpha_val = self.H_params[alpha_sym]
         aOut0 = _get_a0_symbol(indexOut)
         deltaIn = (LambdaIn - Lambda0In) / Lambda0In
         deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
@@ -243,7 +243,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         for key,C_val in C_delta_expansion_dict.items():
             l1,l2=key
             Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
-            self.Hparams[Csym] = C_val
+            self.H_params[Csym] = C_val
             Ctot += Csym * deltaIn**l1 * deltaOut**l2
         rtLIn = sqrt(Lambda0In)
         rtLOut = sqrt(Lambda0Out)
@@ -326,7 +326,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
             t = time_symbol
 
         for i in range(1,self.N):
-            n=self.get_mean_motion(i).subs(self.Hparams)
+            n=self.get_mean_motion(i).subs(self.H_params)
             lsymb = symbols("lambda{}".format(i))
             exprn = n * t + lsymb
             subsrule[lsymb] = exprn.subs(subsrule)
