@@ -18,7 +18,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     'averaged' Hamiltonian or normal form.  
 
     The generating function is constructed to first order in 
-    planet-star mass ratios by specifying indivdual monomial
+    planet-star mass ratios by specifying indivdual cosine 
     terms to be eliminated from the full Hamiltonian.
 
     This class is a sub-class of 
@@ -205,16 +205,16 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         nOut = self.get_mean_motion(indexOut)
         return kvec[0] * nOut + kvec[1] * nIn
 
-    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
+    def add_cosine_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
         """
-        Add individual monomial term to generating function. The term 
+        Add individual cosine term to generating function. The term 
         is specified by 'kvec', which specifies the cosine argument
         and 'zvec', which specfies the order of inclination and
         eccentricities in the Taylor expansion of the 
         cosine coefficient. 
         """
         if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
-            warnings.warn("Monomial term k=({},{},{},{},{},{}) , nu = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*nuvec))
+            warnings.warn("Cosine term k=({},{},{},{},{},{}) , nu = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*nuvec))
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 

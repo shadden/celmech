@@ -32,7 +32,7 @@ class TestSecular(unittest.TestCase):
             for j in range(i+1,self.pvars.N):
                 for term in self.terms_list:
                     k,z = term
-                    self.pham.add_monomial_term(k,z,indexIn=i,indexOut=j,update=False)
+                    self.pham.add_cosine_term(k,z,indexIn=i,indexOut=j,update=False)
         self.pham._update()
         qpsymbols = [S('eta{}'.format(i)) for i in range(1,self.pvars.N)] +\
         [S('rho{}'.format(i)) for i in range(1,self.pvars.N)] +\
