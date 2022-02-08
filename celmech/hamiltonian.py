@@ -46,21 +46,21 @@ class PhaseSpaceState(object):
         An ordered dictionary containing the canonical
         coordiantes and momenta as keys and their numerical
         values as dictionary values.
-    qpvars : list
+    qp_vars : list
         List of variable symbols used for the canonical
         coordinates and momenta.
-    qppairs : list
+    qp_pairs : list
         A list of the 2-tuples :math:`(q_i,p_i)`.
-    Ndof : int
+    N_dof : int
         The number of degrees of freedom.
     values : list
-        List of the numerical values of `qpvars`.
+        List of the numerical values of `qp_vars`.
     """
-    def __init__(self, qpvars, values, t = 0):
+    def __init__(self, qp_vars, values, t = 0):
         """
         Arguments
         ---------
-        qpvars : list of symbols
+        qp_vars : list of symbols
             List of symbols to use for the canonical coordiantes
             and momenta. The list should be of length 2*N for an
             integer N with entries 0,...,N-1 representing the
@@ -74,26 +74,26 @@ class PhaseSpaceState(object):
             state. Default value is 0.
         """
         self.t = t
-        self.qp = OrderedDict(zip(qpvars, values))
+        self.qp = OrderedDict(zip(qp_vars, values))
 
     @property
-    def qpvars(self):
+    def qp_vars(self):
         return list(self.qp.keys()) 
     @property
-    def qppairs(self):
-        return [(self.qpvars[i], self.qpvars[i+self.Ndof]) for i in range(self.Ndof)]
+    def qp_pairs(self):
+        return [(self.qp_vars[i], self.qp_vars[i+self.N_dof]) for i in range(self.N_dof)]
     @property 
-    def Ndof(self):
+    def N_dof(self):
         return int(len(self.qp)/2)
     @property 
-    def Ndim(self):
+    def N_dim(self):
         return len(self.qp)
     @property
     def values(self):
         return list(self.qp.values()) 
     @values.setter
     def values(self,values):
-        for key, value in zip(self.qpvars, values):
+        for key, value in zip(self.qp_vars, values):
             self.qp[key] = value
     def __str__(self):
         s = "t={0}".format(self.t)
@@ -101,27 +101,27 @@ class PhaseSpaceState(object):
             s += ", {0}={1}".format(var, val)
         return s
     def __repr__(self):
-        return "PhaseSpaceState(qpvars={0}, values={1}, t={2})".format(self.qpvars, self.values, self.t)
+        return "PhaseSpaceState(qp_vars={0}, values={1}, t={2})".format(self.qp_vars, self.values, self.t)
 
 class Fullqp(MutableMapping):
     def __init__(self, hamiltonian):
         self.hamiltonian = hamiltonian
 
     def __getitem__(self, key):
-        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in Hparams (for reduce_hamiltonian)
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (for reduce_hamiltonian)
             return self.hamiltonian.qp[key]
         except:
             try:
-                return self.hamiltonian.Hparams[key]
+                return self.hamiltonian.H_params[key]
             except:
                 raise AttributeError('Variable {0} not found'.format(key))
 
     def __setitem__(self, key, value):
-        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in Hparams (for reduce_hamiltonian)
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (for reduce_hamiltonian)
             self.hamiltonian.qp[key] = value
         except:
             try:
-                self.hamiltonian.Hparams[key] = value
+                self.hamiltonian.H_params[key] = value
                 # NEED TO CALL UPDATE OR SET FLAG!
             except:
                 raise AttributeError('Variable {0} not found'.format(key))
@@ -130,11 +130,11 @@ class Fullqp(MutableMapping):
         raise AttributeError("deleting variables not implemented.")
 
     def __iter__(self):
-        for key in self.hamiltonian.full_qpvars:
+        for key in self.hamiltonian.full_qp_vars:
             yield key
 
     def __len__(self):
-        return len(self.hamiltonian.full_qpvars)
+        return len(self.hamiltonian.full_qp_vars)
 
 class Hamiltonian(object):
     """
@@ -152,13 +152,13 @@ class Hamiltonian(object):
     pqpars : list
         List of canonical variable pairs. 
     """
-    def __init__(self, H, Hparams, state, full_qpvars=None):
+    def __init__(self, H, H_params, state, full_qp_vars=None):
         """
         Arguments
         ---------
         H : sympy expression
-            Hamiltonian made up only of sympy symbols in state.qppairs and keys in Hparams
-        Hparams : dict
+            Hamiltonian made up only of sympy symbols in state.qp_pairs and keys in H_params
+        H_params : dict
             dictionary from sympy symbols for the constant parameters in H to their value
         state : PhaseSpaceState 
             Object for holding the dynamical state.
@@ -171,9 +171,9 @@ class Hamiltonian(object):
             and integrator time 't'
         """
         self.state = state
-        self.Hparams = Hparams
+        self.H_params = H_params
         self.H = H
-        self._full_qpvars = full_qpvars
+        self._full_qp_vars = full_qp_vars
         self._update()
    
 
@@ -182,36 +182,36 @@ class Hamiltonian(object):
         return self.state.t
 
     @property 
-    def Ndof(self):
-        return self.state.Ndof
+    def N_dof(self):
+        return self.state.N_dof
 
     @property 
-    def Ndim(self):
-        return self.state.Ndim
+    def N_dim(self):
+        return self.state.N_dim
     
     @property
     def qp(self):
         return self.state.qp
     
     @property
-    def qppairs(self):
-        return self.state.qppairs
+    def qp_pairs(self):
+        return self.state.qp_pairs
 
     @property
-    def qpvars(self):
-        return self.state.qpvars
+    def qp_vars(self):
+        return self.state.qp_vars
    
     @property
     def values(self):
         return self.state.values
     
     @property 
-    def full_Ndof(self):
-        return int(self.full_Ndim/2)
+    def full_N_dof(self):
+        return int(self.full_N_dim/2)
 
     @property 
-    def full_Ndim(self):
-        return len(self.full_qpvars)
+    def full_N_dim(self):
+        return len(self.full_qp_vars)
     
     @property
     def full_qp(self):
@@ -219,11 +219,11 @@ class Hamiltonian(object):
         return full_qp
 
     @property
-    def full_qpvars(self):
-        if self._full_qpvars:
-            return self._full_qpvars
+    def full_qp_vars(self):
+        if self._full_qp_vars:
+            return self._full_qp_vars
         else:
-            return self.qpvars
+            return self.qp_vars
     
     @property
     def full_values(self):
@@ -250,13 +250,13 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self.H,self.qpvars,[])
+        return PoissonBracket(exprn,self.H,self.qp_vars,[])
 
-    def NLie_deriv(self,exprn):
+    def N_Lie_deriv(self,exprn):
         r"""
         Return the Lie derivative of an expression with respect to the Hamiltonian
         with numerical values substituted for parameters. Equivalent to 
-        :meth:`~poincare.Hamiltonian.Lie_deriv` but using the NH attribute 
+        :meth:`~poincare.Hamiltonian.N_Lie_deriv` but using the NH attribute 
         rather than the H attribute to compute brackets.  
 
         Arguments
@@ -269,7 +269,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self.NH,self.qpvars,[])
+        return PoissonBracket(exprn,self.N_H,self.qp_vars,[])
 
     def integrate(self, time, integrator_kwargs={}):
         """
@@ -304,57 +304,56 @@ class Hamiltonian(object):
         #self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
-        self.NH = self.H # reset to Hamiltonian with all parameters unset
+        self.N_H = self.H # reset to Hamiltonian with all parameters unset
         # 
         # Update raw numerical constants first then update functions
         # Less hacky way to do this?
         function_keyval_pairs = []
-        for key, val in self.Hparams.items(): 
+        for key, val in self.H_params.items(): 
             if isinstance(val,float):
-                self.NH = self.NH.subs(key, val)
+                self.N_H = self.N_H.subs(key, val)
             else:
                 function_keyval_pairs.append((key,val)) 
         for keyval in function_keyval_pairs:
-            self.NH = self.NH.subs(keyval[0],keyval[1])
+            self.N_H = self.N_H.subs(keyval[0],keyval[1])
         
-        qpvars = self.qpvars
-        Ndim = self.state.Ndim
-        self.Energy = lambdify(qpvars,self.NH,**_lambdify_kwargs)
+        qp_vars = self.qp_vars
+        N_dim = self.state.N_dim
+        self.Energy = lambdify(qp_vars,self.N_H,**_lambdify_kwargs)
         self.derivs = {}
         self.Nderivs = []
         flow = []
         Nflow = []
-        for v in self.qpvars:
+        for v in self.qp_vars:
             deriv = self.Lie_deriv(v)
-            Nderiv = self.NLie_deriv(v)
-            self.derivs[v] = self.Lie_deriv(v)
+            Nderiv = self.N_Lie_deriv(v)
+            self.derivs[v] = self.N_Lie_deriv(v)
             flow.append(deriv)
             Nflow.append(Nderiv)
 
         self.flow = Matrix(flow)
-        self.jac = Matrix(Ndim,Ndim, lambda i,j: diff(flow[i],qpvars[j]))
+        self.jac = Matrix(N_dim,N_dim, lambda i,j: diff(flow[i],qp_vars[j]))
 
-        self.Nderivs = [lambdify(qpvars,fun,**_lambdify_kwargs) for fun in Nflow]
-        self.Nflow = lambdify(qpvars,Nflow,**_lambdify_kwargs)
-        NjacMtrx = Matrix(Ndim,Ndim, lambda i,j: diff(Nflow[i],qpvars[j]))
-        self.Njac = lambdify(qpvars,NjacMtrx,**_lambdify_kwargs)
+        self.Nderivs = [lambdify(qp_vars,fun,**_lambdify_kwargs) for fun in Nflow]
+        self.Nflow = lambdify(qp_vars,Nflow,**_lambdify_kwargs)
+        NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
+        self.Njac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
         self.integrator = ode(
                 lambda t,y: self.Nflow(*y),
                 jac = lambda t,y: self.Njac(*y))
         self.integrator.set_integrator('dop853')# ('lsoda') #
         self.integrator.set_initial_value(self.state.values)
 
-# should this be a member function?
 def reduce_hamiltonian(ham):
     state = ham.state
-    new_params = ham.Hparams.copy()
+    new_params = ham.H_params.copy()
     #pq_val_rule = ham.state.as_rule()
     #new_pq_pairs= []
     untracked_q, untracked_p = [], []
     new_q, new_p = [], []
     new_qvals, new_pvals = [], []
-    qppairs = [(state.qpvars[i], state.qpvars[i+state.Ndof]) for i in range(state.Ndof)]
-    for qp_pair in qppairs:
+    qp_pairs = [(state.qp_vars[i], state.qp_vars[i+state.N_dof]) for i in range(state.N_dof)]
+    for qp_pair in qp_pairs:
         q,p = qp_pair
         pval,qval = state.qp[p],state.qp[q]
         if q not in ham.H.free_symbols or p not in ham.H.free_symbols: # if q is cyclic, p is conserved and we ignore that dof
@@ -368,8 +367,8 @@ def reduce_hamiltonian(ham):
             new_qvals.append(qval)
             new_pvals.append(pval)
     new_vals = np.array(new_qvals + new_pvals)
-    new_qpvars = new_q + new_p
-    untracked_qpvars = untracked_q + untracked_p
-    new_state = PhaseSpaceState(new_qpvars, new_vals,state.t)
-    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qpvars = ham.full_qpvars)
+    new_qp_vars = new_q + new_p
+    untracked_qp_vars = untracked_q + untracked_p
+    new_state = PhaseSpaceState(new_qp_vars, new_vals,state.t)
+    new_ham = Hamiltonian(ham.H,new_params,new_state, full_qp_vars = ham.full_qp_vars)
     return new_ham

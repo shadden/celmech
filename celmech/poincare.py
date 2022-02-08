@@ -385,9 +385,9 @@ class PoincareParticles(MutableMapping):
         l = val[j * 3]
         eta = val[j * 3 + 1]
         rho = val[j * 3 + 2]
-        Lambda = val[p.Ndof + j * 3]
-        kappa = val[p.Ndof + j * 3 + 1]
-        sigma = val[p.Ndof + j * 3 + 2]
+        Lambda = val[p.N_dof + j * 3]
+        kappa = val[p.N_dof + j * 3 + 1]
+        sigma = val[p.N_dof + j * 3 + 2]
         # THIS WILL FAIL FOR TEST PARTICLES
         return PoincareParticle(coordinates=p.coordinates, G=p.G, m=p.masses[i], Mstar=p.masses[0], l=l, eta=eta, rho=rho, Lambda=Lambda, kappa=kappa, sigma=sigma)
 
@@ -439,7 +439,7 @@ class Poincare(PhaseSpaceState):
         """
         Return total number of bodies, including central star (analogous to REBOUND sim.N)
         """
-        return int(self.Ndof/3) + 1 # +1 for star
+        return int(self.N_dof/3) + 1 # +1 for star
 
     @property
     def particles(self):
@@ -536,24 +536,24 @@ class PoincareHamiltonian(Hamiltonian):
         transformations are applied.
     """
     def __init__(self, pvars):
-        Hparams = {symbols('G'):pvars.G}
+        H_params = {symbols('G'):pvars.G}
         ps = pvars.particles
         H = S(0) 
         self.Lambda0s = [None] + [_get_Lambda0_symbol(i) for i in range(1,pvars.N)]
         for i in range(1, pvars.N):
-            Hparams[symbols("mu{0}".format(i))] = ps[i].mu
-            Hparams[symbols("m{0}".format(i))] = ps[i].m
-            Hparams[symbols("M{0}".format(i))] = ps[i].M
-            Hparams[self.Lambda0s[i]] = ps[i].Lambda
-            Hparams[_get_a0_symbol(i)] = ps[i].a
+            H_params[symbols("mu{0}".format(i))] = ps[i].mu
+            H_params[symbols("m{0}".format(i))] = ps[i].m
+            H_params[symbols("M{0}".format(i))] = ps[i].M
+            H_params[self.Lambda0s[i]] = ps[i].Lambda
+            H_params[_get_a0_symbol(i)] = ps[i].a
             for j in range(i+1,pvars.N):
                 alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))
                 alpha_val = ps[i].a/ps[j].a
-                Hparams[alpha_sym] = alpha_val
+                H_params[alpha_sym] = alpha_val
 
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
-        super(PoincareHamiltonian, self).__init__(H, Hparams, pvars) 
+        super(PoincareHamiltonian, self).__init__(H, H_params, pvars) 
     
     @property
     def particles(self):
@@ -593,7 +593,7 @@ class PoincareHamiltonian(Hamiltonian):
         
         Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
         alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
-        alpha_val = self.Hparams[alpha_sym]
+        alpha_val = self.H_params[alpha_sym]
         aOut0 = _get_a0_symbol(indexOut)
         deltaIn = (LambdaIn - Lambda0In) / Lambda0In
         deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
@@ -609,7 +609,7 @@ class PoincareHamiltonian(Hamiltonian):
         for key,C_val in C_delta_expansion_dict.items():
             l1,l2=key
             Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
-            self.Hparams[Csym] = C_val
+            self.H_params[Csym] = C_val
             Ctot += Csym * deltaIn**l1 * deltaOut**l2
         rtLIn = sqrt(Lambda0In)
         rtLOut = sqrt(Lambda0Out)
@@ -673,8 +673,8 @@ class PoincareHamiltonian(Hamiltonian):
         G = symbols('G')
         J2_s = kwargs.get("J2_symbol",symbols("J2"))
         Rin_s = kwargs.get("Rin_symbol",symbols(r"R"))
-        self.Hparams[J2_s] = J2
-        self.Hparams[Rin_s] = Rin
+        self.H_params[J2_s] = J2
+        self.H_params[Rin_s] = Rin
         GJ2RinSq = G * J2_s * Rin_s * Rin_s 
         a0_d = symbols("a0")
         # dummy variables, substitute later
@@ -749,7 +749,7 @@ class PoincareHamiltonian(Hamiltonian):
         """
         G,c_s = symbols('G,c')
         G_by_c = G / c_s
-        self.Hparams[c_s] = c
+        self.H_params[c_s] = c
         
         # dummy variables, substitute later
         # Lambda_d = symbols("Lambda")
