@@ -174,7 +174,7 @@ class EncounterMap():
         theta,x = X
         eps = self.eps
         x1 = x + eps * self.f(theta)
-        theta1 = theta + 2*np.pi * (x1 + self.J)
+        theta1 = theta + 2*np.pi * (self.J - x1)
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
 
@@ -182,14 +182,14 @@ class EncounterMap():
         theta,x = X
         dx1_dx = 1
         dx1_dtheta = self.eps * self.dfdtheta_n(theta,1)
-        dtheta1_dx = 2*np.pi * dx1_dx
-        dtheta1_dtheta = 1 + 2 * np.pi * dx1_dtheta
+        dtheta1_dx = -2*np.pi * dx1_dx
+        dtheta1_dtheta = 1 - 2 * np.pi * dx1_dtheta
         return np.array([[dtheta1_dtheta,dtheta1_dx],[dx1_dtheta,dx1_dx]])
 
     def inv(self,X):
         theta1,x1 = X
         eps = self.eps
-        theta = theta1 - 2 * np.pi * x1
+        theta = theta1 + 2 * np.pi * (x1 - self.J)
         x = x1 - eps * self.f(theta)
         return (theta,x)
 
@@ -202,15 +202,15 @@ class EncounterMap():
         T = np.zeros((2,Nmax+1,Nmax+1))
         eps = self.eps
         T[:,0,0] = self.__call__(x0)
-        T[0][0,1] = 2 * np.pi
+        T[0][0,1] = -2 * np.pi
         T[1][0,1] = 1
         n=1
         eps_fn = eps * self.dfdtheta_n(theta,n)
-        T[0][1,0] = 1 + 2 * np.pi * eps_fn
+        T[0][1,0] = 1 - 2 * np.pi * eps_fn
         T[1][1,0] = eps_fn
         for n in range(2,Nmax+1):
             eps_fn = eps * self.dfdtheta_n(theta,n)
-            T[0][n,0] = 2 * np.pi * eps_fn
+            T[0][n,0] = -2 * np.pi * eps_fn
             T[1][n,0] = eps_fn
         return T
 
@@ -224,12 +224,12 @@ class EncounterMap():
         eps = self.eps
         T[:,0,0] = self.inv(x0)
         T[0][1,0] = 1
-        T[0][0,1] = -2 * np.pi
+        T[0][0,1] = 2 * np.pi
         theta,x = T[:,0,0]
         for n in range(1,Nmax+1):
             eps_fn = eps * self.dfdtheta_n(theta,n)
             for l in range(n+1):
-                T[1][l,n-l] = -1 * (-2*np.pi)**(n-l) * eps_fn
+                T[1][l,n-l] = -1 * (2*np.pi)**(n-l) * eps_fn
         T[1][0,1] += 1
         return T
 
