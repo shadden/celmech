@@ -316,7 +316,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         result: sympy expression or function
             An expression for the solution as a function of time.
         """
-        subsrule=dict(zip(self.varsymbols,self.state_to_list(self.state)))
+        subsrule=self.qp.copy()
         for var in free_variables:
             subsrule.pop(var)
 
@@ -332,9 +332,9 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
             subsrule[lsymb] = exprn.subs(subsrule)
 
         if correction_only:
-            pt_solution = self.NLie_deriv(expression)
+            pt_solution = self.N_Lie_deriv(expression)
         else:
-            pt_solution = expression + self.NLie_deriv(expression)
+            pt_solution = expression + self.N_Lie_deriv(expression)
         result = pt_solution.subs(subsrule)
         if lambdify:
             args = list(free_variables) + [t]
