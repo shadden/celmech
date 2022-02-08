@@ -359,9 +359,7 @@ class PoincareParticle(object):
         Returns a string with the state of the particle.
         """ 
         return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
-class Star():
-    def __init__(self,m):
-        self.m = m
+
 class PoincareParticles(MutableMapping):
     """
     """
@@ -372,8 +370,7 @@ class PoincareParticles(MutableMapping):
         # go from int key and generate a PoincareParticle
         # need G and masses
         if i == 0:
-            return Star(self.poincare.masses[0])
-            #raise AttributeError("No Poincare elements for the central star")
+            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=    np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
         p = self.poincare
         if isinstance(i, slice):
             return [self[i] for i in range(*i.indices(p.N))]
@@ -402,7 +399,7 @@ class PoincareParticles(MutableMapping):
         raise AttributeError("deleting variables not implemented.")
 
     def __iter__(self):
-        for p in self[1:self.poincare.N]:
+        for p in self[:self.poincare.N]:
             yield p
 
     def __len__(self):
@@ -579,16 +576,16 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
 
-    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
+    def add_cosine_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
         """
-        Add individual monomial term to Hamiltonian. The term 
+        Add individual cosine term to Hamiltonian. The term 
         is specified by 'kvec', which specifies the cosine argument
         and 'zvec', which specfies the order of inclination and
         eccentricities in the Taylor expansion of the 
         cosine coefficient. 
         """
         if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
-            warnings.warn("Monomial term already included Hamiltonian; no new term added.")
+            warnings.warn("Cosine term already included Hamiltonian; no new term added.")
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
@@ -724,6 +721,7 @@ class PoincareHamiltonian(Hamiltonian):
             self.H += M * mu * Hpert.subs({a0_d:a0,delta_d:delta,kappa_d:kappa,eta_d:eta,sigma_d:sigma,rho_d:rho,Lambda0_d:Lambda0})
         if update:
             self._update()
+
     def add_gr_potential_terms(self,c,max_e_order=None,particles = 'all',update=True):
         r"""
         Add Hamiltonian terms that capture the orbital precession
@@ -780,6 +778,7 @@ class PoincareHamiltonian(Hamiltonian):
             self.H += M * M * mu * full_exprn.subs({a0_d:a0,kappa_d:kappa,eta_d:eta,Lambda0_d:Lambda0})
         if update:
             self._update()
+    
     def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
         r"""
         Add all disturbing function terms associated with a p:p-q mean
@@ -808,7 +807,7 @@ class PoincareHamiltonian(Hamiltonian):
             MMRs with p<q or q<0 are not supported. 
             If you really want to include these terms, 
             they may be added individually with the 
-            'add_monomial_term' method.
+            'add_cosine_term' method.
             """)
         if max_order < q:
             warnings.warn("""Maxmium order is lower than order of the resonance!""")
@@ -867,7 +866,7 @@ class PoincareHamiltonian(Hamiltonian):
             MMRs with j<k or k<0 are not supported. 
             If you really want to include these terms, 
             they may be added individually with the 
-            'add_monomial_term' method.
+            'add_cosine_term' method.
             """)
         if max_order < q:
             warnings.warn("""Maxmium order is lower than order of the resonance!""")
@@ -884,6 +883,7 @@ class PoincareHamiltonian(Hamiltonian):
         # Finish with update
         if update:
             self._update()
+    
     def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,lmax=0,update = True):
         """
         Add disturbing function term 
@@ -910,7 +910,7 @@ class PoincareHamiltonian(Hamiltonian):
                 for z3 in range(0,N - z1 - z2):
                     for z4 in range(0,N - z1 - z2 - z3):
                         zvec  = [z1,z2,z3,z4]
-                        self.add_monomial_term(jvec,zvec,indexIn,indexOut,lmax=lmax,update=False)
+                        self.add_cosine_term(jvec,zvec,indexIn,indexOut,lmax=lmax,update=False)
         if update:
             self._update() 
 
@@ -937,4 +937,3 @@ class PoincareHamiltonian(Hamiltonian):
             mtrx.append(row)
         inc_mtrx = Matrix(mtrx)
         return ecc_mtrx,inc_mtrx
-
