@@ -72,6 +72,95 @@ class StandardMap():
         x1 = self._modfn(x1)
         return x1
 
+    def inv(self,x):
+        theta1,p1 = x
+        theta = theta1 - p1
+        p = p1 - self.K * np.sin(theta)
+
+    def partial_derivs(self,x,Nmax):
+        r"""
+        Get the partial derivatives of
+        the map evaluated at the point
+        `x0` up to order `Nmax`.
+
+        Arguments
+        ---------
+        x : array-like
+            The point at which derivatives
+            are to be evaluated
+        Nmax : int
+            Maximum order of the partial 
+            derivatives
+
+        Returns
+        -------
+        T : array, shape (2,Nmax+1,Nmax+1)
+            The partial derivatives of the map.
+            Writing the value of the map at a point
+            :math:`(x_1,x_2)` as 
+            :math:`T(x_1,x_2) = (T_1(x_1,x_2),T_2(x_1,x_2))`,
+            the entry T[i,n,m] stores
+            .. math::
+                \frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i
+
+            Note that T[:,0,0] give the value of the map.
+        """
+        theta,p = x
+        c,s = np.cos(theta),np.sin(theta)
+        K = self.K
+        Ksin_derivs = K*np.array([s,c,-s,-c])
+        T = np.zeros((2,Nmax+1,Nmax+1))
+        T[:,0,0] = self.__call__(x)
+        for n in range(1,Nmax+1):
+            T[:,n,0] = Ksin_derivs[n%4]
+        T[0,1,0]+=1
+        T[0,0,1]+=1
+        T[1,0,1]+=1
+        return T
+
+    def inv_partial_derivs(self,x,Nmax):
+        r"""
+        Get the partial derivatives of
+        the inverse map evaluated at the point
+        `x0` up to order `Nmax`.
+
+        Arguments
+        ---------
+        x : array-like
+            The point at which derivatives
+            are to be evaluated
+        Nmax : int
+            Maximum order of the partial 
+            derivatives
+
+        Returns
+        -------
+        T : array, shape (2,Nmax+1,Nmax+1)
+            The partial derivatives of the map.
+            Writing the value of the map at a point
+            :math:`(x_1,x_2)` as 
+            :math:`T(x_1,x_2) = (T_1(x_1,x_2),T_2(x_1,x_2))`,
+            the entry T[i,n,m] stores
+            .. math::
+                \frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i
+
+            Note that T[:,0,0] give the value of the map.
+        """
+        theta1,p1 = x
+        theta,p = self.inv(x)
+        c,s = np.cos(theta),np.sin(theta)
+        K = self.K
+        Ksin_derivs = K*np.array([s,c,-s,-c])
+        T = np.zeros((2,Nmax+1,Nmax+1))
+        T[:,0,0] = theta,p
+        T[0,1,0] = 1
+        T[0,0,1] = -1
+        for n in range(1,Nmax+1):
+            for l in range(0,n+1):
+                T[1,l,n-l] = -(-1)**(n-l) * Ksin_derivs[n%4]
+        T[1,0,1]+=1
+        return T
+
     def jac(self,x):
         r"""
         Evaluate the Jacobian map at :math:`x=(\theta,p)`,
