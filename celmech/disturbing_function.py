@@ -101,7 +101,7 @@ def _nucombos_iter(nutot):
                 nu4 = nutot - nu1 - nu2 - nu3
                 yield (nu1,nu2,nu3,nu4)
                 
-def resonance_terms_list(j,k,Nmin,Nmax):
+def list_resonance_terms(j,k,Nmin,Nmax):
     """
     Generate the list of disturbing function terms for a
     j:j-k resonance with eccentricity/inclination order
@@ -140,7 +140,7 @@ def resonance_terms_list(j,k,Nmin,Nmax):
                         args.append((js,nuc))
     return args
 
-def secular_terms_list(Nmin,Nmax):
+def list_secular_terms(Nmin,Nmax):
     """
     Generate the list of secular disturbing function terms 
     with eccentricity/inclination order between Nmin and Nmax.
@@ -182,7 +182,7 @@ def laplace_b(s,j,n,alpha):
     r"""
     Calculates :math:`n`th derivative with respect to :math:`\alpha` of Laplace coefficient :math:`b_s^j(\alpha)`.
     Uses recursion and scipy special functions. 
-    
+
     Arguments
     ---------
     s : float 
@@ -193,7 +193,12 @@ def laplace_b(s,j,n,alpha):
         Specify the :math:`n`th derivative with respect to :math:`alpha`. 
     alpha : float
         Semi-major axis ratio, :math:`\alpha=a_{in}/a_{out}`.
-    """    
+
+    Returns
+    -------
+    float
+        The value of the coefficient.
+    """
     assert alpha>=0 and alpha<1, "alpha not in range [0,1): alpha={}".format(alpha)
     if j<0:
         return laplace_b(s,-j,n,alpha)
@@ -233,7 +238,7 @@ def evaluate_df_coefficient_dict(coeff_dict,alpha):
 
     Returns
     -------
-    float : 
+    float :
         The sum of Laplace coefficeint terms represented
         by dictionary entries.
     """
@@ -306,7 +311,7 @@ def evaluate_df_coefficient_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
             p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
     p2 : int
         Integer specific to the DF term's (k,nu) values
-        given by 
+        given by
             p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
     lmax : int
         Maximum power of Taylor expansion.

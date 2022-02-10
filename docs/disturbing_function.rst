@@ -105,12 +105,12 @@ related to one another.
 The function :func:`df_arguments_dictionary<celmech.disturbing_function.df_arguments_dictionary>` 
 supplies a comprehensive list of all possible disturbing function cosine arguments appearing up
 to a given order, :math:`N_\mathrm{max}`, in planets' eccentricities and inclinations.
-The functions :func:`secular_terms_list<celmech.disturbing_function.secular_terms_list>` and
-:func:`resonance_terms_list<celmech.disturbing_function.resonance_terms_list>` can provide lists
+The functions :func:`secular_terms_list<celmech.disturbing_function.list_secular_terms>` and
+:func:`list_resonance_terms<celmech.disturbing_function.list_resonance_terms>` can provide lists
 of :math:`(\pmb{k},\pmb{\nu})` pairs for secular or resonant disturbing function terms in a
 user-specified range of orders.
 
 API
 ---
 .. automodule:: celmech.disturbing_function
-    :members: df_coefficient_Ctilde, df_coefficient_C, evaluate_df_coefficient_dict, laplace_b,df_arguments_dictionary, resonance_terms_list, secular_terms_list
+    :members: df_coefficient_Ctilde, df_coefficient_C, evaluate_df_coefficient_dict, laplace_b,df_arguments_dictionary, list_resonance_terms, list_secular_terms
