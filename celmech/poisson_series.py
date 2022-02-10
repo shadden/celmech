@@ -1,6 +1,6 @@
 import numpy as np
 from ctypes import *
-from .disturbing_function import  df_coefficient_C,evaluate_df_coefficient_dict,resonance_terms_list
+from .disturbing_function import  df_coefficient_C,evaluate_df_coefficient_dict,list_resonance_terms
 #from . import clibcelmech
 from celmech.disturbing_function import df_arguments_dictionary
 #libname = "/Users/shadden/Projects/celmech/src/libcelmech.so"
@@ -151,7 +151,7 @@ class DFTermSeries(object):
         return cls(resterm_dictionary,Lambda0In,Lambda0Out)
     @classmethod
     def from_resonance_range(cls,j,k,Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out):
-        terms = resonance_terms_list(j,k,Nmin,Nmax)
+        terms = list_resonance_terms(j,k,Nmin,Nmax)
         return cls.from_resonance_list(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lamda0Out)
 
     def _evaluate(self,lambda_arr, xy_arr):

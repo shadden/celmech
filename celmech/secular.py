@@ -9,7 +9,7 @@ from scipy.linalg import expm
 from celmech.miscellaneous import getOmegaMatrix, _machine_eps
 from collections import defaultdict
 
-from celmech.disturbing_function import secular_terms_list
+from celmech.disturbing_function import list_secular_terms
 from celmech.disturbing_function import df_coefficient_C, _add_dicts,_consolidate_dictionary_terms
 from celmech.disturbing_function import terms_list_to_HamiltonianCoefficients_dict
 from celmech.disturbing_function import resonant_secular_contribution_dictionary
@@ -399,7 +399,7 @@ def _get_pair_SecularHamiltonian_coefficients(Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lamb
     """
     Calculate the coefficients appearing in secular Hamiltonian expansion.
     """
-    terms = secular_terms_list(Nmin,Nmax)
+    terms = list_secular_terms(Nmin,Nmax)
     extra_args = G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out
     dsec = terms_list_to_HamiltonianCoefficients_dict(terms,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out)
     for j,k in res_jk_list:
