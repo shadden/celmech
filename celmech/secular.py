@@ -67,7 +67,9 @@ class LaplaceLagrangeSystem(Poincare):
         super(LaplaceLagrangeSystem,self).__init__(G,poincareparticles)
         self.params = {S('G'):self.G}
         for i,particle in enumerate(self.particles):
-            m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i+1)) 
+            if i==0:
+                continue # skip the star
+            m,mu,M,Lambda = symbols('m{0},mu{0},M{0},Lambda{0}'.format(i)) 
             self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
@@ -94,7 +96,7 @@ class LaplaceLagrangeSystem(Poincare):
         -------
         system : :class:`celmech.secular.LaplaceLagrangeSystem`
         """
-        return cls(pvars.G,pvars.particles)
+        return cls(pvars.G,pvars.particles[1:])
 
     @classmethod
     def from_Simulation(cls,sim):
@@ -859,10 +861,10 @@ class SecularSystemSimulation():
 
     @method.setter
     def method(self,method):
-        if method is 'RK':
+        if method == 'RK':
             self._method_name = 'RK'
             self._integrator = self.secular_rk_integrator
-        elif method is 'splitting':
+        elif method == 'splitting':
             self._method_name = 'splitting'
             self._integrator = self.secular_splitting_integrator
         else:

@@ -37,27 +37,27 @@ def _delta(*args):
         return 1
     
 def df_arguments_dictionary(Nmax):
-    """
+    r"""
     Get the arguments appearing in the disturbing function
-    up to order Nmax.  
+    up to order Nmax. Arguments are returned as a nested dictionary.
+    The outer level keys are orders. 
+    The inner level keys are 
+    :math:`\Delta k = |k_1-k_2|`, 
+    denoting the order of MMR for which the argument appears. 
+    The values of the inner level dictionaries are lists of
+    tuples containing :math:`(k_3,k_4,k_5,k_6)`.
+    Specifically, the dictionary is returned in the form:
     
-    Arguments are returned as a nested dictionary. 
-    The outer level keys are orders. The inner level
-    keys are dk = |k1-k2|, denoting the order of MMR
-    for which the argument appears. The values of the 
-    inner level dictionaries are lists of 
-    tuples containing (k3,k4,k5,k6). 
-    
-    {
-        0:{0:[(0,0,0,0)],
-        1:{1:[(-1,0,0,0),(0,-1,0,0)]},
-        ...
-        Nmax:{
-            0:[(j3,j4,j5,j6)],
-            ...
-            Nmax:[(j3,j4,j5,j6),...]
-        }
-    }
+    | {
+    |     0:{0:[(0,0,0,0)],
+    |     1:{1:[(-1,0,0,0),(0,-1,0,0)]},
+    |     ...
+    |     Nmax:{
+    |         0:[(k3,k4,k5,k6)],
+    |         ...
+    |         Nmax:[(k3,k4,k5,k6),...]
+    |     }
+    | }
     
     Arguments
     ---------
@@ -103,7 +103,7 @@ def _nucombos_iter(nutot):
                 
 def resonance_terms_list(j,k,Nmin,Nmax):
     """
-    Generate the list of disturbing function terms for a 
+    Generate the list of disturbing function terms for a
     j:j-k resonance with eccentricity/inclination order
     between Nmin and Nmax.
 
@@ -121,7 +121,7 @@ def resonance_terms_list(j,k,Nmin,Nmax):
     Returns
     -------
     term : list
-        A list of disturbing function terms. 
+        A list of disturbing function terms.
         Each entry in the list is of the form
         (kvec, nuvec)
     """
@@ -226,9 +226,9 @@ def evaluate_df_coefficient_dict(coeff_dict,alpha):
         representing a sum of Laplace coefficients:
 
         .. math::
-         \mathrm{coeff}  \alpha^p \frac{ d^n b_s^{(j)}(\alpha)} { d\alpha^n}
+         \mathrm{coeff} \times \alpha^p \frac{ d^n b_s^{(j)}(\alpha)} { d\alpha^n}
     alpha : float
-        Value of semi-major axis ratio a1/a2 appearing
+        Value of semi-major axis ratio, :math:`\alpha=a_i/a_j`, appearing
         as an argument of Laplace coefficients.
 
     Returns
@@ -249,16 +249,18 @@ def evaluate_df_coefficient_dict(coeff_dict,alpha):
     return tot
 
 
-
 def calB(n,k,p):
     arglist = [negative_binom(p,l) * factorial(l) for l in range(1,n-k+3)]
     return bell(n,k,arglist)
+
 def falling_factorial(x,n):
     return poch(-x,n) * (-1)**n
+
 def _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2):
     return binom(l1,m1) * binom(l2,m2) *\
     falling_factorial(-2*r1 - p2/2,m2) * falling_factorial(-p1/2,m1) *\
     calB(l1-m1,r1,2) * calB(l2-m2,r2,-2)
+
 def _calc_df_coefficient_C_l1_l2_Taylor_coeff(l1,l2,p1,p2,derivs_list):
     tot = 0
     l1fact_inv = 1/factorial(l1)
@@ -573,13 +575,22 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
 def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
     r"""
     Get the coefficient of the disturbing function term:
-    
-      s1^{|k5|+2nu1} s2^{|k6|+2nu2} * e2^{|k4|+2*nu4} * e1^{|k3|+2*nu3} \times 
-          cos[k1*L2 + k2*L1 + k3 * pomega1 + k4 * w2 + k5 * Omega1 + k6 * Omega2)
 
-    where s1 = sin(I1/2) and s2 = sin(I2/2) as a dictionary of Laplace coefficient 
+    .. math::
+        s_i^{|k_5|+2\nu_1} s_j^{|k_6|+2\nu_2}
+        e_i^{|k_3|+2\nu_4} e_j^{|k_4|+2\nu_3} 
+        \times
+        \cos[
+            k_1\lambda_j + k_2\lambda_i +
+            k_3 \varpi_i + k_4 \varpi_j +
+            k_5 \Omega_i + k_6 \Omega_j
+        ]
+
+    where the indices :math:`i` and :math:`j` corresponds to the
+    inner and outer planets, respectively.
+    The result is returned as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
-    
+
     Arguments:
     ----------
     k1 : int
@@ -699,23 +710,25 @@ def _get_alpha_times_derivs_list(coeffdict, ltot):
 
 def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms = True):
     r"""
-    Get the coefficient of the disturbing function term:
-    
+    Get the coefficient of the disturbing function term
+
     .. math ::
 
-        |Y_1|^{|k_5|+2\nu_1} 
-        |Y_2|^{|k_6|+2\nu_2} 
-        |X_1|^{|k_3|+2\nu_3} 
-        |X_2|^{|k_4|+2\nu_4} 
-        \delta_1^{l_1}
-        \delta_2^{l_2}
+        |Y_i|^{|k_5|+2\nu_1}
+        |Y_j|^{|k_6|+2\nu_2}
+        |X_i|^{|k_3|+2\nu_3}
+        |X_j|^{|k_4|+2\nu_4}
+        \delta_i^{l_1}
+        \delta_j^{l_2}
         \times \cos[
-            k_1 \lambda_2 + k_2 \lambda_1 +
-            k_3 \varpi_1 + k_4 \varpi_2 + 
-            k_5 \Omega_1 + k_6 \Omega_2
-        ]
+            k_1 \lambda_j + k_2 \lambda_i +
+            k_3 \varpi_i + k_4 \varpi_j +
+            k_5 \Omega_i + k_6 \Omega_j
+        ]~,
 
-    as a dictionary of Laplace coefficient
+    where the indices :math:`i` and :math:`j` corresponds to the
+    inner and outer planets, respectively.
+    The result it returned as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
 
     Arguments:
@@ -793,9 +806,6 @@ def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirec
                         to_add = _df_coefficient_scalar_mult(derivs_list[r1+r2],prefactor * _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2))
                         result = _add_dicts(result,to_add)      
     return result
-
-
-
 
 def has_indirect_component(k1,k2,k3,k4,k5,k6):
     two_p = k2 + k4 + 1 
