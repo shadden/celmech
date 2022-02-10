@@ -224,6 +224,12 @@ class Hamiltonian(object):
             return self._full_qp_vars
         else:
             return self.qp_vars
+    @property
+    def full_qp_pairs(self):
+        if self._full_qp_vars:
+            return [(self._full_qp_vars[i], self.full_qp_vars[i+self.full_N_dof]) for i in range(self.full_N_dof)]
+        else:
+            return self.qp_pairs
     
     @property
     def full_values(self):

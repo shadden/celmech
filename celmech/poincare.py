@@ -36,8 +36,21 @@ def num_passed(iterable): # returns num of entries in iterable that are not None
 
 def _get_a0_symbol(i):
     return symbols(r"a_{{{0}\,0}}".format(i),positive=True)
+
 def _get_Lambda0_symbol(i):
     return symbols(r"\Lambda_{{{0}\,0}}".format(i),positive=True)
+
+def get_symbol(latex, i, positive=None): # i=None, kwargs
+    if positive:
+        return symbols(r"{0}_{{{1}}}".format(latex, i), positive=positive)
+    else:
+        return symbols(r"{0}_{{{1}}}".format(latex, i))
+
+def get_symbol0(latex, i, positive=None):
+    if positive:
+        return symbols(r"{0}_{{{1}\,0}}".format(latex, i), positive=positive)
+    else:
+        return symbols(r"{0}_{{{1}\,0}}".format(latex, i))
 
 class PoincareParticle(object):
     """
