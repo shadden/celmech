@@ -39,11 +39,11 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
     coordinates : str
         The coordinate system to use for calculating orbital elements. 
         This can be:
-            - 'jacobi' : Use Jacobi coordinates (including Jacobi masses)
-            - 'barycentric' : Use barycentric coordinates.
-            - 'heliocentric' : Use canonical heliocentric elements. 
-            The canonical cooridantes are heliocentric distance vectors.
-            The conjugate momenta are barycentric momenta.
+        | - 'jacobi' : Use Jacobi coordinates (including Jacobi masses)
+        | - 'barycentric' : Use barycentric coordinates.
+        | - 'heliocentric' : Use canonical heliocentric elements. 
+        | The canonical cooridantes are heliocentric distance vectors.
+        | The conjugate momenta are barycentric momenta.
 
     Returns
     -------

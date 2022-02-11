@@ -8,12 +8,31 @@ from ctypes import POINTER,c_int,c_double,c_long
 _machine_eps = np.finfo(np.float64).eps
 
 def get_symbol(latex, subscript=None, **kwargs): # i=None, kwargs
+    """
+    Get a sympy sympy based on an input LaTeX string.
+    Valid keyword arguments for the function ``sympy.symbols``
+    can also be passed. 
+
+    Arguments
+    ---------
+    latex : string
+        LaTeX expression to render as a sympy symbol
+    subscript : string or int, optional
+        A subscript for the sympy symbol
+
+    Returns
+    -------
+    sympy symbol
+    """
     if subscript:
         return symbols(r"{0}_{{{1}}}".format(latex, subscript), **kwargs)
     else:
         return symbols(r"{0}".format(latex), **kwargs)
 
 def get_symbol0(latex, subscript=None, **kwargs): # i=None, kwargs
+    """
+    Same as :func:`get_symbol`, but appends a "0" to the subscript.
+    """
     if subscript:
         return symbols(r"{0}_{{{1}\,0}}".format(latex, subscript), **kwargs)
     else:
@@ -64,6 +83,7 @@ def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     else:
         warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
+
 def _sk_integral_fixed_quad(k,y,Nquad):
 
     # Get numerical quadrature nodes and weight
@@ -123,6 +143,7 @@ def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     else:
         warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
+
 def _Dsk_integral_fixed_quad(k,y,Nquad):
 
     # Get numerical quadrature nodes and weight
@@ -158,7 +179,6 @@ def getOmegaMatrix(n):
          np.concatenate([-np.eye(n),np.zeros((n,n))]).T
         )
     )
-
 ######################################################
 ################ AMD Calculation #####################
 ######################################################
@@ -478,7 +498,8 @@ def holman_weigert_stability_boundary(mu,e,Ptype=True):
 from sympy import diff, Matrix
 def poisson_bracket(f,g,re_varslist,complex_varslist):
     r"""
-    Calculate the Poisson bracket 
+    Calculate the Poisson bracket
+
     .. math::
         [f,g] = \sum_{i=1}^N
         \frac{\partial f}{\partial q_i}
@@ -542,7 +563,7 @@ def truncated_expansion(exprn,order_rules,max_order):
     order_rules : dict
         A dictionary specifying what order various variables
         should be assumed to have in the book-keeping parameter.
-        Each key-value pair `{n:[x_1,x_2,..,x_m]}` in `order_rules`
+        Each key-value pair ``{n:[x_1,x_2,..,x_m]}`` in ``order_rules``
         specifies that a set of variables 
 
         .. math::
