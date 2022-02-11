@@ -401,7 +401,7 @@ class CanonicalTransformation():
         return cls(qpold,qpnew,o2n_full,n2o_full,params = params)
     
     @classmethod
-    def actions_to_delta_actions(cls, old_qp_vars, actions, delta_actions, actions_ref, params):
+    def actions_to_delta_actions(cls, old_qp_vars, actions, delta_actions, actions_ref, params={}):
         r"""
         Generate a canonical transformation applicable to a 
         PoincareHamiltonian object, `pham`, that replaces 
