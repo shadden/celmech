@@ -1,5 +1,5 @@
 import numpy as np
-from .miscellaneous import PoissonBracket
+from .miscellaneous import poisson_bracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul,S
 from sympy import trigsimp, simplify, postorder_traversal, powsimp
 from sympy import Add
@@ -184,11 +184,11 @@ class CanonicalTransformation():
         return old_ham
     
     def _test_new_to_old_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.old_qp_vars,[]) / self.H_scale
+        pb = lambda q,p: poisson_bracket(q,p,self.old_qp_vars,[]) / self.H_scale
         return [pb(self.new_to_old(qq),self.new_to_old(pp)).simplify() for qq,pp in self.new_qp_pairs]
 
     def _test_old_to_new_canonical(self):
-        pb = lambda q,p: PoissonBracket(q,p,self.new_qp_vars,[]) * self.H_scale
+        pb = lambda q,p: poisson_bracket(q,p,self.new_qp_vars,[]) * self.H_scale
         return [pb(self.old_to_new(qq),self.old_to_new(pp)).simplify() for qq,pp in self.old_qp_pairs]
    
     @property 

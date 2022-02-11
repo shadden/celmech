@@ -474,26 +474,26 @@ def holman_weigert_stability_boundary(mu,e,Ptype=True):
     return aC
 #######################
 from sympy import diff, Matrix
-def PoissonBracket(f,g,re_varslist,complex_varslist):
+def poisson_bracket(f,g,re_varslist,complex_varslist):
     r"""
     Calculate the Poisson bracket 
-
     .. math::
         [f,g] = \sum_{i=1}^N
-                    \frac{\partial f}{\partial q_i}
-                    \frac{\partial g}{\partial p_i}
-                    -
-                    \frac{\partial f}{\partial p_i}
-                    \frac{\partial g}{\partial q_i}
-                -
-                i \sum_{j=1}^{M}
-                    \frac{\partial f}{\partial z_j}
-                    \frac{\partial g}{\partial \bar{z}_j}
-                    -
-                    \frac{\partial f}{\partial \bar{z}_j}
-                    \frac{\partial g}{\partial {z}_i}
-    where :code:`re_varslist` :math:`=(q_1,...,q_N,p_1,...,p_N)`
-    and :code:`complex_varslist` :math:`=(x_1,...,x_M,\bar{x}_1,...,\bar{x}_M)`.
+        \frac{\partial f}{\partial q_i}
+        \frac{\partial g}{\partial p_i}
+        -
+        \frac{\partial f}{\partial p_i}
+        \frac{\partial g}{\partial q_i}
+        -
+        i \sum_{j=1}^{M}
+        \frac{\partial f}{\partial z_j}
+        \frac{\partial g}{\partial \bar{z}_j}
+        -
+        \frac{\partial f}{\partial \bar{z}_j}
+        \frac{\partial g}{\partial {z}_i}
+
+    where :code:`re_varslist` is :math:`=(q_1,...,q_N,p_1,...,p_N)`
+    and :code:`complex_varslist` is :math:`=(x_1,...,x_M,\bar{x}_1,...,\bar{x}_M)`.
 
     Arguments
     ---------

@@ -6,7 +6,7 @@ from collections import OrderedDict, UserDict
 import numpy as np
 from scipy.integrate import ode
 import scipy.special
-from .miscellaneous import PoissonBracket
+from .miscellaneous import poisson_bracket
 
 def _my_elliptic_e(*args):
     if len(args) == 1:
@@ -338,7 +338,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self.H,self.qp_vars,[])
+        return poisson_bracket(exprn,self.H,self.qp_vars,[])
 
     def N_Lie_deriv(self,exprn):
         r"""
@@ -357,7 +357,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return PoissonBracket(exprn,self._N_H,self.qp_vars,[])
+        return poisson_bracket(exprn,self._N_H,self.qp_vars,[])
 
     def integrate(self, time, integrator_kwargs={}):
         """

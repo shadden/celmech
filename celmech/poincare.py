@@ -2,7 +2,7 @@ import numpy as np
 from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian,PhaseSpaceState
-from .miscellaneous import PoissonBracket
+from .miscellaneous import poisson_bracket
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
