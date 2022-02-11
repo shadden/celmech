@@ -58,7 +58,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
 
     def _get_approximate_corrections(self,y):
         corrections = np.zeros(y.shape)
-        for i,deriv_func in enumerate(self.Nderivs):
+        for i,deriv_func in enumerate(self.N_derivs):
             corrections[i] = deriv_func(*y)
         return corrections
 
