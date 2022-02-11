@@ -416,6 +416,7 @@ class Hamiltonian(object):
         self._flow = Matrix(flow)
         self._jac = Matrix(N_dim,N_dim, lambda i,j: diff(flow[i],qp_vars[j]))
 
+        # is this used anywhere?
         self._N_derivs = [lambdify(qp_vars,fun,**_lambdify_kwargs) for fun in Nflow]
         self._Nflow = lambdify(qp_vars,Nflow,**_lambdify_kwargs)
         NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))

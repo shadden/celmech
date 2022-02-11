@@ -3,13 +3,13 @@ from .miscellaneous import sk,Dsk
 
 class StandardMap():
     r"""
-    A class representing the Chirikov standard map.
+    A class representing the `Chirikov standard map`_.
     The map depends on a single parameter, :math:`K` 
     and is defind by
 
     .. math::
         \begin{align}
-            p' &=& p + K  \sin\theta
+            p' &=& p + K  \sin\theta\\
             \theta' &=& \theta + p'
         \end{align}
 
@@ -17,6 +17,8 @@ class StandardMap():
     the :math:`\theta` coordinate taken mod :math:`2\pi`.
     The parameter `mod_p=True` can be set to take the 
     :math:`p` coordinate modulo :math:`2\pi` as well.
+
+    .. _Chirikov standard map: https://en.wikipedia.org/wiki/Standard_map
 
     Parameters
     ----------
@@ -39,9 +41,17 @@ class StandardMap():
 
     @property
     def mod_theta(self):
+        r"""
+        Is the coordinate :math:`\theta` calculated
+        modulo :math:`2\pi`?
+        """
         return self._mod_theta
     @property
     def mod_p(self):
+        r"""
+        Is the coordinate :math:`p` calculated
+        modulo :math:`2\pi`?
+        """
         return self._mod_p
     @mod_theta.setter
     def mod_theta(self,value):
@@ -73,6 +83,26 @@ class StandardMap():
         return x1
 
     def inv(self,x):
+        r"""
+        The inverse mapping
+
+        .. math::
+            \begin{align}
+            \theta &=& p' - \theta' \\
+            p &=& p' - K \sin\theta
+            \end{align}
+
+
+        Arguments
+        ---------
+        x : array-like
+            The point :math:`(\theta',p')`
+
+        Returns
+        -------
+        array-like
+            The point :math:`(\theta,p)`
+        """
         theta1,p1 = x
         theta = theta1 - p1
         p = p1 - self.K * np.sin(theta)
@@ -89,8 +119,8 @@ class StandardMap():
             The point at which derivatives
             are to be evaluated
         Nmax : int
-            Maximum order of the partial 
-            derivatives
+            Maximum order of the partial
+            derivatives to return
 
         Returns
         -------
@@ -103,7 +133,7 @@ class StandardMap():
             .. math::
                 \frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i
 
-            Note that T[:,0,0] give the value of the map.
+            Note that ``T[:,0,0]`` give the value of the map.
         """
         theta,p = x
         c,s = np.cos(theta),np.sin(theta)
@@ -193,6 +223,39 @@ class StandardMap():
         return jac
 
 class EncounterMap():
+    r"""
+    A class representing the encounter map.
+    The map depends on three parameters,
+    :math:`\epsilon,y`, and :math:`J`.
+    The map is defined by the equations
+
+    .. math::
+        \begin{align}
+        x' &= x + \epsilon f(\theta;y)
+        \\
+        \theta' &= \theta + 2\pi(J-x')
+        \end{align}
+
+    By default, the map is defined on the cylinder with
+    the :math:`\theta` coordinate taken mod :math:`2\pi`.
+    The parameter `mod_p=True` can be set to take the 
+    :math:`p` coordinate modulo :math:`2\pi` as well.
+
+    .. _Chirikov standard map: https://en.wikipedia.org/wiki/Standard_map
+
+    Parameters
+    ----------
+    K : float
+        Map non-linearity parameter.
+    mod_theta : bool, optional
+        If True, the :math:`\theta` coordinate
+        is taken modulo :math:`2\pi`.
+        Default is `True`
+    mod_p : bool, optional
+        If True, the :math:`p` coordinate
+        is taken modulo :math:`2\pi`.
+        Default is `False`.
+    """
     def __init__(self,m,J,y0, Nmax=7, mod = True):
         self.m = m
         self.J = J

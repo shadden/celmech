@@ -29,4 +29,5 @@ You may also want to check out the `Git repository <https://github.com/shadden/c
     secular
     numerical_resonance_models   
     andoyer
+    maps
     miscellaneous 

@@ -21,11 +21,11 @@ def get_symbol0(latex, subscript=None, **kwargs): # i=None, kwargs
 
 def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
-    Approximate disturibing function coefficient described in 
-    Hadden & Lithwick (2018) [#]_
+    Approximate disturibing function coefficient described in
+    `Hadden & Lithwick (2018)`_
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract>`
-    
+    .. _Hadden & Lithwick (2018): https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract
+
     Quadrature routine based on scipy.quadrature.
 
     Arguments
@@ -81,9 +81,9 @@ def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
     Derivative of disturibing function coefficient s_k
     with respect to argument y. Coefficients are described 
-    in Hadden & Lithwick (2018) [#]_
+    in `Hadden & Lithwick (2018)`_
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract>`
+    .. _Hadden & Lithwick (2018): https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract
     
     Quadrature routine based on scipy.quadrature.
 
@@ -381,12 +381,14 @@ def _nearest_pow2(x):
 	return int(2**np.floor(np.log2(x)))
 def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
     """
-    Apply the frequency-modified Fourier transfrorm algorithm (Šidlichovský & Nesvorný 1996) [#]_
+    Apply the frequency-modified Fourier transfrorm algorithm of `Šidlichovský & Nesvorný (1996)`_
     to a time series to determine the series' principle Fourier modes. This function simply
-    proivdes a wrapper to to C implementation written by D. Nesvorný available at 
-    https://www-n.oca.eu/nesvorny/programs.html.
+    proivdes a wrapper to to C implementation written by D. Nesvorný available
+    at `www-n.oca.eu/nesvorny/programs.html`_.
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1996CeMDA..65..137S/abstract>`
+
+    .. _Šidlichovský & Nesvorný (1996): https://ui.adsabs.harvard.edu/abs/1996CeMDA..65..137S/abstract>
+    .. _www-n.oca.eu/nesvorny/programs.html: https://www-n.oca.eu/nesvorny/programs.html
 
     Arguments
     ---------
@@ -424,11 +426,11 @@ def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_fr
 
 def holman_weigert_stability_boundary(mu,e,Ptype=True):
     r"""
-    Compute the critical semi-major axis represnting an approximate 
+    Compute the critical semi-major axis represnting an approximate
     stability boundary for circumbinary planets in P- or S-type orbits.
-    Formulas for critical semi-major axes are taken from Holman & Wiegert (1999)[#]_
-    
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1999AJ....117..621H/abstract>`
+    Formulas for critical semi-major axes are taken from `Holman & Wiegert (1999)`_
+
+    .. _Holman & Wiegert (1999): https://ui.adsabs.harvard.edu/abs/1999AJ....117..621H/abstract
 
     Arguments
     ---------

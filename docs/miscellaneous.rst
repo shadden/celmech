@@ -14,7 +14,7 @@ N-body simulation utilities
        sets the time step of a simulation to a user-specified fraction of the
        shortest perihelion passage timescale.
     3. :func:`calculate_mutual_inclinations<celmech.nbody_simulation_utilities.calculate_mutual_inclinations>` computes the mutual inclinations between pairs of planets in a simulation.
-    4. :func:`algin_simulation` aligns a ``rebound`` simulation so that the total angular momentum is oriented along the 
+    4. :func:`align_simulation<celmech.nbody_simulation_utilities.align_simulation>` aligns a ``rebound`` simulation so that the total angular momentum is oriented along the 
        :math:`z` axis.
 
 
