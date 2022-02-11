@@ -2,17 +2,29 @@ import numpy as np
 import rebound as rb
 import reboundx as rbx
 
-def set_timestep(sim,dtfactor):
-        ps=sim.particles[1:sim.N_real]
-        tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
-        dt = tperi * dtfactor
-        sim.dt = dt
+def set_time_step(sim,dtfactor):
+    r"""
+    Set the time step of a simulation to a fraction,``dtfactor``,
+    of the minimum perihelion passage timescale, defined as
+    
+    .. math::
+        \tau_{p} = P\sqrt{\frac{(1-e)^3}{1+e}}~.
+    
+    Generally, the time step of `WHFAST` should be set to 
+    :math:`\lesssim\tau_p/20` in order to obtain reliable
+    results (see :ref:`Wisdom 2015
+    <https://ui.adsabs.harvard.edu/abs/2015AJ....150..127W/abstract>`)
+    """
+    ps=sim.particles[1:sim.N_real]
+    tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
+    dt = tperi * dtfactor
+    sim.dt = dt
 def set_min_distance(sim,rhillfactor):
-        ps=sim.particles[1:sim.N_real]
-        mstar = sim.particles[0].m
-        rhill = np.min([ p.rhill for p in ps if p.m > 0])
-        mindist = rhillfactor * rhill
-        sim.exit_min_distance = mindist
+    ps=sim.particles[1:sim.N_real]
+    mstar = sim.particles[0].m
+    rhill = np.min([ p.rhill for p in ps if p.m > 0])
+    mindist = rhillfactor * rhill
+    sim.exit_min_distance = mindist
 
 def get_simarchive_integration_results(sa,coordinates='jacobi'):
     """
