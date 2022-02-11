@@ -6,6 +6,19 @@ from . import clibcelmech
 from ctypes import POINTER,c_int,c_double,c_long
 
 _machine_eps = np.finfo(np.float64).eps
+
+def get_symbol(latex, subscript=None, **kwargs): # i=None, kwargs
+    if subscript:
+        return symbols(r"{0}_{{{1}}}".format(latex, subscript), **kwargs)
+    else:
+        return symbols(r"{0}".format(latex), **kwargs)
+
+def get_symbol0(latex, subscript=None, **kwargs): # i=None, kwargs
+    if subscript:
+        return symbols(r"{0}_{{{1}\,0}}".format(latex, subscript), **kwargs)
+    else:
+        return symbols(r"{0}_0".format(latex), **kwargs)
+
 def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
     Approximate disturibing function coefficient described in 
