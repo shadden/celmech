@@ -216,6 +216,32 @@ class CanonicalTransformation():
 
     @classmethod
     def from_type2_generating_function(cls,F2func,old_qp_vars,new_qp_vars,**kwargs):
+        r"""
+        Initialize a canonical transformation derived from a `type 2 generating
+        function`_. Given a set of old variables :math:`(q,p)`, new variables,
+        :math:`(Q,P)` and generating function :math:`F_2(q,P)`, the 
+        transformation rules are given by
+
+        .. math::
+            p &=& \frac{\partial }{\partial q}F_2(q,P) \\ 
+            Q &=& \frac{\partial }{\partial P}F_2(q,P) 
+
+        .. type 2 generating function: https://en.wikipedia.org/wiki/Canonical_transformation#Type_2_generating_function
+
+        Arguments
+        ---------
+        F2func : sympy expression
+            The type 2 generating function
+        old_qp_vars : array-like
+            The list of old canonical variables
+        new_qp_vars : array-like
+            The list of new canonical variables
+
+        Returns
+        -------
+        celmech.canonical_transformations.CanonicalTransformation
+            The resulting transformation.
+        """
         N_dof = int(len(old_qp_vars)/2)
         old_qp_pairs = [(old_qp_vars[i], old_qp_vars[i+N_dof]) for i in range(N_dof)]
         new_qp_pairs = [(new_qp_vars[i], new_qp_vars[i+N_dof]) for i in range(N_dof)]
