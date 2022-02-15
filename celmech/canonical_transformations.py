@@ -190,7 +190,18 @@ class CanonicalTransformation():
     def _test_old_to_new_canonical(self):
         pb = lambda q,p: poisson_bracket(q,p,self.new_qp_vars,[]) * self.H_scale
         return [pb(self.old_to_new(qq),self.old_to_new(pp)).simplify() for qq,pp in self.old_qp_pairs]
-   
+    def test_canonical(self):
+        """
+        Test whether the substitution rules of this tranformation constitute 
+        a canonical transformation.
+
+        Returns
+        -------
+        bool :
+            Returns ``True`` if the transformation is canonical.
+        """
+        return self._test_new_to_old_canonical() and
+    self._test_old_to_new_canonical()
     @property 
     def N_dof(self):
         return int(len(self.old_qp_vars)/2)
