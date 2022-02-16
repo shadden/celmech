@@ -459,12 +459,14 @@ def holman_weigert_stability_boundary(mu,e,Ptype=True):
 
       .. math::
         \mu = \frac{m_B}{m_A+m_B}
+
       where math:`m_A` and math:`m_B` are the component masses of the binary.
     e : float
-      The eccentricity of the binary. 
+      The eccentricity of the binary.
     Ptype : bool, optional
-      If `True` (default) orbit is assumed to be a P-type circumbinary orbit. 
-      If `False`, a S-type circum-primary/secondary orbit is considered.
+      If ``True`` (default) orbit is assumed to be a P-type circumbinary orbit.
+      If ``False``, a S-type circum-primary/secondary orbit is considered.
+
     Returns
     -------
     aC : float

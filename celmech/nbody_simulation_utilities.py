@@ -144,10 +144,10 @@ def _get_reboundx_simarchive_integration_results(sa,coordinates):
 def get_canonical_heliocentric_orbits(sim):
     """
     Compute orbital elements in canonical
-    heliocentric coordinates `(e.g., Laskar & Robutel 1995)`_,
-    in the center-of-mass frame (so p0 = 0).
+    heliocentric coordinates (e.g., `Laskar & Robutel 1995`_),
+    in the center-of-mass frame.
     
-    _(e.g., Laskar & Robutel 1995): https://ui.adsabs.harvard.edu/abs/1995CeMDA..62..193L/abstract
+    .. _Laskar & Robutel 1995: https://ui.adsabs.harvard.edu/abs/1995CeMDA..62..193L/abstract
 
     Arguments:
     ----------
