@@ -200,8 +200,7 @@ class CanonicalTransformation():
         bool :
             Returns ``True`` if the transformation is canonical.
         """
-        return self._test_new_to_old_canonical() and
-    self._test_old_to_new_canonical()
+        return self._test_new_to_old_canonical() and self._test_old_to_new_canonical()
     @property 
     def N_dof(self):
         return int(len(self.old_qp_vars)/2)
