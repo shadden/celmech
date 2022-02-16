@@ -283,7 +283,7 @@ class CanonicalTransformation():
         kwargs.setdefault("old_to_new_simplify",_termwise_trigsimp)
         kwargs.setdefault("new_to_old_simplify",n2o_simplify)
         new_qp_vars = new_q + new_p
-        return cls(old_qp_vars,new_qp_vars,o2n,n2o,o2n_simplify,**kwargs)
+        return cls(old_qp_vars,new_qp_vars,o2n,n2o,**kwargs)
     
     @classmethod
     def polar_to_cartesian(cls,old_qp_vars,indices=None,cartesian_symbol_pairs=None,**kwargs):
