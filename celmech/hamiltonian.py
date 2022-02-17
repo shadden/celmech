@@ -58,7 +58,7 @@ class PhaseSpaceState(object):
     values : list
         List of the numerical values of `qp_vars`.
     """
-    def __init__(self, qp_vars, values, t = 0):
+    def __init__(self, qp_vars, values, t=0):
         """
         Arguments
         ---------
@@ -129,7 +129,6 @@ class Fullqp(MutableMapping):
         except:
             try:
                 self.hamiltonian.H_params[key] = value
-                self.hamiltonian._needs_update = True
             except:
                 raise AttributeError('Variable {0} not found'.format(key))
 
@@ -203,7 +202,8 @@ class Hamiltonian(object):
     def H(self, H):
         self._H = H
         self._needs_update = True
-    
+   
+    # Property so that user can't inadvertently replace it with a regular dictionary
     @property
     def H_params(self):
         return self._H_params
@@ -357,7 +357,7 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
-        return poisson_bracket(exprn,self._N_H,self.qp_vars,[])
+        return poisson_bracket(exprn,self.N_H,self.qp_vars,[])
 
     def integrate(self, time, integrator_kwargs={}):
         """
@@ -376,16 +376,19 @@ class Hamiltonian(object):
             keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
-        # can we remove this block?
+        # Sync the integrator time and values with what's in self.state in case user has changed it
+        self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
         except:
             raise AttributeError("Need to initialize Hamiltonian")
+        # Sync self.state with outcome of integration
         self.state.t = self.integrator.t
         self.state.values = self.integrator.y
         #self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
+        self._needs_update=False # reset flag up top to avoid infinite recursion
         self._N_H = self._H # reset to Hamiltonian with all parameters unset
         # 
         # Update raw numerical constants first then update functions
@@ -425,8 +428,6 @@ class Hamiltonian(object):
                 lambda t,y: self._Nflow(*y),
                 jac = lambda t,y: self._Njac(*y))
         self._integrator.set_integrator('dop853')# ('lsoda') #
-        self._integrator.set_initial_value(self.state.values)
-        self._needs_update=False
 
 def reduce_hamiltonian(ham):
     state = ham.state
