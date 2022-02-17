@@ -76,6 +76,8 @@ class PhaseSpaceState(object):
             state. Default value is 0.
         """
         self.t = t
+        assert len(qp_vars)==len(values), "'qp_vars' and 'values' must have the
+        same dimension."
         self.qp = OrderedDict(zip(qp_vars, values))
 
     @property
