@@ -357,6 +357,8 @@ class Hamiltonian(object):
         sympy expression
             sympy expression for the resulting derivative.
         """
+        if self._needs_update:
+            self._update()
         return poisson_bracket(exprn,self._N_H,self.qp_vars,[])
 
     def integrate(self, time, integrator_kwargs={}):
