@@ -871,6 +871,14 @@ class SecularSystemSimulation():
             raise ValueError("{} is not a valid method option.".format(method))
 
     @property
+    def t(self):
+        """Simulation time"""
+        return self.state.t
+    @t.setter
+    def t(self,val):
+        self.state.t = val
+
+    @property
     def dt(self):
         """Simulation time step"""
         return self._dt
@@ -1092,8 +1100,6 @@ class SecularSystemSimulation():
             (\eta_1,\eta_2,...,\eta_N,\rho_1,...,\rho_N,\kappa_1,...,\kappa_N,\sigma_1,...,\sigma_N)
 
         """
-        
-    
         vecs = np.reshape(self.state_vector,(-1,6))
         kappa = vecs[:,0]
         eta = vecs[:,1]
@@ -1118,16 +1124,22 @@ class SecularSystemSimulation():
             warnings.warn("Exact finish time is not currently implemented.")
 
         for i in xrange(Npl):
+            eta,kappa,rho,sigma = symbols("eta{0},kappa{0},rho{0},sigma{0}".format(i+1))
             # eta
-            state_vec[6*i+1] = qp[i]
+            self.state.qp[eta] =  qp[i]
+            # state_vec[6*i+1] = qp[i]
             # kappa
-            state_vec[6*i] = qp[i + 2 * Npl]
+            self.state.qp[kappa] = qp[i + 2 * Npl] 
+            #state_vec[6*i] = qp[i + 2 * Npl]
             # rho
-            state_vec[6*i+5] = qp[i + Npl]
+            #state_vec[6*i+5] = qp[i + Npl]
+            self.state.qp[rho] = qp[i +  Npl] 
             # sigma
-            state_vec[6*i+4] = qp[i + 3 * Npl]
-        self.update_state_from_vector(state_vec)
-        self.t += Nstep * self.dt
+            #state_vec[6*i+4] = qp[i + 3 * Npl]
+            self.state.qp[sigma] = qp[i + 3 * Npl] 
+        #self.update_state_from_vector(state_vec)
+        self.state.t += Nstep * self.dt
+
 
     def calculate_energy(self):
         qp = self.state_to_qp_vec()
