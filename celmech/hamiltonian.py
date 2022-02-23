@@ -1,5 +1,8 @@
 from sympy import S, diff, lambdify, symbols, Matrix, Expr
-from collections import MutableMapping
+try:
+    from collections.abc import MutableMapping
+except:
+    from collections import MutableMapping
 import pprint
 from numpy import array
 from collections import OrderedDict, UserDict
@@ -78,7 +81,7 @@ class PhaseSpaceState(object):
         self.t = t
         msg="'qp_vars' and 'values' must have the same dimension."
         assert len(qp_vars)==len(values), msg
-        self.qp = OrderedDict(zip(qp_vars, values))
+        self.qp = qpDict(qp_vars, values)
 
     @property
     def qp_vars(self):
@@ -111,47 +114,6 @@ class PhaseSpaceState(object):
         return s
     def __repr__(self):
         return "PhaseSpaceState(qp_vars={0}, values={1}, t={2})".format(self.qp_vars, self.values, self.t)
-
-class Fullqp(MutableMapping):
-    def __init__(self, hamiltonian):
-        self.hamiltonian = hamiltonian
-
-    def __getitem__(self, key):
-        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (in case of reduced hamiltonian)
-            return self.hamiltonian.qp[key]
-        except:
-            try:
-                return self.hamiltonian.H_params[key]
-            except:
-                raise AttributeError('Variable {0} not found'.format(key))
-
-    def __setitem__(self, key, value):
-        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (in case of reduced hamiltonian)
-            self.hamiltonian.qp[key] = value
-        except:
-            try:
-                self.hamiltonian.H_params[key] = value
-            except:
-                raise AttributeError('Variable {0} not found'.format(key))
-
-    def __delitem__(self, key):
-        raise AttributeError("deleting variables not implemented.")
-
-    def __iter__(self):
-        for key in self.hamiltonian.full_qp_vars:
-            yield key
-
-    def __len__(self):
-        return len(self.hamiltonian.full_qp_vars)
-
-class ParamDict(UserDict):
-    def __init__(self, hamiltonian, params):
-        self.hamiltonian = hamiltonian
-        super().__init__(params)
-
-    def __setitem__(self, key, value):
-        self.hamiltonian._needs_udpate = True
-        super().__setitem__(key, value)
 
 class Hamiltonian(object):
     """
@@ -459,3 +421,99 @@ def reduce_hamiltonian(ham):
     new_state = PhaseSpaceState(new_qp_vars, new_vals,state.t)
     new_ham = Hamiltonian(ham.H,new_params,new_state, full_qp_vars = ham.full_qp_vars)
     return new_ham
+
+class qpDict(MutableMapping):
+    def __init__(self, qp_vars, values):
+        self._qp = OrderedDict(zip(qp_vars, values))
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            if key >= len(self._qp) or key < -len(self._qp):
+                raise AttributeError("Accessing qp dictionary with an index ({0}) that is out of bounds".format(key))
+            symbolkey = list(self._qp.keys())[key]
+            return self._qp[symbolkey]
+        else:
+            return self._qp[key]
+
+    def __setitem__(self, key, value):
+        if isinstance(key, int):
+            if key >= len(self._qp) or key < -len(self._qp):
+                raise AttributeError("Setting qp dictionary with an index ({0}) that is out of bounds".format(key))
+            symbolkey = list(self._qp.keys())[key]
+            self._qp[symbolkey] = value
+        else:
+            self._qp[key] = value
+
+    def __delitem__(self, key):
+        if isinstance(key, int):
+            if key >= len(self._qp) or key < -len(self._qp):
+                raise AttributeError("Deleting item in qp dictionary with an index ({0}) that is out of bounds".format(key))
+            symbolkey = list(self._qp.keys())[key]
+            del self._qp[symbolkey]
+        else:
+            del self._qp[key]
+
+    def __iter__(self):
+        return iter(self._qp)
+
+    def __len__(self):
+        return len(self._qp)
+
+    def __repr__(self):
+        return repr(self._qp)
+
+class Fullqp(MutableMapping):
+    def __init__(self, hamiltonian):
+        self.hamiltonian = hamiltonian
+
+    def __getitem__(self, key):
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (in case of reduced hamiltonian)
+            return self.hamiltonian.qp[key]
+        except:
+            try:
+                return self.hamiltonian.H_params[key]
+            except:
+                raise AttributeError('Variable {0} not found'.format(key))
+
+    def __setitem__(self, key, value):
+        try: # first try to find in the dynamical variables qp, if not, look for conserved quantities in H_params (in case of reduced hamiltonian)
+            self.hamiltonian.qp[key] = value
+        except:
+            try:
+                self.hamiltonian.H_params[key] = value
+            except:
+                raise AttributeError('Variable {0} not found'.format(key))
+
+    def __delitem__(self, key):
+        raise AttributeError("deleting variables not implemented.")
+
+    def __iter__(self):
+        for key in self.hamiltonian.full_qp_vars:
+            yield key
+
+    def __len__(self):
+        return len(self.hamiltonian.full_qp_vars)
+
+class ParamDict(MutableMapping):
+    def __init__(self, hamiltonian, params):
+        self.hamiltonian = hamiltonian
+        self._params = params.copy()
+
+    def __getitem__(self, key):
+        return self._params[key]
+    
+    def __setitem__(self, key, value):
+        self.hamiltonian._needs_udpate = True
+        self._params[key] = value
+    
+    def __delitem__(self, key):
+        del self._params[key]
+
+    def __iter__(self):
+        return iter(self._params)
+
+    def __len__(self):
+        return len(self._params)
+    
+    def __repr__(self):
+        return repr(self._params)
