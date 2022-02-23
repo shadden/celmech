@@ -3,6 +3,7 @@ from sympy import symbols, series
 from scipy.special import k0,k1,p_roots
 import warnings
 from . import clibcelmech
+from .nbody_simulation_utilities import get_canonical_heliocentric_orbits
 from ctypes import POINTER,c_int,c_double,c_long
 
 _machine_eps = np.finfo(np.float64).eps
@@ -286,15 +287,19 @@ def compute_AMD(sim):
     """
 
     pstar = sim.particles[0]
+    Mstar = pstar.m
     Ltot = pstar.m * np.cross(pstar.xyz,pstar.vxyz)
     ps = sim.particles[1:]
     Lmbda=np.zeros(len(ps))
     G = np.zeros(len(ps))
     Lhat = np.zeros((len(ps),3))
+    ch_orbits = get_canonical_heliocentric_orbits(sim)
     for k,p in enumerate(sim.particles[1:]):
-        orb = p.calculate_orbit(primary=pstar)
-        Lmbda[k] = p.m * np.sqrt(p.a)
-        G[k] = Lmbda[k] * np.sqrt(1-p.e*p.e)
+        orb = ch_orbits[k]
+        GMi = sim.G * (p.m + Mstar)
+        mu = p.m*Mstar/(p.m + Mstar)
+        Lmbda[k] = mu * np.sqrt(GMi * orb.a)
+        G[k] = Lmbda[k] * np.sqrt(1-orb.e*orb.e)
         hvec = np.cross(p.xyz,p.vxyz)
         Lhat[k] = hvec / np.linalg.norm(hvec)
         Ltot = Ltot + p.m * hvec
