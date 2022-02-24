@@ -12,7 +12,9 @@ def _cos_n_atan(x,y,n):
     Express cos(n*atan2(y,x)) in terms
     of x and y without trig functions.
     """
-    assert n.is_nonnegative
+    assert n.is_integer
+    if n<0:
+        return _cos_n_atan(x,y,-1*n)
     if n==0:
         return 1
     else:
@@ -24,7 +26,9 @@ def _sin_n_atan(x,y,n):
     Express sin(n*atan2(y,x)) in terms
     of x and y without trig functions.
     """
-    assert n.is_nonnegative
+    assert n.is_integer
+    if n<0:
+        return -1 * _sin_n_atan(x,y,-1*n)
     if n==0:
         return 0
     else:
@@ -44,21 +48,23 @@ def _simplify_atans(exprn):
     s = Function("s",real=True)
     cos_patt1 = cos(n_w * atan2(y_w,x_w))
     sin_patt1 = sin(n_w * atan2(y_w,x_w))
-    cos_patt2 = cos(a_w + n_w * atan2(y_w,x_w))
-    sin_patt2 = sin(a_w + n_w * atan2(y_w,x_w))
-    res = exprn.replace(cos_patt1,c(x_w,y_w,n_w))
+    #cos_patt2 = cos(a_w + n_w * atan2(y_w,x_w))
+    #sin_patt2 = sin(a_w + n_w * atan2(y_w,x_w))
+    res = TR10(exprn)
+    res = res.replace(cos_patt1,c(x_w,y_w,n_w))
     res = res.replace(sin_patt1,s(x_w,y_w,n_w))
-    res = res.replace(
-        cos_patt2,
-        c(x_w,y_w,n_w)*cos(a_w) - s(x_w,y_w,n_w)*sin(a_w)
-    )
-    res = res.replace(
-        sin_patt2,
-        s(x_w,y_w,n_w)*cos(a_w) + c(x_w,y_w,n_w)*sin(a_w)
-    )
+    #res = res.replace(
+    #    cos_patt2,
+    #    c(x_w,y_w,n_w)*cos(a_w) - s(x_w,y_w,n_w)*sin(a_w)
+    #)
+    #res = res.replace(
+    #    sin_patt2,
+    #    s(x_w,y_w,n_w)*cos(a_w) + c(x_w,y_w,n_w)*sin(a_w)
+    #)
     
     res = res.replace(c,_cos_n_atan)
     res = res.replace(s,_sin_n_atan)
+    res = TR10i(res)
     return res
 
 
