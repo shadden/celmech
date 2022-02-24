@@ -24,15 +24,15 @@ def _get_default_qpxy_symbols(N,cartesian_indices):
     return varpairs
 def _get_default_qp_symbols(N):
     default_qp_symbols=list(zip(
-        symbols("Q(1:{})".format(N+1)),
-        symbols("P(1:{})".format(N+1))
+        symbols("Q(1:{})".format(N+1),real=True),
+        symbols("P(1:{})".format(N+1),real=True)
     ))
     return default_qp_symbols
 
 def _get_default_xy_symbols(N):
     default_xy_symbols=list(zip(
-        symbols("x(1:{})".format(N+1)),
-        symbols("y(1:{})".format(N+1))
+        symbols("x(1:{})".format(N+1),real=True),
+        symbols("y(1:{})".format(N+1),real=True)
     ))
     return default_xy_symbols
 
