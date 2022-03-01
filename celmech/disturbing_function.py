@@ -178,6 +178,18 @@ def list_secular_terms(Nmin,Nmax):
                     args.append((js,nuc))
     return args
 
+def term_depends_on_eccentricities(kvec):
+    if kvec[2] != 0 or kvec[3] != 0:
+        return True
+    else:
+        return False
+
+def term_depends_on_inclinations(kvec):
+    if kvec[4] != 0 or kvec[5] != 0:
+        return True
+    else:
+        return False
+
 def laplace_b(s,j,n,alpha):
     r"""
     Calculates :math:`n`th derivative with respect to :math:`\alpha` of Laplace coefficient :math:`b_s^j(\alpha)`.

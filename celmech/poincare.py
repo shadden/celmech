@@ -4,6 +4,8 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import list_resonance_terms, list_secular_terms
+from .disturbing_function import term_depends_on_eccentricities, term_depends_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
@@ -641,6 +643,70 @@ class PoincareHamiltonian(Hamiltonian):
         self.resonance_indices.append((indexIn,indexOut,(kvec,nuvec)))
         
         self.H += prefactor1 * Ctot * prefactor2 * trig_term
+    
+    def add_terms_from_list(self, terms, indexIn=1, indexOut=2, lmax=0, eccentricities=True, inclinations=True):
+        for term in terms:
+            kvec, nuvec = term
+            if eccentricities == False and term_depends_on_eccentricities(kvec) == True:
+                continue 
+            if inclinations == False and term_depends_on_inclinations(kvec) == True:
+                continue 
+            self.add_cosine_term(kvec, nuvec, indexIn, indexOut, lmax)
+
+
+    def add_MMR_terms(self, j, k, max_ei_order=None, indexIn = 1, indexOut = 2, lmax=0, eccentricities=True, inclinations=True):
+        """
+        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
+        motion resonance up to a given order.
+
+        Arguments
+        ---------
+        p : int
+            Coefficient of lambdaOut in resonant argument
+                j*lambdaOut - (j-k)*lambdaIn
+        q : int
+            Order of the mean motion resonance.
+        max_order : int
+            Maximum order of terms to add.
+        indexIn : int
+            Index of inner planet.
+        indexOut : int
+            Index of outer planet.
+        lmax : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
+        """
+        if j<k or k<0:
+            warnings.warn("""
+            MMRs with j<k or k<0 are not supported. 
+            If you really want to include these terms, 
+            they may be added individually with the 
+            'add_cosine_term' method.
+            """)
+        if abs(j) % k == 0 and k != 1:
+            warnings.warn("j and k share a common divisor. Some important terms may be omitted!")
+        
+        if not max_ei_order:
+            max_ei_order = k
+        if max_ei_order < k:
+            warnings.warn("""Maxmium order is lower than order of the resonance!""")
+        assert max_ei_order>0, "max_ei_order= {:d} not allowed, must be non-negative.".format(max_ei_order)
+  
+        terms = list_resonance_terms(j, k, Nmin=1, Nmax=max_ei_order)
+        self.add_terms_from_list(terms, indexIn, indexOut, lmax, eccentricities, inclinations)
+    
+    def add_secular_terms(self, max_ei_order, indexIn = 1, indexOut = 2, lmax=0):
+        """
+        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
+        motion resonance up to a given order.
+
+        Arguments
+        ---------
+        """
+        assert max_ei_order>0, "max_order= {:d} not allowed,  must be non-negative.".format(max_ei_order)
+  
+        terms = list_secular_terms(Nmin=0, Nmax=max_ei_order)
+        self.add_terms_from_list(terms, indexIn, indexOut, lmax)
 
     def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',**kwargs):
         r"""
@@ -767,134 +833,6 @@ class PoincareHamiltonian(Hamiltonian):
             Lambda0 = _get_Lambda0_symbol(pid)
             a0 = _get_a0_symbol(pid)
             self.H += M * M * mu * full_exprn.subs({a0_d:a0,kappa_d:kappa,eta_d:eta,Lambda0_d:Lambda0})
-    
-    def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
-        r"""
-        Add all disturbing function terms associated with a p:p-q mean
-        motion resonance along with secular terms up to a given order.
-
-        Arguments
-        ---------
-        p : int
-            Coefficient of lambdaOut in resonant argument
-                p*lambdaOut - (p-q)*lambdaIn
-        q : int
-            Order of the mean motion resonance.
-        max_order : int
-            Maximum order of terms to add.
-        indexIn : int
-            Index of inner planet.
-        indexOut : int
-            Index of outer planet.
-        lmax : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
-            to include in cosine coefficients. Default is 0.
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        if p<q or q<0:
-            warnings.warn("""
-            MMRs with p<q or q<0 are not supported. 
-            If you really want to include these terms, 
-            they may be added individually with the 
-            'add_cosine_term' method.
-            """)
-        if max_order < q:
-            warnings.warn("""Maxmium order is lower than order of the resonance!""")
-        if abs(p) % q == 0 and q != 1:
-            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
-        max_order_by_2 = max_order // 2
-        for h in range(0,max_order_by_2+1):
-            if h==0:
-                k_lo = 0
-            else:
-                k_lo = -2 * max_order_by_2
-            for k in range(k_lo,2 * max_order_by_2 + 1):
-                s_hi = max_order-abs(h+k)-abs(h-k)
-                if h==0 and k==0:
-                    s_lo = 0
-                else:
-                    s_lo = -s_hi
-                for s in range(s_lo,s_hi+1):
-                    s1_hi = max_order - abs(h+k) - abs(h-k) - abs(s)
-                    if h==0 and k==0 and s==0:
-                        s1_lo = 0
-                    else:
-                        s1_lo = -s1_hi
-                    for s1 in range(s1_lo,s1_hi+1):
-                        k3 = -s
-                        k5 = -h-k
-                        k6 = k-h
-                        k4 = -s1
-                        tot = k3+k4+k5+k6
-                        if -p * tot % q == 0:
-                            k1 = -p * tot // (q)
-                            k2 = (p-q) * tot // (q)
-                            kvec = np.array([k1,k2,k3,k4,k5,k6],dtype=int)
-                            if k1 < 0:
-                                kvec *= -1
-                            self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,lmax=lmax)
-
-    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
-        """
-        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
-        motion resonance up to a given order.
-
-        Arguments
-        ---------
-        p : int
-            Coefficient of lambdaOut in resonant argument
-                j*lambdaOut - (j-k)*lambdaIn
-        q : int
-            Order of the mean motion resonance.
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        if p<q or q<0:
-            warnings.warn("""
-            MMRs with j<k or k<0 are not supported. 
-            If you really want to include these terms, 
-            they may be added individually with the 
-            'add_cosine_term' method.
-            """)
-        if max_order < q:
-            warnings.warn("""Maxmium order is lower than order of the resonance!""")
-        if abs(p) % q == 0 and q != 1:
-            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
-        for n in range(1,int(max_order//q) + 1):
-            k1 = n * p
-            k2 = n * (q-p)
-            for l in range(0, n * q + 1):
-                k3 = -l
-                k4 = l - n*q
-                kvec = [k1,k2,k3,k4,0,0]
-                self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,lmax=lmax)
-    
-    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,lmax=0):
-        """
-        Add disturbing function term 
-           c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
-        approximating c up to order 'max_order' in eccentricity and inclination.
-
-        Arguments
-        ---------
-        jvec : array-like
-            Vector of integers specifying cosine argument.
-        max_order : int
-            Maximum order of terms in include in the expansion of c
-        indexIn : int, optional
-            Integer index of inner planet.
-        indexOut : anit, optional
-            Intgeger index of outer planet.
-        """
-        _,_,j3,j4,j5,j6 = jvec
-        order = max_order - abs(j3) - abs(j4) - abs(j5) - abs(j6)
-        orderBy2 = order // 2
-        N = orderBy2+1
-        for z1 in range(0,N):
-            for z2 in range(0,N - z1):
-                for z3 in range(0,N - z1 - z2):
-                    for z4 in range(0,N - z1 - z2 - z3):
-                        zvec  = [z1,z2,z3,z4]
-                        self.add_cosine_term(jvec,zvec,indexIn,indexOut,lmax=lmax)
 
     def _get_laplace_lagrange_matrices(self):
         set_e_and_inc_zero_rule = {
