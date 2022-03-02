@@ -326,7 +326,7 @@ class EncounterMap():
         theta,x = X
         eps = self.eps
         x1 = x + eps * self.f(theta)
-        theta1 = theta + 2*np.pi * (self.J - x1)
+        theta1 = theta - 2 * np.pi * x1
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
 
@@ -341,7 +341,7 @@ class EncounterMap():
     def inv(self,X):
         theta1,x1 = X
         eps = self.eps
-        theta = theta1 + 2 * np.pi * (x1 - self.J)
+        theta = theta1 + 2 * np.pi * x1 
         x = x1 - eps * self.f(theta)
         return (theta,x)
 
