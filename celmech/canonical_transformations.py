@@ -2,10 +2,72 @@ import numpy as np
 from .miscellaneous import poisson_bracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul,S
 from sympy import trigsimp, simplify, postorder_traversal, powsimp
-from sympy import Add
+from sympy import Add,Wild
 from sympy.simplify.fu import TR10,TR10i
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from .poincare import Poincare
+from sympy import Wild,atan2,sin,cos,Function,sqrt,expand,simplify
+def _cos_n_atan(x,y,n):
+    """
+    Express cos(n*atan2(y,x)) in terms
+    of x and y without trig functions.
+    """
+    assert n.is_integer
+    if n<0:
+        return _cos_n_atan(x,y,-1*n)
+    if n==0:
+        return 1
+    else:
+        r2 = x*x+y*y
+        r = sqrt(r2)
+        return x * _cos_n_atan(x,y,n-1)/r - y * _sin_n_atan(x,y,n-1)/r
+def _sin_n_atan(x,y,n):
+    """
+    Express sin(n*atan2(y,x)) in terms
+    of x and y without trig functions.
+    """
+    assert n.is_integer
+    if n<0:
+        return -1 * _sin_n_atan(x,y,-1*n)
+    if n==0:
+        return 0
+    else:
+        r2 = x*x+y*y
+        r = sqrt(r2)
+        return x*_sin_n_atan(x,y,n-1)/r + y*_cos_n_atan(x,y,n-1)/r
+
+def _simplify_atans(exprn):
+    """
+    Expand any occurences of cos(a + n atan(y,x)) 
+    and sin(a + n atan(y,x)).
+    """
+    pnames = ('a','x','y')
+    a_w,x_w,y_w = symbols(','.join(n_+"_w" for n_ in pnames),cls=Wild,real=True)
+    n_w = Wild('n_w',properties=(lambda x: x.is_integer,))
+    c = Function("c",real=True)
+    s = Function("s",real=True)
+    cos_patt1 = cos(n_w * atan2(y_w,x_w))
+    sin_patt1 = sin(n_w * atan2(y_w,x_w))
+    #cos_patt2 = cos(a_w + n_w * atan2(y_w,x_w))
+    #sin_patt2 = sin(a_w + n_w * atan2(y_w,x_w))
+    res = TR10(exprn)
+    res = res.replace(cos_patt1,c(x_w,y_w,n_w))
+    res = res.replace(sin_patt1,s(x_w,y_w,n_w))
+    #res = res.replace(
+    #    cos_patt2,
+    #    c(x_w,y_w,n_w)*cos(a_w) - s(x_w,y_w,n_w)*sin(a_w)
+    #)
+    #res = res.replace(
+    #    sin_patt2,
+    #    s(x_w,y_w,n_w)*cos(a_w) + c(x_w,y_w,n_w)*sin(a_w)
+    #)
+    
+    res = res.replace(c,_cos_n_atan)
+    res = res.replace(s,_sin_n_atan)
+    res = TR10i(res)
+    return res
+
+>>>>>>> origin/style_update
 
 def _termwise_trigsimp(exprn):
     if len(exprn.args)==0:
@@ -24,15 +86,15 @@ def _get_default_qpxy_symbols(N,cartesian_indices):
     return varpairs
 def _get_default_qp_symbols(N):
     default_qp_symbols=list(zip(
-        symbols("Q(1:{})".format(N+1)),
-        symbols("P(1:{})".format(N+1))
+        symbols("Q(1:{})".format(N+1),real=True),
+        symbols("P(1:{})".format(N+1),real=True)
     ))
     return default_qp_symbols
 
 def _get_default_xy_symbols(N):
     default_xy_symbols=list(zip(
-        symbols("x(1:{})".format(N+1)),
-        symbols("y(1:{})".format(N+1))
+        symbols("x(1:{})".format(N+1),real=True),
+        symbols("y(1:{})".format(N+1),real=True)
     ))
     return default_xy_symbols
 
@@ -313,8 +375,9 @@ class CanonicalTransformation():
                 new_p.append(qp[1])
 
         # A simplify function to remove arctans
-        atan2_simplify = lambda exprn: TR10i(simplify(TR10(exprn))) if _exprn_contains_funcs(exprn,[atan2]) else powsimp(exprn)
-        o2n_simplify = lambda x: x.func(*[atan2_simplify(a) for a in x.args]) if len(x.args) > 0 else x
+        o2n_simplify = lambda x: x.func(*[simplify(a.expand()) for a in _simplify_atans(x).args ]) if len(x.args)>0 else x
+        #atan2_simplify = lambda exprn: TR10i(simplify(TR10(exprn))) if _exprn_contains_funcs(exprn,[atan2]) else powsimp(exprn)
+        #o2n_simplify = lambda x: x.func(*[atan2_simplify(a) for a in x.args]) if len(x.args) > 0 else x
         kwargs.setdefault("old_to_new_simplify",o2n_simplify)
         new_qp_vars = new_q + new_p
         return cls(old_qp_vars,new_qp_vars,o2n,n2o,**kwargs)
