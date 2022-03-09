@@ -4,8 +4,9 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
-from .disturbing_function import list_resonance_terms, list_secular_terms
-from .disturbing_function import term_depends_on_eccentricities, term_depends_on_inclinations
+from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
+from .disturbing_function import k_depends_on_eccentricities, k_depends_on_inclinations
+from .disturbing_function import nu_depends_on_eccentricities, nu_depends_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
@@ -579,17 +580,83 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
 
-    def add_cosine_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0):
+    def add_cosine_term(self,k_vec,max_order=None,l_max=0,nu_vecs=None,l_vecs=None,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
         """
-        Add individual cosine term to Hamiltonian. The term 
-        is specified by 'kvec', which specifies the cosine argument
-        and 'zvec', which specfies the order of inclination and
-        eccentricities in the Taylor expansion of the 
-        cosine coefficient. 
+        Add a specific cosine term to the disturbing function up to an optional max_order in the eccentricities and inclinations.
+
+        Arguments
+        ---------
+        k_vec : Tuple of 6 ints 
+            Coefficients (k1, k2, k3, k4, k5, k6) for a cosine term of the form 
+            cos(k1*lambdaOut + k2*lambdaIn + k3*pomegaIn + k4*pomegaOut + k5*OmegaIn + k6*OmegaOut)
+            Note the ks must sum to zero, and by convention we write lambdaOut first, e.g., (3, -2, -1, 0, 0, 0) is
+            cos(3*lambdaOut - 2*lambdaIn - pomega1)
+        max_order : int, optional
+            Maximum order to go to in the (combined) eccentricities and inclinations.
+            Can specify either max_order OR nu_vecs (see below), but not both (most users will use max_order).
+            If neither are passed, max_order defaults to the leading order of the cosine term specified by k_vec.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0 to include in cosine coefficients. Default is 0.
+            Can specify either l_max OR l_vecs (see below), but not both (most users will use max_order).
+        nu_vecs: List of 4-tuples, optional
+            A list of the specific combinations of nu indices to include for the cosine term coefficient, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]
+            See paper and examples for definition and use.
+            Can specify either max_order OR nu_vecs, but not both (max_order makes more sense for most use cases).
+        l_vecs: List of 2-tuples, optional
+            A list of the specific combinations of l indices to include for the cosine term coefficient, e.g., [(0, 0), (1, 0), (2, 0), ...] 
+            See paper and examples for definition and use.
+            Can specify either l_max OR l_vecs, but not both (l_max makes more sense for most use cases).
+            One use case for passing particular l_vecs is if one body is massless, so the other Lambda doesn't vary (and doesn't need expansion)
+        indexIn : int, optional
+            Index of inner planet. Default 1.
+        indexOut : int, optional
+            Index of outer planet. Default 2.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
-            warnings.warn("Cosine term already included Hamiltonian; no new term added.")
+        if eccentricities == False and k_depends_on_eccentricities(k_vec) == True:
+            return 
+        if inclinations == False and k_depends_on_inclinations(k_vec) == True:
             return
+        if np.sum(k_vec) != 0:
+            raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
+        k1,k2,k3,k4,k5,k6 = k_vec
+        if nu_vecs:
+            if max_order:
+                raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
+        else:
+            min_order = abs(k1+k2) # this is the leading order for the cosine term chosen (k3+k4+k5+k6 = -(k1+k2) by d'Alembert)
+            if not max_order:
+                max_order = min_order
+            nu_max = (max_order - min_order)//2 # each nu contributes 2 powers of e or i, so divide by 2 rounding down
+            nu_vecs = []
+            for nu_tot in range(nu_max+1):
+                nu_vecs += _nucombos(nutot=nu_tot) # Make list of [(nu1, nu2, nu3, nu4), ... ] tuples
+        if l_vecs:
+            if l_max > 0:
+                raise AttributeError('Can only pass l_max OR l_vecs to add_cos_term. See docstring.')
+        else:
+            l_vecs = []
+            for l_tot in range(l_max+1):
+                l_vecs += _lcombos(ltot=l_tot) # Make list of [(l1, l2), ... ] tuples
+      
+        try:
+            if np.array(l_vecs).shape[1] != 2:
+                raise
+        except:
+            raise AttributeError("l_vecs = {0} must be a list of (l1, l2) pairs, e.g., [(0, 0), (0, 1), ...]".format(l_vecs))
+
+        try:
+            if np.array(nu_vecs).shape[1] != 4:
+                raise
+        except:
+            raise AttributeError("nu_vecs = {0} must be a list of (nu1, nu2, nu3, nu4) tuples, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]".format(nu_vecs))
+        lmax = np.max([l1+l2 for l1, l2 in l_vecs]) # maximum total l=l1+l2
+
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
@@ -602,61 +669,60 @@ class PoincareHamiltonian(Hamiltonian):
         deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
         # alpha = aIn/aOut
         # Resonance components
-        #
-        k1,k2,k3,k4,k5,k6 = kvec
-        nu1,nu2,nu3,nu4 = nuvec
-        C_dict = df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
-        p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
-        C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
-        Ctot = 0
-        for key,C_val in C_delta_expansion_dict.items():
-            l1,l2=key
-            Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
-            self.H_params[Csym] = C_val
-            Ctot += Csym * deltaIn**l1 * deltaOut**l2
-        rtLIn = sqrt(Lambda0In)
-        rtLOut = sqrt(Lambda0Out)
-        xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
-        xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
-        uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
-        uout,vout = get_re_im_components(sigmaOut/rtLOut/2, -rhoOut/rtLOut/2,k6)
+        
+        for nu_vec in nu_vecs:
+            if eccentricities == False and nu_depends_on_eccentricities(nu_vec) == True:
+                continue
+            if inclinations == False and nu_depends_on_inclinations(nu_vec) == True:
+                continue
 
-        re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
-        im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
-        
-        GammaIn = (kappaIn*kappaIn + etaIn*etaIn)/2
-        GammaOut = (kappaOut*kappaOut + etaOut*etaOut)/2
-        QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
-        QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
-        
-        eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
-        eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
-        incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
-        incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
-        
-        # Update internal Hamiltonian
-        prefactor1 = -G * mIn * mOut / aOut0
-        prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
-        trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
-        
-        # Keep track of resonances
-        self.resonance_indices.append((indexIn,indexOut,(kvec,nuvec)))
-        
-        self.H += prefactor1 * Ctot * prefactor2 * trig_term
+            C_dict = df_coefficient_C(*k_vec, *nu_vec)#k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+            p1,p2 = _p1_p2_from_k_nu(k_vec,nu_vec)
+            C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+            Ctot = 0
+            for l_vec,C_val in C_delta_expansion_dict.items():
+                if l_vec not in l_vecs: # have to calculate all terms up to lmax, but only consider if in l_vecs
+                    continue
+                l1,l2=l_vec
+                if l_vecs and (indexIn,indexOut,(k_vec,nu_vec,l_vec)) in self.resonance_indices:
+                    warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
+                    continue
+                else: # keep track of terms we add
+                    self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
+                Csym = get_df_coefficient_symbol(*k_vec,*nu_vec,*l_vec,indexIn,indexOut)
+                self.H_params[Csym] = C_val
+                Ctot += Csym * deltaIn**l1 * deltaOut**l2
+            nu1,nu2,nu3,nu4 = nu_vec
+            rtLIn = sqrt(Lambda0In)
+            rtLOut = sqrt(Lambda0Out)
+            xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
+            xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
+            uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
+            uout,vout = get_re_im_components(sigmaOut/rtLOut/2, -rhoOut/rtLOut/2,k6)
+
+            re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
+            im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
+            
+            GammaIn = (kappaIn*kappaIn + etaIn*etaIn)/2
+            GammaOut = (kappaOut*kappaOut + etaOut*etaOut)/2
+            QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
+            QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
+            
+            eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
+            eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
+            incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
+            incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
+            
+            # Update internal Hamiltonian
+            prefactor1 = -G * mIn * mOut / aOut0
+            prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
+            trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
+            
+            self.H += prefactor1 * Ctot * prefactor2 * trig_term
     
-    def add_terms_from_list(self, terms, indexIn=1, indexOut=2, lmax=0, eccentricities=True, inclinations=True):
-        for term in terms:
-            kvec, nuvec = term
-            if eccentricities == False and term_depends_on_eccentricities(kvec) == True:
-                continue 
-            if inclinations == False and term_depends_on_inclinations(kvec) == True:
-                continue 
-            self.add_cosine_term(kvec, nuvec, indexIn, indexOut, lmax)
-
-
-    def add_MMR_terms(self, j, k, max_ei_order=None, indexIn = 1, indexOut = 2, lmax=0, eccentricities=True, inclinations=True):
+    def add_MMR_terms(self,p,q,max_order=None,l_max=0,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
         """
-        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
+        Add all eccentricity and inclination disturbing function terms associated with a p:p-q mean
         motion resonance up to a given order.
 
         Arguments
@@ -668,45 +734,70 @@ class PoincareHamiltonian(Hamiltonian):
             Order of the mean motion resonance.
         max_order : int
             Maximum order of terms to add.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
         indexIn : int
             Index of inner planet.
         indexOut : int
             Index of outer planet.
-        lmax : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
-            to include in cosine coefficients. Default is 0.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if j<k or k<0:
+        if p<q or q<0:
             warnings.warn("""
-            MMRs with j<k or k<0 are not supported. 
+            MMRs with p<q or q<0 are not supported. 
             If you really want to include these terms, 
             they may be added individually with the 
             'add_cosine_term' method.
             """)
-        if abs(j) % k == 0 and k != 1:
-            warnings.warn("j and k share a common divisor. Some important terms may be omitted!")
+        if abs(p) % q == 0 and q != 1:
+            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
         
-        if not max_ei_order:
-            max_ei_order = k
-        if max_ei_order < k:
-            warnings.warn("""Maxmium order is lower than order of the resonance!""")
-        assert max_ei_order>0, "max_ei_order= {:d} not allowed, must be non-negative.".format(max_ei_order)
+        if not max_order:
+            max_order = q
+        if max_order < q:
+            warnings.warn("""Maximum order is lower than order of the resonance!""")
+        assert max_order>0, "max_order= {:d} not allowed, must be non-negative.".format(max_order)
   
-        terms = list_resonance_terms(j, k, Nmin=1, Nmax=max_ei_order)
-        self.add_terms_from_list(terms, indexIn, indexOut, lmax, eccentricities, inclinations)
+        terms = list_resonance_terms(p,q,min_order=q,max_order=max_order,eccentricities=eccentricities,inclinations=inclinations)
+        for k_vec, nu_vec in terms:
+            self.add_cosine_term(k_vec=k_vec,l_max=l_max,nu_vecs=[nu_vec],indexIn=indexIn,indexOut=indexOut)
     
-    def add_secular_terms(self, max_ei_order, indexIn = 1, indexOut = 2, lmax=0):
+    def add_secular_terms(self,min_order=2,max_order=2,l_max=0,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
         """
-        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
-        motion resonance up to a given order.
+        Add all eccentricity and inclination secular terms in the disturbing function from
+        min_order to max_order in the eccentricities and inclinations.
 
         Arguments
         ---------
+        min_order : int, optional
+            Minimum order terms in the eccentricities and inclinations to add. Defaults to 2. 
+        max_order : int, optional
+            Maximum order terms in the eccentricities and inclinations to add. Defaults to 2.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
+        indexIn : int
+            Index of inner planet.
+        indexOut : int
+            Index of outer planet.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        assert max_ei_order>0, "max_order= {:d} not allowed,  must be non-negative.".format(max_ei_order)
+        assert max_order>0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
   
-        terms = list_secular_terms(Nmin=0, Nmax=max_ei_order)
-        self.add_terms_from_list(terms, indexIn, indexOut, lmax)
+        terms = list_secular_terms(min_order=min_order,max_order=max_order,eccentricities=eccentricities,inclinations=inclinations)
+        for k_vec, nu_vec in terms:
+            self.add_cosine_term(k_vec=k_vec,l_max=l_max,nu_vecs=[nu_vec],indexIn=indexIn,indexOut=indexOut)
 
     def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',**kwargs):
         r"""

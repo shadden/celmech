@@ -5,7 +5,7 @@ from sympy import trigsimp, simplify, postorder_traversal, powsimp
 from sympy import Add
 from sympy.simplify.fu import TR10,TR10i
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
-from . import Poincare
+from .poincare import Poincare
 
 def _termwise_trigsimp(exprn):
     if len(exprn.args)==0:

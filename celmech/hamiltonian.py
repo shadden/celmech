@@ -499,6 +499,9 @@ class ParamDict(MutableMapping):
         self.hamiltonian = hamiltonian
         self._params = params.copy()
 
+    def copy(self):
+        return ParamDict(self.hamiltonian, self._params)
+
     def __getitem__(self, key):
         return self._params[key]
     

@@ -94,98 +94,131 @@ def df_arguments_dictionary(Nmax):
                     args_dict[N][dj*sgn].append((k3,k4,k5,k6))
     return args_dict
 
-def _nucombos_iter(nutot):
+def _nucombos(nutot):
+    nucombos = []
     for nu1 in range(nutot+1):
         for nu2 in range(nutot+1-nu1):
             for nu3 in range(nutot+1-nu1-nu2):
                 nu4 = nutot - nu1 - nu2 - nu3
-                yield (nu1,nu2,nu3,nu4)
+                nucombos.append((nu1, nu2, nu3, nu4))
+    return nucombos
+
+def _lcombos(ltot):
+    lcombos = []
+    for l1 in range(ltot+1):
+        l2 = ltot - l1
+        lcombos.append((l1, l2))
+    return lcombos
                 
-def list_resonance_terms(j,k,Nmin,Nmax):
+def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
     Generate the list of disturbing function terms for a
-    j:j-k resonance with eccentricity/inclination order
-    between Nmin and Nmax.
+    p:p-q resonance with eccentricity/inclination order
+    between min_order and max_order
 
     Arguments
     ---------
-    j : int
-     Determines resonance
-    k : int
-     Order of the resonance
-    Nmin : int
-     Minimum order of terms to include
-    Nmax : int
-     Maximum order of terms to include
+    p : int
+        Determines resonance
+    q : int
+        Order of the resonance
+    min_order : int, optional
+        Minimum order in eccentricities and inclinations to include. Defaults to order of the resonance q (leading order)
+    max_order: int
+        Maximum order in eccentricities and inclinations to include. Defaults to order of the resonance q (leading order)
+    eccentricities: bool, optional
+        By default, includes all eccentricity terms.
+        Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+    inclinations: bool, optional
+        By default, includes all inclination terms.
+        Can set to False to exclude any inclination terms (e.g., co-planar systems).
 
     Returns
     -------
     term : list
         A list of disturbing function terms.
         Each entry in the list is of the form
-        (kvec, nuvec)
+        (k_vec, nu_vec) (see PoincareHamiltonian.add_cosine_term in poincare.py)
     """
-    args_dict = df_arguments_dictionary(Nmax)
+    if not min_order:
+        min_order = q
+    if not max_order:
+        max_order = q
+    args_dict = df_arguments_dictionary(max_order)
     args = []
-    for N in range(Nmin,Nmax+1):
-        for k1 in range(k,N+1,k):
-            if (N-k1) % 2:
+    for N in range(min_order,max_order+1):
+        for q1 in range(q,N+1,q):
+            if (N-q1) % 2:
                 continue
-            j1 = (k1//k) * j
-            for N1 in range(k1,N+1,2):
+            p1 = (q1//q) * p
+            for N1 in range(q1,N+1,2):
                 nutot = (N-N1)//2
-                for arg in args_dict[N1][k1]:
-                    for nuc in _nucombos_iter(nutot):
-                        js = (j1,k1 - j1,*arg)
-                        args.append((js,nuc))
+                for arg in args_dict[N1][q1]:
+                    for nu_vec in _nucombos(nutot):
+                        k_vec = (p1,q1 - p1,*arg)
+                        args.append((k_vec,nu_vec))
     return args
 
-def list_secular_terms(Nmin,Nmax):
+def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True):
     """
     Generate the list of secular disturbing function terms 
-    with eccentricity/inclination order between Nmin and Nmax.
+    with eccentricity/inclination order between min_order and max_order.
 
     Arguments
     ---------
-    j : int
-     Determines resonance
-    k : int
-     Order of the resonance
-    Nmin : int
-     Minimum order of terms to include
-    Nmax : int
-     Maximum order of terms to include
+    min_order : int
+     Minimum order in eccentricities and inclinations to include.
+    max_order : int
+     Maximum order in eccentricities and inclinations to include.
+    eccentricities: bool, optional
+        By default, includes all eccentricity terms.
+        Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+    inclinations: bool, optional
+        By default, includes all inclination terms.
+        Can set to False to exclude any inclination terms (e.g., co-planar systems).
 
     Returns
     -------
     term : list
         A list of disturbing function terms. 
         Each entry in the list is of the form
-        (kvec, nuvec)
+        (k_vec, nu_vec) (see PoincareHamiltonian.add_cosine_term in poincare.py)
     """
-    args_dict = df_arguments_dictionary(Nmax)
+    args_dict = df_arguments_dictionary(max_order)
     args = []
-    Nmax1 = (Nmax//2) * 2 
-    Nmin1 = (Nmin//2) * 2 
+    Nmax1 = (max_order//2) * 2 
+    Nmin1 = (min_order//2) * 2 
     for N in range(0,Nmax1 + 1,2):
         argsN = args_dict[N][0]
         nutot_min = max( (Nmin1 - N)//2 , 0)
         nutot_max = (Nmax1 - N)//2 
         for nutot in range(nutot_min,nutot_max + 1):
-            for nuc in _nucombos_iter(nutot):
+            for nu_vec in _nucombos(nutot):
                 for arg in argsN:
-                    js = (0,0,*arg)
-                    args.append((js,nuc))
+                    k_vec = (0,0,*arg)
+                    args.append((k_vec,nu_vec))
     return args
 
-def term_depends_on_eccentricities(kvec):
+def k_depends_on_eccentricities(kvec):
     if kvec[2] != 0 or kvec[3] != 0:
         return True
     else:
         return False
 
-def term_depends_on_inclinations(kvec):
+def k_depends_on_inclinations(kvec):
     if kvec[4] != 0 or kvec[5] != 0:
+        return True
+    else:
+        return False
+
+def nu_depends_on_eccentricities(nuvec):
+    if nuvec[2] != 0 or nuvec[3] != 0:
+        return True
+    else:
+        return False
+
+def nu_depends_on_inclinations(nuvec):
+    if nuvec[0] != 0 or nuvec[1] != 0:
         return True
     else:
         return False
@@ -1211,7 +1244,7 @@ def _resonance_arguments_of_fixed_order(j,k,N):
             continue
         nutot = (N-N1)//2
         for arg in args_dict[N1][k]:
-            for nuc in _nucombos_iter(nutot):
+            for nuc in _nucombos(nutot):
                 js = (j,k - j,*arg)
                 args.append((js,nuc))
     return args
