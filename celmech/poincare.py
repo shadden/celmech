@@ -374,7 +374,7 @@ class PoincareParticles(MutableMapping):
         # go from int key and generate a PoincareParticle
         # need G and masses
         if i == 0:
-            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=    np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
+            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
         p = self.poincare
         if isinstance(i, slice):
             return [self[i] for i in range(*i.indices(p.N))]
@@ -383,7 +383,10 @@ class PoincareParticles(MutableMapping):
             i += p.N
         if i < 0 or i >= p.N:
             raise AttributeError("Index {0} used to access particles out of range.".format(i))
-        
+   
+        if p.masses[i] == 0: 
+            raise AttributeError("Current implementation of Poincare does not work with test particles")
+
         val = p.values
         j = i-1 # index starting at 0 instead of 1
         l = val[j * 3]
@@ -392,7 +395,7 @@ class PoincareParticles(MutableMapping):
         Lambda = val[p.N_dof + j * 3]
         kappa = val[p.N_dof + j * 3 + 1]
         sigma = val[p.N_dof + j * 3 + 2]
-        # THIS WILL FAIL FOR TEST PARTICLES
+
         return PoincareParticle(coordinates=p.coordinates, G=p.G, m=p.masses[i], Mstar=p.masses[0], l=l, eta=eta, rho=rho, Lambda=Lambda, kappa=kappa, sigma=sigma)
 
     def __setitem__(self, key, value):
@@ -414,12 +417,11 @@ class Poincare(PhaseSpaceState):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
-    def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
+    def __init__(self, G, poincareparticles, coordinates="canonical heliocentric",t=0):
         # additional variables that need storing in addition to phasespacestate variables
         self.G = G
-        self.masses = [poincareparticles[1].Mstar] + [p.m for p in poincareparticles]
+        self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
-
         initial_p_values = []
         initial_q_values = []
         qvars = []
@@ -449,12 +451,6 @@ class Poincare(PhaseSpaceState):
     def particles(self):
         particles = PoincareParticles(self)
         return particles
-
-    # 'add' removed until it plays nicely with 
-    # the underlying phase-space state
-    #def add(self, **kwargs):
-    #    self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
-    #    # TODO: update 0th particle for the remaining COM coordinate
 
     @classmethod
     def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
@@ -514,7 +510,7 @@ class Poincare(PhaseSpaceState):
         return sim
     
     def copy(self):
-        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
+        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=self.t)
 
 # If we wanted Poincare.from_Hamiltonian, would need PoincareHamiltonian to hold both m_0 (for star) and coordinates
 class PoincareHamiltonian(Hamiltonian):
