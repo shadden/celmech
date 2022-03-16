@@ -67,8 +67,6 @@ def _simplify_atans(exprn):
     res = TR10i(res)
     return res
 
->>>>>>> origin/style_update
-
 def _termwise_trigsimp(exprn):
     if len(exprn.args)==0:
         return exprn

@@ -109,7 +109,7 @@ def _lcombos(ltot):
         l2 = ltot - l1
         lcombos.append((l1, l2))
     return lcombos
-                
+
 def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
     Generate the list of disturbing function terms for a
