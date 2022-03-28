@@ -2,11 +2,10 @@ import numpy as np
 from .miscellaneous import poisson_bracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul,S
 from sympy import trigsimp, simplify, postorder_traversal, powsimp
-from sympy import Add,Wild
 from sympy.simplify.fu import TR10,TR10i
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from .poincare import Poincare
-from sympy import Wild,atan2,sin,cos,Function,sqrt,expand,simplify
+from sympy import Wild,atan2,sin,cos,Function,sqrt,expand,simplify,Add
 def _cos_n_atan(x,y,n):
     """
     Express cos(n*atan2(y,x)) in terms
