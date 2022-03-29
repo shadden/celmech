@@ -174,10 +174,12 @@ def getOmegaMatrix(n):
     -------
     numpy.array
     """
+    zeros = np.zeros((n,n),dtype=int)
+    I = np.eye(n,dtype=int)
     return np.vstack(
         (
-         np.concatenate([np.zeros((n,n)),np.eye(n)]).T,
-         np.concatenate([-np.eye(n),np.zeros((n,n))]).T
+         np.concatenate([zeros,I]).T,
+         np.concatenate([-I,zeros]).T
         )
     )
 ######################################################

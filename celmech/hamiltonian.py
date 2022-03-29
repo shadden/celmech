@@ -385,9 +385,9 @@ class Hamiltonian(object):
 
         # is this used anywhere?
         self._N_derivs = [lambdify(qp_vars,fun,**_lambdify_kwargs) for fun in Nflow]
-        self._Nflow = lambdify(qp_vars,Nflow,**_lambdify_kwargs)
+        self._N_flow = lambdify(qp_vars,Nflow,**_lambdify_kwargs)
         NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
-        self._Njac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
+        self._N_jac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
         self._integrator = ode(
                 lambda t,y: self._Nflow(*y),
                 jac = lambda t,y: self._Njac(*y))

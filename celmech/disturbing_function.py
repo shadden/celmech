@@ -109,7 +109,16 @@ def _lcombos(ltot):
         l2 = ltot - l1
         lcombos.append((l1, l2))
     return lcombos
-                
+def _depends_on_inclinations(k,nu):
+    _,_,_,_,k5,k6 = k
+    nu1,nu2,_,_ = nu
+    arr=np.array([k5,k6,nu1,nu2])
+    return np.any(arr!=0)
+def _depends_on_eccentricities(k,nu):
+    _,_,k3,k4,_,_ = k
+    _,_,nu3,nu4 = nu
+    arr=np.array([k3,k4,nu3,nu4])
+    return np.any(arr!=0)
 def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
     Generate the list of disturbing function terms for a
@@ -156,9 +165,11 @@ def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,i
                 for arg in args_dict[N1][q1]:
                     for nu_vec in _nucombos(nutot):
                         k_vec = (p1,q1 - p1,*arg)
-                        if eccentricities == False and (k_depends_on_eccentricities(k_vec) or nu_depends_on_eccentricities(nu_vec)):
+                        depends_i=_depends_on_inclinations(k_vec,nu_vec)
+                        if (not inclinations) and depends_i:
                             continue
-                        if inclinations == False and (k_depends_on_inclinations(k_vec) or nu_depends_on_inclinations(nu_vec)):
+                        depends_e = _depends_on_eccentricities(k_vec,nu_vec)
+                        if (not eccentricities) and depends_e:
                             continue
                         args.append((k_vec,nu_vec))
     return args
@@ -199,37 +210,15 @@ def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True
         for nutot in range(nutot_min,nutot_max + 1):
             for nu_vec in _nucombos(nutot):
                 for arg in argsN:
-                    if eccentricities == False and (k_depends_on_eccentricities(k_vec) or nu_depends_on_eccentricities(nu_vec)):
-                        continue
-                    if inclinations == False and (k_depends_on_inclinations(k_vec) or nu_depends_on_inclinations(nu_vec)):
-                        continue
                     k_vec = (0,0,*arg)
+                    depends_i=_depends_on_inclinations(k_vec,nu_vec)
+                    if (not inclinations) and depends_i:
+                        continue
+                    depends_e = _depends_on_eccentricities(k_vec,nu_vec)
+                    if (not eccentricities) and depends_e:
+                        continue
                     args.append((k_vec,nu_vec))
     return args
-
-def k_depends_on_eccentricities(kvec):
-    if kvec[2] != 0 or kvec[3] != 0:
-        return True
-    else:
-        return False
-
-def k_depends_on_inclinations(kvec):
-    if kvec[4] != 0 or kvec[5] != 0:
-        return True
-    else:
-        return False
-
-def nu_depends_on_eccentricities(nuvec):
-    if nuvec[2] != 0 or nuvec[3] != 0:
-        return True
-    else:
-        return False
-
-def nu_depends_on_inclinations(nuvec):
-    if nuvec[0] != 0 or nuvec[1] != 0:
-        return True
-    else:
-        return False
 
 def laplace_b(s,j,n,alpha):
     r"""
