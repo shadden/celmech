@@ -592,8 +592,8 @@ class PoincareHamiltonian(Hamiltonian):
             Can specify either max_order OR nu_vecs (see below), but not both (most users will use max_order).
             If neither are passed, max_order defaults to the leading order of the cosine term specified by k_vec.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0 to include in cosine coefficients. Default is 0.
-            Can specify either l_max OR l_vecs (see below), but not both (most users will use max_order).
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
+            Can specify either l_max OR l_vecs (see below), but not both (most users will use l_max).
         nu_vecs: List of 4-tuples, optional
             A list of the specific combinations of nu indices to include for the cosine term coefficient, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]
             See paper and examples for definition and use.
@@ -625,7 +625,7 @@ class PoincareHamiltonian(Hamiltonian):
             if max_order:
                 raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
         else:
-            min_order = abs(k1+k2) # this is the leading order for the cosine term chosen (k3+k4+k5+k6 = -(k1+k2) by d'Alembert)
+            min_order = abs(k3)+abs(k4)+abs(k5)+abs(k6)
             if not max_order:
                 max_order = min_order
             nu_max = (max_order - min_order)//2 # each nu contributes 2 powers of e or i, so divide by 2 rounding down
@@ -731,8 +731,7 @@ class PoincareHamiltonian(Hamiltonian):
         max_order : int
             Maximum order of terms to add.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
-            to include in cosine coefficients. Default is 0.
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
         indexIn : int
             Index of inner planet.
         indexOut : int
@@ -776,7 +775,7 @@ class PoincareHamiltonian(Hamiltonian):
         max_order : int, optional
             Maximum order terms in the eccentricities and inclinations to add. Defaults to 2.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
             to include in cosine coefficients. Default is 0.
         indexIn : int
             Index of inner planet.

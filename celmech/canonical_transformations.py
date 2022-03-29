@@ -7,6 +7,7 @@ from sympy.simplify.fu import TR10,TR10i
 from .hamiltonian import reduce_hamiltonian, PhaseSpaceState, Hamiltonian
 from .poincare import Poincare
 from sympy import Wild,atan2,sin,cos,Function,sqrt,expand,simplify
+
 def _cos_n_atan(x,y,n):
     """
     Express cos(n*atan2(y,x)) in terms
@@ -66,8 +67,6 @@ def _simplify_atans(exprn):
     res = res.replace(s,_sin_n_atan)
     res = TR10i(res)
     return res
-
->>>>>>> origin/style_update
 
 def _termwise_trigsimp(exprn):
     if len(exprn.args)==0:

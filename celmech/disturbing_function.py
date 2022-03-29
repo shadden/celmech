@@ -156,6 +156,10 @@ def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,i
                 for arg in args_dict[N1][q1]:
                     for nu_vec in _nucombos(nutot):
                         k_vec = (p1,q1 - p1,*arg)
+                        if eccentricities == False and (k_depends_on_eccentricities(k_vec) or nu_depends_on_eccentricities(nu_vec)):
+                            continue
+                        if inclinations == False and (k_depends_on_inclinations(k_vec) or nu_depends_on_inclinations(nu_vec)):
+                            continue
                         args.append((k_vec,nu_vec))
     return args
 
@@ -195,6 +199,10 @@ def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True
         for nutot in range(nutot_min,nutot_max + 1):
             for nu_vec in _nucombos(nutot):
                 for arg in argsN:
+                    if eccentricities == False and (k_depends_on_eccentricities(k_vec) or nu_depends_on_eccentricities(nu_vec)):
+                        continue
+                    if inclinations == False and (k_depends_on_inclinations(k_vec) or nu_depends_on_inclinations(nu_vec)):
+                        continue
                     k_vec = (0,0,*arg)
                     args.append((k_vec,nu_vec))
     return args
