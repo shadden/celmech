@@ -349,7 +349,6 @@ class Hamiltonian(object):
         # Sync self.state with outcome of integration
         self.state.t = self.integrator.t
         self.state.values = self.integrator.y
-        #self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
         self._needs_update=False # reset flag up top to avoid infinite recursion
@@ -389,8 +388,8 @@ class Hamiltonian(object):
         NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
         self._N_jac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
         self._integrator = ode(
-                lambda t,y: self._Nflow(*y),
-                jac = lambda t,y: self._Njac(*y))
+                lambda t,y: self._N_flow(*y),
+                jac = lambda t,y: self._N_jac(*y))
         self._integrator.set_integrator('dop853')# ('lsoda') #
 
 def reduce_hamiltonian(ham):

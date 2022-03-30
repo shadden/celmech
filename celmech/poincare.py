@@ -5,8 +5,7 @@ from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
 from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
-from .disturbing_function import k_depends_on_eccentricities, k_depends_on_inclinations
-from .disturbing_function import nu_depends_on_eccentricities, nu_depends_on_inclinations
+from .disturbing_function import k_nu_depend_on_eccentricities, k_nu_depend_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
@@ -614,10 +613,6 @@ class PoincareHamiltonian(Hamiltonian):
             By default, includes all inclination terms.
             Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if eccentricities == False and k_depends_on_eccentricities(k_vec) == True:
-            return 
-        if inclinations == False and k_depends_on_inclinations(k_vec) == True:
-            return
         if np.sum(k_vec) != 0:
             raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
         k1,k2,k3,k4,k5,k6 = k_vec
@@ -667,9 +662,9 @@ class PoincareHamiltonian(Hamiltonian):
         # Resonance components
         
         for nu_vec in nu_vecs:
-            if eccentricities == False and nu_depends_on_eccentricities(nu_vec) == True:
+            if eccentricities == False and k_nu_depend_on_eccentricities(k_vec, nu_vec) == True:
                 continue
-            if inclinations == False and nu_depends_on_inclinations(nu_vec) == True:
+            if inclinations == False and k_nu_depend_on_inclinations(k_vec, nu_vec) == True:
                 continue
 
             C_dict = df_coefficient_C(*k_vec, *nu_vec)#k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
