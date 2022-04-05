@@ -341,6 +341,8 @@ class Hamiltonian(object):
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
+        if self._needs_update:
+            self._update()
         self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
@@ -389,8 +391,8 @@ class Hamiltonian(object):
         NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
         self._N_jac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
         self._integrator = ode(
-                lambda t,y: self._Nflow(*y),
-                jac = lambda t,y: self._Njac(*y))
+                lambda t,y: self._N_flow(*y),
+                jac = lambda t,y: self._N_jac(*y))
         self._integrator.set_integrator('dop853')# ('lsoda') #
 
 def reduce_hamiltonian(ham):
@@ -506,7 +508,8 @@ class ParamDict(MutableMapping):
         return self._params[key]
     
     def __setitem__(self, key, value):
-        self.hamiltonian._needs_udpate = True
+        self.hamiltonian._needs_update = True
+        print("1234")
         self._params[key] = value
     
     def __delitem__(self, key):
