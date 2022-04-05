@@ -509,7 +509,6 @@ class ParamDict(MutableMapping):
     
     def __setitem__(self, key, value):
         self.hamiltonian._needs_update = True
-        print("1234")
         self._params[key] = value
     
     def __delitem__(self, key):
