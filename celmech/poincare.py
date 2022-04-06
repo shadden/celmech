@@ -417,7 +417,7 @@ class Poincare(PhaseSpaceState):
     def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
         # additional variables that need storing in addition to phasespacestate variables
         self.G = G
-        self.masses = [poincareparticles[1].Mstar] + [p.m for p in poincareparticles]
+        self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
 
         initial_p_values = []
