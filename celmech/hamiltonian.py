@@ -351,7 +351,6 @@ class Hamiltonian(object):
         # Sync self.state with outcome of integration
         self.state.t = self.integrator.t
         self.state.values = self.integrator.y
-        #self.update_state_from_list(self.state, self.integrator.y)
 
     def _update(self):
         self._needs_update=False # reset flag up top to avoid infinite recursion

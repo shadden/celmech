@@ -93,14 +93,6 @@ class TestPoincare(unittest.TestCase):
             sim = pvars.to_Simulation()
             self.compare_simulations_orb(self.sim, sim, delta=1.e-14) # can't get it to 1e-15
 
-    def test_tp_rebound_transformations(self):
-        sim = self.sim.copy()
-        sim.particles[2].m = 0
-        for coord in self.coordinates:
-            pvars = Poincare.from_Simulation(sim, coordinates=coord)
-            sim2 = pvars.to_Simulation()
-            self.compare_simulations_orb(sim, sim2, delta=1.e-14) # can't get it to 1e-15
-    
     def test_particles(self):
         m=1.e-5
         M=3.
@@ -117,6 +109,18 @@ class TestPoincare(unittest.TestCase):
         Lambda = m*sLambda
         Gamma = m*sGamma
         Q = m*sQ
+        p = PoincareParticle(mu=m, M=M, G=G,a=a,e=e,inc=inc,pomega=pomega,Omega=Omega,l=l)
+        tp = PoincareParticle(mu=0, M=M, G=G,a=a,e=e,inc=inc,pomega=pomega,Omega=Omega,l=l)
+        self.assertAlmostEqual(p.a, a, delta=1.e-15)
+        self.assertAlmostEqual(p.e, e, delta=1.e-15)
+        self.assertAlmostEqual(p.inc, inc, delta=1.e-15)
+        self.assertAlmostEqual(p.pomega, pomega, delta=1.e-15)
+        self.assertAlmostEqual(p.Omega, Omega, delta=1.e-15)
+        self.assertAlmostEqual(tp.a, a, delta=1.e-15)
+        self.assertAlmostEqual(tp.e, e, delta=1.e-15)
+        self.assertAlmostEqual(tp.inc, inc, delta=1.e-15)
+        self.assertAlmostEqual(tp.pomega, pomega, delta=1.e-15)
+        self.assertAlmostEqual(tp.Omega, Omega, delta=1.e-15)
         p = PoincareParticle(mu=m, M=M, G=G, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
         tp = PoincareParticle(mu=0., M=M, G=G, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
         self.assertAlmostEqual(p.a, a, delta=1.e-15)
@@ -131,30 +135,14 @@ class TestPoincare(unittest.TestCase):
         self.assertAlmostEqual(tp.Omega, Omega, delta=1.e-15)
         pvars = Poincare(G, poincareparticles=[p, tp])
         ps = pvars.particles
-        self.assertAlmostEqual(ps[1].a, a, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].e, e, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].inc, inc, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].pomega, pomega, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].Omega, Omega, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].a, a, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].e, e, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].inc, inc, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].pomega, pomega, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].Omega, Omega, delta=1.e-15)
-        pvars = Poincare(G=G)
-        pvars.add(mu=m, M=M, Lambda=Lambda, l=l, Gamma=Gamma, gamma=-pomega, Q=Q, q=-Omega)
-        pvars.add(mu=0., M=M, sLambda=sLambda, l=l, sGamma=sGamma, gamma=-pomega, sQ=sQ, q=-Omega)
-        ps = pvars.particles
-        self.assertAlmostEqual(ps[1].a, a, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].e, e, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].inc, inc, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].pomega, pomega, delta=1.e-15)
-        self.assertAlmostEqual(ps[1].Omega, Omega, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].a, a, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].e, e, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].inc, inc, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].pomega, pomega, delta=1.e-15)
-        self.assertAlmostEqual(ps[2].Omega, Omega, delta=1.e-15)
+        self.assertAlmostEqual(ps[1].a, a, delta=1.e-14)
+        self.assertAlmostEqual(ps[1].e, e, delta=1.e-14)
+        self.assertAlmostEqual(ps[1].inc, inc, delta=1.e-14)
+        self.assertAlmostEqual(ps[1].pomega, pomega, delta=1.e-14)
+        self.assertAlmostEqual(ps[1].Omega, Omega, delta=1.e-14)
+        # test that we raise error when accessing test particle in Poincare. Change with test if we implement
+        with self.assertRaises(AttributeError):
+            print(ps[2].a)
 
 def packed_sim(Nseed):
     seed(Nseed)
