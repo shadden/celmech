@@ -5,8 +5,7 @@ from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
 from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
-from .disturbing_function import k_depends_on_eccentricities, k_depends_on_inclinations
-from .disturbing_function import nu_depends_on_eccentricities, nu_depends_on_inclinations
+from .disturbing_function import k_nu_depend_on_eccentricities, k_nu_depend_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
@@ -374,7 +373,7 @@ class PoincareParticles(MutableMapping):
         # go from int key and generate a PoincareParticle
         # need G and masses
         if i == 0:
-            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=    np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
+            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
         p = self.poincare
         if isinstance(i, slice):
             return [self[i] for i in range(*i.indices(p.N))]
@@ -383,7 +382,10 @@ class PoincareParticles(MutableMapping):
             i += p.N
         if i < 0 or i >= p.N:
             raise AttributeError("Index {0} used to access particles out of range.".format(i))
-        
+   
+        if p.masses[i] == 0: 
+            raise AttributeError("Current implementation of Poincare does not work with test particles")
+
         val = p.values
         j = i-1 # index starting at 0 instead of 1
         l = val[j * 3]
@@ -392,7 +394,7 @@ class PoincareParticles(MutableMapping):
         Lambda = val[p.N_dof + j * 3]
         kappa = val[p.N_dof + j * 3 + 1]
         sigma = val[p.N_dof + j * 3 + 2]
-        # THIS WILL FAIL FOR TEST PARTICLES
+
         return PoincareParticle(coordinates=p.coordinates, G=p.G, m=p.masses[i], Mstar=p.masses[0], l=l, eta=eta, rho=rho, Lambda=Lambda, kappa=kappa, sigma=sigma)
 
     def __setitem__(self, key, value):
@@ -414,12 +416,11 @@ class Poincare(PhaseSpaceState):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
-    def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
+    def __init__(self, G, poincareparticles, coordinates="canonical heliocentric",t=0):
         # additional variables that need storing in addition to phasespacestate variables
         self.G = G
         self.masses = [poincareparticles[0].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
-
         initial_p_values = []
         initial_q_values = []
         qvars = []
@@ -449,12 +450,6 @@ class Poincare(PhaseSpaceState):
     def particles(self):
         particles = PoincareParticles(self)
         return particles
-
-    # 'add' removed until it plays nicely with 
-    # the underlying phase-space state
-    #def add(self, **kwargs):
-    #    self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
-    #    # TODO: update 0th particle for the remaining COM coordinate
 
     @classmethod
     def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
@@ -514,7 +509,7 @@ class Poincare(PhaseSpaceState):
         return sim
     
     def copy(self):
-        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
+        return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=self.t)
 
 # If we wanted Poincare.from_Hamiltonian, would need PoincareHamiltonian to hold both m_0 (for star) and coordinates
 class PoincareHamiltonian(Hamiltonian):
@@ -596,8 +591,8 @@ class PoincareHamiltonian(Hamiltonian):
             Can specify either max_order OR nu_vecs (see below), but not both (most users will use max_order).
             If neither are passed, max_order defaults to the leading order of the cosine term specified by k_vec.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0 to include in cosine coefficients. Default is 0.
-            Can specify either l_max OR l_vecs (see below), but not both (most users will use max_order).
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
+            Can specify either l_max OR l_vecs (see below), but not both (most users will use l_max).
         nu_vecs: List of 4-tuples, optional
             A list of the specific combinations of nu indices to include for the cosine term coefficient, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]
             See paper and examples for definition and use.
@@ -618,15 +613,12 @@ class PoincareHamiltonian(Hamiltonian):
             By default, includes all inclination terms.
             Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if eccentricities == False and k_depends_on_eccentricities(k_vec) == True:
-            return 
-        if inclinations == False and k_depends_on_inclinations(k_vec) == True:
-            return
         if np.sum(k_vec) != 0:
             raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
         k1,k2,k3,k4,k5,k6 = k_vec
-        k_vec = (k1,k2,k3,k4,k5,k6) # ensure k_vec is a tuple
+        k_vec = tuple(k_vec) # ensure k_vec is a tuple
         if nu_vecs:
+            nu_vecs = [tuple(nu_vec) for nu_vec in nu_vecs]
             if max_order:
                 raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
         else:
@@ -639,6 +631,7 @@ class PoincareHamiltonian(Hamiltonian):
             for nu_tot in range(nu_max+1):
                 nu_vecs += _nucombos(nutot=nu_tot) # Make list of [(nu1, nu2, nu3, nu4), ... ] tuples
         if l_vecs:
+            l_vecs = [tuple(l_vec) for l_vec in l_vecs]
             if l_max > 0:
                 raise AttributeError('Can only pass l_max OR l_vecs to add_cos_term. See docstring.')
         else:
@@ -673,9 +666,9 @@ class PoincareHamiltonian(Hamiltonian):
         # Resonance components
         
         for nu_vec in nu_vecs:
-            if eccentricities == False and nu_depends_on_eccentricities(nu_vec) == True:
+            if eccentricities == False and k_nu_depend_on_eccentricities(k_vec, nu_vec) == True:
                 continue
-            if inclinations == False and nu_depends_on_inclinations(nu_vec) == True:
+            if inclinations == False and k_nu_depend_on_inclinations(k_vec, nu_vec) == True:
                 continue
 
             C_dict = df_coefficient_C(*k_vec, *nu_vec)#k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
@@ -685,14 +678,16 @@ class PoincareHamiltonian(Hamiltonian):
             for l_vec,C_val in C_delta_expansion_dict.items():
                 if l_vec not in l_vecs: # have to calculate all terms up to lmax, but only consider if in l_vecs
                     continue
-                l1,l2=l_vec
                 if l_vecs and (indexIn,indexOut,(k_vec,nu_vec,l_vec)) in self.resonance_indices:
                     warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
                     continue
-                else: # keep track of terms we add
-                    self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
+                if l_vecs and (indexIn,indexOut,(tuple([-k for k in k_vec]),nu_vec,l_vec)) in self.resonance_indices:
+                    warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
+                    continue
+                self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
                 Csym = get_df_coefficient_symbol(*k_vec,*nu_vec,*l_vec,indexIn,indexOut)
                 self.H_params[Csym] = C_val
+                l1,l2=l_vec
                 Ctot += Csym * deltaIn**l1 * deltaOut**l2
             nu1,nu2,nu3,nu4 = nu_vec
             rtLIn = sqrt(Lambda0In)
@@ -737,8 +732,7 @@ class PoincareHamiltonian(Hamiltonian):
         max_order : int
             Maximum order of terms to add.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
-            to include in cosine coefficients. Default is 0.
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
         indexIn : int
             Index of inner planet.
         indexOut : int
@@ -782,7 +776,7 @@ class PoincareHamiltonian(Hamiltonian):
         max_order : int, optional
             Maximum order terms in the eccentricities and inclinations to add. Defaults to 2.
         l_max : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0` to include in cosine coefficients. Default is 0.
             to include in cosine coefficients. Default is 0.
         indexIn : int
             Index of inner planet.
