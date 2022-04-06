@@ -616,8 +616,9 @@ class PoincareHamiltonian(Hamiltonian):
         if np.sum(k_vec) != 0:
             raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
         k1,k2,k3,k4,k5,k6 = k_vec
-        k_vec = (k1,k2,k3,k4,k5,k6) # ensure k_vec is a tuple
+        k_vec = tuple(k_vec) # ensure k_vec is a tuple
         if nu_vecs:
+            nu_vecs = [tuple(nu_vec) for nu_vec in nu_vecs]
             if max_order:
                 raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
         else:
@@ -630,6 +631,7 @@ class PoincareHamiltonian(Hamiltonian):
             for nu_tot in range(nu_max+1):
                 nu_vecs += _nucombos(nutot=nu_tot) # Make list of [(nu1, nu2, nu3, nu4), ... ] tuples
         if l_vecs:
+            l_vecs = [tuple(l_vec) for l_vec in l_vecs]
             if l_max > 0:
                 raise AttributeError('Can only pass l_max OR l_vecs to add_cos_term. See docstring.')
         else:
@@ -676,14 +678,16 @@ class PoincareHamiltonian(Hamiltonian):
             for l_vec,C_val in C_delta_expansion_dict.items():
                 if l_vec not in l_vecs: # have to calculate all terms up to lmax, but only consider if in l_vecs
                     continue
-                l1,l2=l_vec
                 if l_vecs and (indexIn,indexOut,(k_vec,nu_vec,l_vec)) in self.resonance_indices:
                     warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
                     continue
-                else: # keep track of terms we add
-                    self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
+                if l_vecs and (indexIn,indexOut,(tuple([-k for k in k_vec]),nu_vec,l_vec)) in self.resonance_indices:
+                    warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
+                    continue
+                self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
                 Csym = get_df_coefficient_symbol(*k_vec,*nu_vec,*l_vec,indexIn,indexOut)
                 self.H_params[Csym] = C_val
+                l1,l2=l_vec
                 Ctot += Csym * deltaIn**l1 * deltaOut**l2
             nu1,nu2,nu3,nu4 = nu_vec
             rtLIn = sqrt(Lambda0In)
