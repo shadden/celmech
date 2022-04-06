@@ -25,7 +25,10 @@ You may also want to check out the `Git repository <https://github.com/shadden/c
     quickstart
     poincare
     disturbing_function
+    canonical_transformations
     secular
     numerical_resonance_models   
     andoyer
+    maps
+    nbody_simulation_utilities
     miscellaneous 

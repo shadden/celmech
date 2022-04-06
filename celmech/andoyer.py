@@ -2,7 +2,7 @@ import numpy as np
 from sympy import symbols, S, cos
 from celmech.hamiltonian import Hamiltonian
 from celmech.poincare import PoincareParticle, Poincare
-from celmech.disturbing_function import get_fg_coeffs
+from celmech.disturbing_function import get_fg_coefficients
 from celmech.transformations import ActionAngleToXY, XYToActionAngle, pol_to_cart, cart_to_pol
 import rebound
 import warnings

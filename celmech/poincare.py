@@ -1,9 +1,13 @@
 import numpy as np
+from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
-from .hamiltonian import Hamiltonian
-from .miscellaneous import PoissonBracket
-from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
-from .disturbing_function import DFCoeff_C,get_DFCoeff_symbol,eval_DFCoeff_delta_expansion
+from .hamiltonian import Hamiltonian,PhaseSpaceState
+from .miscellaneous import poisson_bracket
+from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
+from .disturbing_function import k_depends_on_eccentricities, k_depends_on_inclinations
+from .disturbing_function import nu_depends_on_eccentricities, nu_depends_on_inclinations
+from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
 from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
 from itertools import combinations
 import rebound
@@ -34,9 +38,10 @@ def num_passed(iterable): # returns num of entries in iterable that are not None
     return ctr
 
 def _get_a0_symbol(i):
-    return symbols(r"a_{{{0}\,0}}".format(i))
+    return symbols(r"a_{{{0}\,0}}".format(i),positive=True)
+
 def _get_Lambda0_symbol(i):
-    return symbols(r"\Lambda_{{{0}\,0}}".format(i))
+    return symbols(r"\Lambda_{{{0}\,0}}".format(i),positive=True)
 
 class PoincareParticle(object):
     """
@@ -77,10 +82,61 @@ class PoincareParticle(object):
     q, Omega: float
       These variables specify the node longitude. Any one can be passed. If none passed, defaults to 0
     """
-    def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None):
+    def __init__(self, coordinates='canonical heliocentric', G=1., m=None, Mstar=None, mu=None, M=None, sLambda=None, l=None, sGamma=None, gamma=None, sQ=None, q=None, Lambda=None, Gamma=None, Q=None, a=None, e=None, inc=None, pomega=None, Omega=None, skappa=None, seta=None, ssigma=None, srho=None, kappa=None, eta=None, sigma=None, rho=None):
         """
         We store Cartesian components of specific actions to support test particles
         """
+        self.G = G  
+        self.coordinates = coordinates
+
+        massError = False
+        if m is not None and Mstar is not None: # passed both physical masses
+            if mu is not None or M is not None: # also passed one of others
+                massError = True
+            else: # calculate from physical masses
+                if coordinates == 'democratic heliocentric':
+                    self.mu = m
+                    self.M = Mstar
+                elif coordinates == 'canonical heliocentric':
+                    self.mu = m*Mstar/(Mstar + m)
+                    self.M = Mstar+m
+                else:
+                    raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heiocentric")
+        else: # didn't pass both physical masses
+            if m is not None or Mstar is not None: # passed only one physical mass
+                massError = True
+            elif mu is None or M is None: # didn't pass both can. masses
+                massError = True
+            else:
+                self.mu = mu
+                self.M = M
+
+        if massError == True:   
+            raise AttributeError("Have to either pass physical masses (m, Mstar) or 'canonical masses' (mu and M). Can't mix or pass both.")
+
+        # if the variables we actually store are passed then we save them and are done
+        num = num_passed([sLambda, l, skappa, seta, ssigma, srho])
+        if num == 6:
+            self.sLambda = sLambda
+            self.l = l
+            self.skappa = skappa
+            self.seta = seta
+            self.ssigma = ssigma
+            self.srho = srho
+            return
+        
+        # if passed our massive variables, just normalize by mu
+        num = num_passed([Lambda, l, kappa, eta, sigma, rho])
+        if num == 6:
+            self.sLambda = Lambda/self.mu
+            self.l = l
+            self.skappa = kappa/np.sqrt(self.mu) # these are all sqrt(Gamma) variables so norm by sqrt(mass)
+            self.seta = eta/np.sqrt(self.mu)
+            self.ssigma = sigma/np.sqrt(self.mu)
+            self.srho = rho/np.sqrt(self.mu)
+            return
+
+        # need to calculate the variables we store
         num = num_passed([sLambda, Lambda, a])
         if num == 0:
             raise AttributeError("Must pass exactly 1 of Lambda, sLambda (specific Lambda, i.e., per unit mass), and a.")
@@ -110,35 +166,8 @@ class PoincareParticle(object):
         if num == 0:
             l = 0 # default
        
-        self.G = G  
         self.l = l
-        self.coordinates = coordinates
 
-        massError = False
-        if m is not None and Mstar is not None: # passed both physical masses
-            if mu is not None or M is not None: # also passed one of others
-                massError = True
-            else: # calculate from physical masses
-                if coordinates == 'democratic heliocentric':
-                    self.mu = m
-                    self.M = Mstar
-                elif coordinates == 'canonical heliocentric':
-                    self.mu = m*Mstar/(Mstar + m)
-                    self.M = Mstar+m
-                else:
-                    raise AttributeError("coordinates must either be 'canonical heliocentric' (default) or 'democratic heiocentric")
-        else: # didn't pass both physical masses
-            if m is not None or Mstar is not None: # passed only one physical mass
-                massError = True
-            elif mu is None or M is None: # didn't pass both can. masses
-                massError = True
-            else:
-                self.mu = mu
-                self.M = M
-
-        if massError == True:   
-            raise AttributeError("Have to either pass physical masses (m, Mstar) or 'canonical masses' (mu and M). Can't mix or pass both.")
-        
         if pomega is not None:
             gamma = -pomega
         if Omega is not None:
@@ -335,24 +364,97 @@ class PoincareParticle(object):
         """ 
         return '<{0}.{1} object, mu={2} M={3} sLambda={4} l={5} skappa={6} seta={7} srho={8} ssigma={9}>'.format(self.__module__, type(self).__name__, self.mu, self.M, self.sLambda, self.l, self.skappa, self.seta, self.srho, self.ssigma)
 
-class Poincare(object):
+class PoincareParticles(MutableMapping):
+    """
+    """
+    def __init__(self, poincare):
+        self.poincare = poincare 
+
+    def __getitem__(self, i):
+        # go from int key and generate a PoincareParticle
+        # need G and masses
+        if i == 0:
+            return PoincareParticle(G=np.nan, m=np.nan, Mstar=np.nan, l=np.nan, eta=    np.nan, rho=np.nan, Lambda=np.nan, kappa=np.nan, sigma=np.nan)    #raise AttributeError("No Poincare elements for the central star")
+        p = self.poincare
+        if isinstance(i, slice):
+            return [self[i] for i in range(*i.indices(p.N))]
+
+        if i < 0: # accept negative indices
+            i += p.N
+        if i < 0 or i >= p.N:
+            raise AttributeError("Index {0} used to access particles out of range.".format(i))
+        
+        val = p.values
+        j = i-1 # index starting at 0 instead of 1
+        l = val[j * 3]
+        eta = val[j * 3 + 1]
+        rho = val[j * 3 + 2]
+        Lambda = val[p.N_dof + j * 3]
+        kappa = val[p.N_dof + j * 3 + 1]
+        sigma = val[p.N_dof + j * 3 + 2]
+        # THIS WILL FAIL FOR TEST PARTICLES
+        return PoincareParticle(coordinates=p.coordinates, G=p.G, m=p.masses[i], Mstar=p.masses[0], l=l, eta=eta, rho=rho, Lambda=Lambda, kappa=kappa, sigma=sigma)
+
+    def __setitem__(self, key, value):
+        # we could allow user to set only the stored variables sLambda, l, skappa etc.
+        raise AttributeError("Can't set Poincare particle attributes")
+
+    def __delitem__(self, key):
+        raise AttributeError("deleting variables not implemented.")
+
+    def __iter__(self):
+        for p in self[:self.poincare.N]:
+            yield p
+
+    def __len__(self):
+        return self.poincare.N
+
+# Poincare is a phasespacestate with G, masses and coordinates
+class Poincare(PhaseSpaceState):
     """
     A class representing a collection of Poincare particles constituting a planetary system.
     """
     def __init__(self, G, poincareparticles=[], coordinates="canonical heliocentric",t=0):
+        # additional variables that need storing in addition to phasespacestate variables
         self.G = G
-        self.t = t 
+        self.masses = [poincareparticles[1].Mstar] + [p.m for p in poincareparticles]
         self.coordinates = coordinates
-        self.particles = [PoincareParticle(coordinates=coordinates, G=G, m=np.nan, Mstar=np.nan, l=np.nan, gamma=np.nan,q=np.nan, sLambda=np.nan, sGamma=np.nan, sQ=np.nan)] # dummy particle for primary
-        try:
-            for p in poincareparticles:
-                self.add(m=p.m, Mstar=p.Mstar, sLambda=p.sLambda, l=p.l, sGamma=p.sGamma, gamma=p.gamma, sQ=p.sQ, q=p.q)
-        except TypeError:
-            raise TypeError("poincareparticles must be a list of PoincareParticle objects")
+
+        initial_p_values = []
+        initial_q_values = []
+        qvars = []
+        pvars = []
+
+        for i,particle in enumerate(poincareparticles):
+            q = list(symbols("lambda{0}, eta{0}, rho{0}".format(i+1)))
+            p = list(symbols("Lambda{0}, kappa{0}, sigma{0}".format(i+1)))
+            pvals = [particle.Lambda,particle.kappa,particle.sigma]
+            qvals = [particle.l,particle.eta,particle.rho]
+            initial_p_values += pvals
+            initial_q_values += qvals
+            qvars += q
+            pvars += p
+        qpvars = qvars + pvars
+        initial_values = initial_q_values + initial_p_values
+        super(Poincare,self).__init__(qpvars,initial_values,t=t) 
     
-    def add(self, **kwargs):
-        self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
-        # TODO: update 0th particle for the remaining COM coordinate
+    @property
+    def N(self):
+        """
+        Return total number of bodies, including central star (analogous to REBOUND sim.N)
+        """
+        return int(self.N_dof/3) + 1 # +1 for star
+
+    @property
+    def particles(self):
+        particles = PoincareParticles(self)
+        return particles
+
+    # 'add' removed until it plays nicely with 
+    # the underlying phase-space state
+    #def add(self, **kwargs):
+    #    self.particles.append(PoincareParticle(G=self.G, coordinates=self.coordinates, **kwargs))
+    #    # TODO: update 0th particle for the remaining COM coordinate
 
     @classmethod
     def from_Simulation(cls, sim, coordinates="canonical heliocentric"):
@@ -378,8 +480,8 @@ class Poincare(object):
         sim = sim.copy()
         # Move to COM frame so P0 = 0 in canonical heliocentric coordinates
         sim.move_to_com()
-
-        pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
+        particles = []
+        #pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
         ps = sim.particles
         Mstar = ps[0].m
         o = reb_calculate_orbits(sim, coordinates=coordinates)
@@ -388,8 +490,9 @@ class Poincare(object):
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
             # always pass physical masses, PoincareParticle will calculate appropriate canonical mass based on coord
-            pvars.add(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega)
-        return pvars
+            particle = PoincareParticle(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega,coordinates=coordinates,G=sim.G)
+            particles.append(particle)
+        return cls(G=sim.G,poincareparticles=particles, coordinates=coordinates,t=sim.t)
 
     def to_Simulation(self):
         """ 
@@ -413,10 +516,7 @@ class Poincare(object):
     def copy(self):
         return Poincare(G=self.G, coordinates=self.coordinates, poincareparticles=self.particles[1:self.N],t=t)
 
-    @property
-    def N(self):
-        return len(self.particles)
-
+# If we wanted Poincare.from_Hamiltonian, would need PoincareHamiltonian to hold both m_0 (for star) and coordinates
 class PoincareHamiltonian(Hamiltonian):
     """
     A class representing the Hamiltonian governing the dynamical evolution of a system of particles,
@@ -440,27 +540,24 @@ class PoincareHamiltonian(Hamiltonian):
         transformations are applied.
     """
     def __init__(self, pvars):
-        Hparams = {symbols('G'):pvars.G}
-        pqpairs = []
+        H_params = {symbols('G'):pvars.G}
         ps = pvars.particles
         H = S(0) 
+        self.Lambda0s = [None] + [_get_Lambda0_symbol(i) for i in range(1,pvars.N)]
         for i in range(1, pvars.N):
-            pqpairs.append(symbols("kappa{0}, eta{0}".format(i))) 
-            pqpairs.append(symbols("Lambda{0}, lambda{0}".format(i))) 
-            pqpairs.append(symbols("sigma{0}, rho{0}".format(i))) 
-            Hparams[symbols("mu{0}".format(i))] = ps[i].mu
-            Hparams[symbols("m{0}".format(i))] = ps[i].m
-            Hparams[symbols("M{0}".format(i))] = ps[i].M
-            Hparams[_get_Lambda0_symbol(i)] = ps[i].Lambda
-            Hparams[_get_a0_symbol(i)] = ps[i].a
+            H_params[symbols("mu{0}".format(i))] = ps[i].mu
+            H_params[symbols("m{0}".format(i))] = ps[i].m
+            H_params[symbols("M{0}".format(i))] = ps[i].M
+            H_params[self.Lambda0s[i]] = ps[i].Lambda
+            H_params[_get_a0_symbol(i)] = ps[i].a
             for j in range(i+1,pvars.N):
                 alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))
                 alpha_val = ps[i].a/ps[j].a
-                Hparams[alpha_sym] = alpha_val
+                H_params[alpha_sym] = alpha_val
 
             H = self.add_Hkep_term(H, i)
         self.resonance_indices = []
-        super(PoincareHamiltonian, self).__init__(H, pqpairs, Hparams, pvars) 
+        super(PoincareHamiltonian, self).__init__(H, H_params, pvars) 
     
     @property
     def particles(self):
@@ -474,30 +571,6 @@ class PoincareHamiltonian(Hamiltonian):
     def t(self):
         return self.state.t
     
-    def state_to_list(self, state):
-        ps = state.particles
-        vpp = 6 # vars per particle
-        y = np.zeros(vpp*(state.N-1)) # remove padded 0th element in ps for y
-        for i in range(1, state.N):
-            y[vpp*(i-1)] = ps[i].kappa
-            y[vpp*(i-1)+1] = ps[i].eta
-            y[vpp*(i-1)+2] = ps[i].Lambda
-            y[vpp*(i-1)+3] = ps[i].l 
-            y[vpp*(i-1)+4] = ps[i].sigma
-            y[vpp*(i-1)+5] = ps[i].rho
-        return y
-
-    def update_state_from_list(self, state, y):
-        ps = state.particles
-        vpp = 6 # vars per particle
-        for i in range(1, state.N):
-            ps[i].skappa = y[vpp*(i-1)]/np.sqrt(ps[i].mu)
-            ps[i].seta = y[vpp*(i-1)+1]/np.sqrt(ps[i].mu)
-            ps[i].sLambda = y[vpp*(i-1)+2]/ps[i].mu
-            ps[i].l = y[vpp*(i-1)+3]
-            ps[i].ssigma = y[vpp*(i-1)+4] / np.sqrt(ps[i].mu) 
-            ps[i].srho = y[vpp*(i-1)+5] / np.sqrt(ps[i].mu) 
-    
     def add_Hkep_term(self, H, index):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.
@@ -507,74 +580,228 @@ class PoincareHamiltonian(Hamiltonian):
         H +=  -G**2*M**2*mu**3 / (2 * Lambda**2)
         return H
 
-    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
+    def add_cosine_term(self,k_vec,max_order=None,l_max=0,nu_vecs=None,l_vecs=None,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
         """
-        Add individual monomial term to Hamiltonian. The term 
-        is specified by 'kvec', which specifies the cosine argument
-        and 'zvec', which specfies the order of inclination and
-        eccentricities in the Taylor expansion of the 
-        cosine coefficient. 
+        Add a specific cosine term to the disturbing function up to an optional max_order in the eccentricities and inclinations.
+
+        Arguments
+        ---------
+        k_vec : Tuple of 6 ints 
+            Coefficients (k1, k2, k3, k4, k5, k6) for a cosine term of the form 
+            cos(k1*lambdaOut + k2*lambdaIn + k3*pomegaIn + k4*pomegaOut + k5*OmegaIn + k6*OmegaOut)
+            Note the ks must sum to zero, and by convention we write lambdaOut first, e.g., (3, -2, -1, 0, 0, 0) is
+            cos(3*lambdaOut - 2*lambdaIn - pomega1)
+        max_order : int, optional
+            Maximum order to go to in the (combined) eccentricities and inclinations.
+            Can specify either max_order OR nu_vecs (see below), but not both (most users will use max_order).
+            If neither are passed, max_order defaults to the leading order of the cosine term specified by k_vec.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0 to include in cosine coefficients. Default is 0.
+            Can specify either l_max OR l_vecs (see below), but not both (most users will use max_order).
+        nu_vecs: List of 4-tuples, optional
+            A list of the specific combinations of nu indices to include for the cosine term coefficient, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]
+            See paper and examples for definition and use.
+            Can specify either max_order OR nu_vecs, but not both (max_order makes more sense for most use cases).
+        l_vecs: List of 2-tuples, optional
+            A list of the specific combinations of l indices to include for the cosine term coefficient, e.g., [(0, 0), (1, 0), (2, 0), ...] 
+            See paper and examples for definition and use.
+            Can specify either l_max OR l_vecs, but not both (l_max makes more sense for most use cases).
+            One use case for passing particular l_vecs is if one body is massless, so the other Lambda doesn't vary (and doesn't need expansion)
+        indexIn : int, optional
+            Index of inner planet. Default 1.
+        indexOut : int, optional
+            Index of outer planet. Default 2.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
-            warnings.warn("Monomial term alread included Hamiltonian; no new term added.")
+        if eccentricities == False and k_depends_on_eccentricities(k_vec) == True:
+            return 
+        if inclinations == False and k_depends_on_inclinations(k_vec) == True:
             return
+        if np.sum(k_vec) != 0:
+            raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
+        k1,k2,k3,k4,k5,k6 = k_vec
+        k_vec = (k1,k2,k3,k4,k5,k6) # ensure k_vec is a tuple
+        if nu_vecs:
+            if max_order:
+                raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
+        else:
+            # this is the leading order for the cosine term chosen (k3+k4+k5+k6 = -(k1+k2) by d'Alembert)
+            min_order = abs(k3) + abs(k4) + abs(k5) + abs(k6)
+            if not max_order:
+                max_order = min_order
+            nu_max = (max_order - min_order)//2 # each nu contributes 2 powers of e or i, so divide by 2 rounding down
+            nu_vecs = []
+            for nu_tot in range(nu_max+1):
+                nu_vecs += _nucombos(nutot=nu_tot) # Make list of [(nu1, nu2, nu3, nu4), ... ] tuples
+        if l_vecs:
+            if l_max > 0:
+                raise AttributeError('Can only pass l_max OR l_vecs to add_cos_term. See docstring.')
+        else:
+            l_vecs = []
+            for l_tot in range(l_max+1):
+                l_vecs += _lcombos(ltot=l_tot) # Make list of [(l1, l2), ... ] tuples
+      
+        try:
+            if np.array(l_vecs).shape[1] != 2:
+                raise
+        except:
+            raise AttributeError("l_vecs = {0} must be a list of (l1, l2) pairs, e.g., [(0, 0), (0, 1), ...]".format(l_vecs))
+
+        try:
+            if np.array(nu_vecs).shape[1] != 4:
+                raise
+        except:
+            raise AttributeError("nu_vecs = {0} must be a list of (nu1, nu2, nu3, nu4) tuples, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]".format(nu_vecs))
+        lmax = np.max([l1+l2 for l1, l2 in l_vecs]) # maximum total l=l1+l2
+
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
         mOut,muOut,MOut,LambdaOut,lambdaOut,kappaOut,etaOut,sigmaOut,rhoOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexOut)) 
         
         Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
         alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
-        alpha_val = self.Hparams[alpha_sym]
+        alpha_val = self.H_params[alpha_sym]
         aOut0 = _get_a0_symbol(indexOut)
         deltaIn = (LambdaIn - Lambda0In) / Lambda0In
         deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
         # alpha = aIn/aOut
         # Resonance components
-        #
-        k1,k2,k3,k4,k5,k6 = kvec
-        nu1,nu2,nu3,nu4 = nuvec
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
-        p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
-        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
-        Ctot = 0
-        for key,C_val in C_delta_expansion_dict.items():
-            l1,l2=key
-            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
-            self.Hparams[Csym] = C_val
-            Ctot += Csym * deltaIn**l1 * deltaOut**l2
-        rtLIn = sqrt(Lambda0In)
-        rtLOut = sqrt(Lambda0Out)
-        xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
-        xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
-        uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
-        uout,vout = get_re_im_components(sigmaOut/rtLOut/2, -rhoOut/rtLOut/2,k6)
+        
+        for nu_vec in nu_vecs:
+            if eccentricities == False and nu_depends_on_eccentricities(nu_vec) == True:
+                continue
+            if inclinations == False and nu_depends_on_inclinations(nu_vec) == True:
+                continue
 
-        re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
-        im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
-        
-        GammaIn = (kappaIn*kappaIn + etaIn*etaIn)/2
-        GammaOut = (kappaOut*kappaOut + etaOut*etaOut)/2
-        QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
-        QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
-        
-        eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
-        eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
-        incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
-        incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
-        
-        # Update internal Hamiltonian
-        prefactor1 = -G * mIn * mOut / aOut0
-        prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
-        trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
-        
-        # Keep track of resonances
-        self.resonance_indices.append((indexIn,indexOut,(kvec,nuvec)))
-        
-        self.H += prefactor1 * Ctot * prefactor2 * trig_term
-        if update:
-            self._update()
+            C_dict = df_coefficient_C(*k_vec, *nu_vec)#k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+            p1,p2 = _p1_p2_from_k_nu(k_vec,nu_vec)
+            C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+            Ctot = 0
+            for l_vec,C_val in C_delta_expansion_dict.items():
+                if l_vec not in l_vecs: # have to calculate all terms up to lmax, but only consider if in l_vecs
+                    continue
+                l1,l2=l_vec
+                if l_vecs and (indexIn,indexOut,(k_vec,nu_vec,l_vec)) in self.resonance_indices:
+                    warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
+                    continue
+                else: # keep track of terms we add
+                    self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
+                Csym = get_df_coefficient_symbol(*k_vec,*nu_vec,*l_vec,indexIn,indexOut)
+                self.H_params[Csym] = C_val
+                Ctot += Csym * deltaIn**l1 * deltaOut**l2
+            nu1,nu2,nu3,nu4 = nu_vec
+            rtLIn = sqrt(Lambda0In)
+            rtLOut = sqrt(Lambda0Out)
+            xin,yin = get_re_im_components(kappaIn/rtLIn ,-etaIn / rtLIn,k3)
+            xout,yout = get_re_im_components( kappaOut/rtLOut, -etaOut/rtLOut,k4)
+            uin,vin = get_re_im_components(sigmaIn/rtLIn/2, -rhoIn/rtLIn/2,k5)
+            uout,vout = get_re_im_components(sigmaOut/rtLOut/2, -rhoOut/rtLOut/2,k6)
 
-    def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',update=True,**kwargs):
+            re = uin*uout*xin*xout - vin*vout*xin*xout - uout*vin*xout*yin - uin*vout*xout*yin - uout*vin*xin*yout - uin*vout*xin*yout - uin*uout*yin*yout + vin*vout*yin*yout
+            im = uout*vin*xin*xout + uin*vout*xin*xout + uin*uout*xout*yin - vin*vout*xout*yin + uin*uout*xin*yout - vin*vout*xin*yout - uout*vin*yin*yout - uin*vout*yin*yout
+            
+            GammaIn = (kappaIn*kappaIn + etaIn*etaIn)/2
+            GammaOut = (kappaOut*kappaOut + etaOut*etaOut)/2
+            QIn = (sigmaIn*sigmaIn + rhoIn*rhoIn)/2
+            QOut = (sigmaOut*sigmaOut + rhoOut*rhoOut)/2
+            
+            eIn_sq_term = (2 * GammaIn / Lambda0In )**nu3
+            eOut_sq_term = (2 * GammaOut / Lambda0Out )**nu4
+            incIn_sq_term = ( QIn / Lambda0In / 2 )**nu1
+            incOut_sq_term = ( QOut / Lambda0Out / 2 )**nu2
+            
+            # Update internal Hamiltonian
+            prefactor1 = -G * mIn * mOut / aOut0
+            prefactor2 = eIn_sq_term * eOut_sq_term * incIn_sq_term * incOut_sq_term 
+            trig_term = re * cos(k1 * lambdaOut + k2 * lambdaIn) - im * sin(k1 * lambdaOut + k2 * lambdaIn) 
+            
+            self.H += prefactor1 * Ctot * prefactor2 * trig_term
+    
+    def add_MMR_terms(self,p,q,max_order=None,l_max=0,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
+        """
+        Add all eccentricity and inclination disturbing function terms associated with a p:p-q mean
+        motion resonance up to a given order.
+
+        Arguments
+        ---------
+        p : int
+            Coefficient of lambdaOut in resonant argument
+                j*lambdaOut - (j-k)*lambdaIn
+        q : int
+            Order of the mean motion resonance.
+        max_order : int
+            Maximum order of terms to add.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
+        indexIn : int
+            Index of inner planet.
+        indexOut : int
+            Index of outer planet.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
+        """
+        if p<q or q<0:
+            warnings.warn("""
+            MMRs with p<q or q<0 are not supported. 
+            If you really want to include these terms, 
+            they may be added individually with the 
+            'add_cosine_term' method.
+            """)
+        if abs(p) % q == 0 and q != 1:
+            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
+        
+        if not max_order:
+            max_order = q
+        if max_order < q:
+            warnings.warn("""Maximum order is lower than order of the resonance!""")
+        assert max_order>0, "max_order= {:d} not allowed, must be non-negative.".format(max_order)
+  
+        terms = list_resonance_terms(p,q,min_order=q,max_order=max_order,eccentricities=eccentricities,inclinations=inclinations)
+        for k_vec, nu_vec in terms:
+            self.add_cosine_term(k_vec=k_vec,l_max=l_max,nu_vecs=[nu_vec],indexIn=indexIn,indexOut=indexOut)
+    
+    def add_secular_terms(self,min_order=2,max_order=2,l_max=0,indexIn=1,indexOut=2,eccentricities=True,inclinations=True):
+        """
+        Add all eccentricity and inclination secular terms in the disturbing function from
+        min_order to max_order in the eccentricities and inclinations.
+
+        Arguments
+        ---------
+        min_order : int, optional
+            Minimum order terms in the eccentricities and inclinations to add. Defaults to 2. 
+        max_order : int, optional
+            Maximum order terms in the eccentricities and inclinations to add. Defaults to 2.
+        l_max : int, optional
+            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
+            to include in cosine coefficients. Default is 0.
+        indexIn : int
+            Index of inner planet.
+        indexOut : int
+            Index of outer planet.
+        eccentricities: bool, optional
+            By default, includes all eccentricity terms.
+            Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+        inclinations: bool, optional
+            By default, includes all inclination terms.
+            Can set to False to exclude any inclination terms (e.g., co-planar systems).
+        """
+        assert max_order>0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
+  
+        terms = list_secular_terms(min_order=min_order,max_order=max_order,eccentricities=eccentricities,inclinations=inclinations)
+        for k_vec, nu_vec in terms:
+            self.add_cosine_term(k_vec=k_vec,l_max=l_max,nu_vecs=[nu_vec],indexIn=indexIn,indexOut=indexOut)
+
+    def add_orbit_average_J2_terms(self,J2,Rin,max_ei_order=None,max_delta_order=None,particles = 'all',**kwargs):
         r"""
         Add Hamiltonian terms that capture the orbit-averaged effect of 
         a central body's oblateness parameterized by the :math:`J_2`
@@ -597,15 +824,12 @@ class PoincareHamiltonian(Hamiltonian):
         particles : list, optional
             Which particle numbers to add :math:`J_2` terms for. Default
             is set to all particles.
-        update : bool, optional
-            Whether to update the internal equations of motion used
-            by the PoincareHamiltonian object.
         """
         G = symbols('G')
         J2_s = kwargs.get("J2_symbol",symbols("J2"))
         Rin_s = kwargs.get("Rin_symbol",symbols(r"R"))
-        self.Hparams[J2_s] = J2
-        self.Hparams[Rin_s] = Rin
+        self.H_params[J2_s] = J2
+        self.H_params[Rin_s] = Rin
         GJ2RinSq = G * J2_s * Rin_s * Rin_s 
         a0_d = symbols("a0")
         # dummy variables, substitute later
@@ -637,8 +861,10 @@ class PoincareHamiltonian(Hamiltonian):
             # delta expansion
             full_exprn = series(full_exprn,delta_d,0,max_delta_order+1).removeO()
         Hpert = -1 * GJ2RinSq * full_exprn 
-        if particles is 'all':
+        if particles == 'all':
             pids = range(1,self.N)
+        else:
+            pids = particles
         for pid in pids:
             p = self.particles[pid]
             m,mu,M,kappa,eta,sigma,rho = symbols('m{0},mu{0},M{0},kappa{0},eta{0},sigma{0},rho{0}'.format(pid)) 
@@ -648,9 +874,8 @@ class PoincareHamiltonian(Hamiltonian):
             a0 = _get_a0_symbol(pid)
             delta = (Lambda - Lambda0)/Lambda0
             self.H += M * mu * Hpert.subs({a0_d:a0,delta_d:delta,kappa_d:kappa,eta_d:eta,sigma_d:sigma,rho_d:rho,Lambda0_d:Lambda0})
-        if update:
-            self._update()
-    def add_gr_potential_terms(self,c,max_e_order=None,particles = 'all',update=True):
+
+    def add_gr_potential_terms(self,c,max_e_order=None,particles = 'all'):
         r"""
         Add Hamiltonian terms that capture the orbital precession
         caused by general relativity by adding a potential term
@@ -671,13 +896,10 @@ class PoincareHamiltonian(Hamiltonian):
         particles : list, optional
             Which particle numbers to add :math:`J_2` terms for. Default
             is set to all particles.
-        update : bool, optional
-            Whether to update the internal equations of motion used
-            by the PoincareHamiltonian object.
         """
         G,c_s = symbols('G,c')
         G_by_c = G / c_s
-        self.Hparams[c_s] = c
+        self.H_params[c_s] = c
         
         # dummy variables, substitute later
         # Lambda_d = symbols("Lambda")
@@ -696,7 +918,7 @@ class PoincareHamiltonian(Hamiltonian):
             # e expansion
             eps_exprn = full_exprn.subs({sym:eps*sym for sym in (kappa_d,eta_d)})
             full_exprn = series(eps_exprn,eps,0,max_e_order+1).removeO().subs({eps:1})
-        if particles is 'all':
+        if particles == 'all':
             pids = range(1,self.N)
         for pid in pids:
             p = self.particles[pid]
@@ -704,141 +926,6 @@ class PoincareHamiltonian(Hamiltonian):
             Lambda0 = _get_Lambda0_symbol(pid)
             a0 = _get_a0_symbol(pid)
             self.H += M * M * mu * full_exprn.subs({a0_d:a0,kappa_d:kappa,eta_d:eta,Lambda0_d:Lambda0})
-        if update:
-            self._update()
-    def add_all_MMR_and_secular_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0):
-        r"""
-        Add all disturbing function terms associated with a p:p-q mean
-        motion resonance along with secular terms up to a given order.
-
-        Arguments
-        ---------
-        p : int
-            Coefficient of lambdaOut in resonant argument
-                p*lambdaOut - (p-q)*lambdaIn
-        q : int
-            Order of the mean motion resonance.
-        max_order : int
-            Maximum order of terms to add.
-        indexIn : int
-            Index of inner planet.
-        indexOut : int
-            Index of outer planet.
-        lmax : int, optional
-            Maximum degree of expansion in :math:`\delta = (\Lambda-\Lambda_0)/\Lambda_0
-            to include in cosine coefficients. Default is 0.
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        if p<q or q<0:
-            warnings.warn("""
-            MMRs with p<q or q<0 are not supported. 
-            If you really want to include these terms, 
-            they may be added individually with the 
-            'add_monomial_term' method.
-            """)
-        if max_order < q:
-            warnings.warn("""Maxmium order is lower than order of the resonance!""")
-        if abs(p) % q == 0 and q != 1:
-            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
-        max_order_by_2 = max_order // 2
-        for h in range(0,max_order_by_2+1):
-            if h==0:
-                k_lo = 0
-            else:
-                k_lo = -2 * max_order_by_2
-            for k in range(k_lo,2 * max_order_by_2 + 1):
-                s_hi = max_order-abs(h+k)-abs(h-k)
-                if h==0 and k==0:
-                    s_lo = 0
-                else:
-                    s_lo = -s_hi
-                for s in range(s_lo,s_hi+1):
-                    s1_hi = max_order - abs(h+k) - abs(h-k) - abs(s)
-                    if h==0 and k==0 and s==0:
-                        s1_lo = 0
-                    else:
-                        s1_lo = -s1_hi
-                    for s1 in range(s1_lo,s1_hi+1):
-                        k3 = -s
-                        k5 = -h-k
-                        k6 = k-h
-                        k4 = -s1
-                        tot = k3+k4+k5+k6
-                        if -p * tot % q == 0:
-                            k1 = -p * tot // (q)
-                            k2 = (p-q) * tot // (q)
-                            kvec = np.array([k1,k2,k3,k4,k5,k6],dtype=int)
-                            if k1 < 0:
-                                kvec *= -1
-                            self.add_cos_term_to_max_order(kvec.tolist(),max_order,indexIn,indexOut,lmax=lmax,update=False)
-        # Finish with update
-        self._update()
-
-    def add_eccentricity_MMR_terms(self,p,q,max_order,indexIn = 1, indexOut = 2,lmax=0,update=True):
-        """
-        Add all eccentricity-type disturbing function terms associated with a p:p-q mean
-        motion resonance up to a given order.
-
-        Arguments
-        ---------
-        p : int
-            Coefficient of lambdaOut in resonant argument
-                j*lambdaOut - (j-k)*lambdaIn
-        q : int
-            Order of the mean motion resonance.
-        """
-        assert max_order>=0, "max_order= {:d} not allowed,  must be non-negative.".format(max_order)
-        if p<q or q<0:
-            warnings.warn("""
-            MMRs with j<k or k<0 are not supported. 
-            If you really want to include these terms, 
-            they may be added individually with the 
-            'add_monomial_term' method.
-            """)
-        if max_order < q:
-            warnings.warn("""Maxmium order is lower than order of the resonance!""")
-        if abs(p) % q == 0 and q != 1:
-            warnings.warn("p and q share a common divisor. Some important terms may be omitted!")
-        for n in range(1,int(max_order//q) + 1):
-            k1 = n * p
-            k2 = n * (q-p)
-            for l in range(0, n * q + 1):
-                k3 = -l
-                k4 = l - n*q
-                kvec = [k1,k2,k3,k4,0,0]
-                self.add_cos_term_to_max_order(kvec,max_order,indexIn,indexOut,lmax=lmax,update=False)
-        # Finish with update
-        if update:
-            self._update()
-    def add_cos_term_to_max_order(self,jvec,max_order,indexIn=1,indexOut=2,lmax=0,update = True):
-        """
-        Add disturbing function term 
-           c(alpha,e1,e2,s1,s2) * cos(j1 * lambda + j2 * lambda1 + j3 * pomega1 + j4 * pomega2 + j5 * Omega1 + j6 * Omega2)
-        approximating c up to order 'max_order' in eccentricity and inclination.
-
-        Arguments
-        ---------
-        jvec : array-like
-            Vector of integers specifying cosine argument.
-        max_order : int
-            Maximum order of terms in include in the expansion of c
-        indexIn : int, optional
-            Integer index of inner planet.
-        indexOut : anit, optional
-            Intgeger index of outer planet.
-        """
-        _,_,j3,j4,j5,j6 = jvec
-        order = max_order - abs(j3) - abs(j4) - abs(j5) - abs(j6)
-        orderBy2 = order // 2
-        N = orderBy2+1
-        for z1 in range(0,N):
-            for z2 in range(0,N - z1):
-                for z3 in range(0,N - z1 - z2):
-                    for z4 in range(0,N - z1 - z2 - z3):
-                        zvec  = [z1,z2,z3,z4]
-                        self.add_monomial_term(jvec,zvec,indexIn,indexOut,lmax=lmax,update=False)
-        if update:
-            self._update() 
 
     def _get_laplace_lagrange_matrices(self):
         set_e_and_inc_zero_rule = {
@@ -863,4 +950,3 @@ class PoincareHamiltonian(Hamiltonian):
             mtrx.append(row)
         inc_mtrx = Matrix(mtrx)
         return ecc_mtrx,inc_mtrx
-

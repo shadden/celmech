@@ -10,41 +10,54 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
-def get_DFCoeff_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+def get_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+    r"""
+    Get a sympy symbol for the disturbing function coefficient
+
+    .. math::
+        C_{\pmb{k}}^{\pmb{\nu},\pmb{l}}(\alpha_{i,j})
+
+    Returns
+    -------
+    sympy symbol
+    """
     symbol_str  = r"C_{{({0}\,{1}\,{2}\,{3}\,{4}\,{5})}}".format(k1,k2,k3,k4,k5,k6)
     symbol_str += r"^{{({0}\,{1}\,{2}\,{3})\,({4}\,{5})}}".format(nu1,nu2,nu3,nu4,l1,l2)
     symbol_str += r"(\alpha_{{{0}\,{1}}})".format(indexIn,indexOut)
     return symbols(symbol_str)
 
 def _delta(*args):
+    """
+    Return 0 if all arguments are 0, otherwise return 1.
+    """
     intarr  = np.array([args],dtype=np.int64)
     if np.alltrue(intarr == 0):
         return 0
     else:
         return 1
     
-def DFArguments_dictionary(Nmax):
-    """
+def df_arguments_dictionary(Nmax):
+    r"""
     Get the arguments appearing in the disturbing function
-    up to order Nmax.  
+    up to order Nmax. Arguments are returned as a nested dictionary.
+    The outer level keys are orders. 
+    The inner level keys are 
+    :math:`\Delta k = |k_1-k_2|`, 
+    denoting the order of MMR for which the argument appears. 
+    The values of the inner level dictionaries are lists of
+    tuples containing :math:`(k_3,k_4,k_5,k_6)`.
+    Specifically, the dictionary is returned in the form:
     
-    Arguments are returned as a nested dictionary. 
-    The outer level keys are orders. The inner level
-    keys are dk = |k1-k2|, denoting the order of MMR
-    for which the argument appears. The values of the 
-    inner level dictionaries are lists of 
-    tuples containing (k3,k4,k5,k6). 
-    
-    {
-        0:{0:[(0,0,0,0)],
-        1:{1:[(-1,0,0,0),(0,-1,0,0)]},
-        ...
-        Nmax:{
-            0:[(j3,j4,j5,j6)],
-            ...
-            Nmax:[(j3,j4,j5,j6),...]
-        }
-    }
+    | {
+    |     0:{0:[(0,0,0,0)],
+    |     1:{1:[(-1,0,0,0),(0,-1,0,0)]},
+    |     ...
+    |     Nmax:{
+    |         0:[(k3,k4,k5,k6)],
+    |         ...
+    |         Nmax:[(k3,k4,k5,k6),...]
+    |     }
+    | }
     
     Arguments
     ---------
@@ -81,95 +94,161 @@ def DFArguments_dictionary(Nmax):
                     args_dict[N][dj*sgn].append((k3,k4,k5,k6))
     return args_dict
 
-def _nucombos_iter(nutot):
+def _nucombos(nutot):
+    nucombos = []
     for nu1 in range(nutot+1):
         for nu2 in range(nutot+1-nu1):
             for nu3 in range(nutot+1-nu1-nu2):
                 nu4 = nutot - nu1 - nu2 - nu3
-                yield (nu1,nu2,nu3,nu4)
-                
-def ResonanceTermsList(j,k,Nmin,Nmax):
+                nucombos.append((nu1, nu2, nu3, nu4))
+    return nucombos
+
+def _lcombos(ltot):
+    lcombos = []
+    for l1 in range(ltot+1):
+        l2 = ltot - l1
+        lcombos.append((l1, l2))
+    return lcombos
+def _depends_on_inclinations(k,nu):
+    _,_,_,_,k5,k6 = k
+    nu1,nu2,_,_ = nu
+    arr=np.array([k5,k6,nu1,nu2])
+    return np.any(arr!=0)
+def _depends_on_eccentricities(k,nu):
+    _,_,k3,k4,_,_ = k
+    _,_,nu3,nu4 = nu
+    arr=np.array([k3,k4,nu3,nu4])
+    return np.any(arr!=0)
+def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
-    Generate the list of disturbing function terms for a 
-    j:j-k resonance with eccentricity/inclination order
-    between Nmin and Nmax.
+    Generate the list of disturbing function terms for a
+    p:p-q resonance with eccentricity/inclination order
+    between min_order and max_order
 
     Arguments
     ---------
-    j : int
-     Determines resonance
-    k : int
-     Order of the resonance
-    Nmin : int
-     Minimum order of terms to include
-    Nmax : int
-     Maximum order of terms to include
+    p : int
+        Determines resonance
+    q : int
+        Order of the resonance
+    min_order : int, optional
+        Minimum order in eccentricities and inclinations to include. Defaults to order of the resonance q (leading order)
+    max_order: int
+        Maximum order in eccentricities and inclinations to include. Defaults to order of the resonance q (leading order)
+    eccentricities: bool, optional
+        By default, includes all eccentricity terms.
+        Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+    inclinations: bool, optional
+        By default, includes all inclination terms.
+        Can set to False to exclude any inclination terms (e.g., co-planar systems).
 
     Returns
     -------
     term : list
-        A list of disturbing function terms. 
+        A list of disturbing function terms.
         Each entry in the list is of the form
-        (kvec, nuvec)
+        (k_vec, nu_vec) (see PoincareHamiltonian.add_cosine_term in poincare.py)
     """
-    args_dict = DFArguments_dictionary(Nmax)
+    if not min_order:
+        min_order = q
+    if not max_order:
+        max_order = q
+    args_dict = df_arguments_dictionary(max_order)
     args = []
-    for N in range(Nmin,Nmax+1):
-        for k1 in range(k,N+1,k):
-            if (N-k1) % 2:
+    for N in range(min_order,max_order+1):
+        for q1 in range(q,N+1,q):
+            if (N-q1) % 2:
                 continue
-            j1 = (k1//k) * j
-            for N1 in range(k1,N+1,2):
+            p1 = (q1//q) * p
+            for N1 in range(q1,N+1,2):
                 nutot = (N-N1)//2
-                for arg in args_dict[N1][k1]:
-                    for nuc in _nucombos_iter(nutot):
-                        js = (j1,k1 - j1,*arg)
-                        args.append((js,nuc))
+                for arg in args_dict[N1][q1]:
+                    for nu_vec in _nucombos(nutot):
+                        k_vec = (p1,q1 - p1,*arg)
+                        depends_i=_depends_on_inclinations(k_vec,nu_vec)
+                        if (not inclinations) and depends_i:
+                            continue
+                        depends_e = _depends_on_eccentricities(k_vec,nu_vec)
+                        if (not eccentricities) and depends_e:
+                            continue
+                        args.append((k_vec,nu_vec))
     return args
 
-def SecularTermsList(Nmin,Nmax):
+def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True):
     """
     Generate the list of secular disturbing function terms 
-    with eccentricity/inclination order between Nmin and Nmax.
+    with eccentricity/inclination order between min_order and max_order.
 
     Arguments
     ---------
-    j : int
-     Determines resonance
-    k : int
-     Order of the resonance
-    Nmin : int
-     Minimum order of terms to include
-    Nmax : int
-     Maximum order of terms to include
+    min_order : int
+     Minimum order in eccentricities and inclinations to include.
+    max_order : int
+     Maximum order in eccentricities and inclinations to include.
+    eccentricities: bool, optional
+        By default, includes all eccentricity terms.
+        Can set to False to exclude any eccentricity terms (e.g., fixed circular orbits).
+    inclinations: bool, optional
+        By default, includes all inclination terms.
+        Can set to False to exclude any inclination terms (e.g., co-planar systems).
 
     Returns
     -------
     term : list
         A list of disturbing function terms. 
         Each entry in the list is of the form
-        (kvec, nuvec)
+        (k_vec, nu_vec) (see PoincareHamiltonian.add_cosine_term in poincare.py)
     """
-    args_dict = DFArguments_dictionary(Nmax)
+    args_dict = df_arguments_dictionary(max_order)
     args = []
-    Nmax1 = (Nmax//2) * 2 
-    Nmin1 = (Nmin//2) * 2 
+    Nmax1 = (max_order//2) * 2 
+    Nmin1 = (min_order//2) * 2 
     for N in range(0,Nmax1 + 1,2):
         argsN = args_dict[N][0]
         nutot_min = max( (Nmin1 - N)//2 , 0)
         nutot_max = (Nmax1 - N)//2 
         for nutot in range(nutot_min,nutot_max + 1):
-            for nuc in _nucombos_iter(nutot):
+            for nu_vec in _nucombos(nutot):
                 for arg in argsN:
-                    js = (0,0,*arg)
-                    args.append((js,nuc))
+                    k_vec = (0,0,*arg)
+                    depends_i=_depends_on_inclinations(k_vec,nu_vec)
+                    if (not inclinations) and depends_i:
+                        continue
+                    depends_e = _depends_on_eccentricities(k_vec,nu_vec)
+                    if (not eccentricities) and depends_e:
+                        continue
+                    args.append((k_vec,nu_vec))
     return args
 
+def k_depends_on_eccentricities(kvec):
+    if kvec[2] != 0 or kvec[3] != 0:
+        return True
+    else:
+        return False
+
+def k_depends_on_inclinations(kvec):
+    if kvec[4] != 0 or kvec[5] != 0:
+        return True
+    else:
+        return False
+
+def nu_depends_on_eccentricities(nuvec):
+    if nuvec[2] != 0 or nuvec[3] != 0:
+        return True
+    else:
+        return False
+
+def nu_depends_on_inclinations(nuvec):
+    if nuvec[0] != 0 or nuvec[1] != 0:
+        return True
+    else:
+        return False
+
 def laplace_b(s,j,n,alpha):
-    """
-    Calculates nth derivative with respect to a (alpha) of Laplace coefficient b_s^j(a).
+    r"""
+    Calculates :math:`n`th derivative with respect to :math:`\alpha` of Laplace coefficient :math:`b_s^j(\alpha)`.
     Uses recursion and scipy special functions. 
-    
+
     Arguments
     ---------
     s : float 
@@ -177,10 +256,15 @@ def laplace_b(s,j,n,alpha):
     j : int 
         integer parameter of Laplace coefficient. 
     n : int 
-        return nth derivative with respect to a of b_s^j(a)
-    a : float
-        semimajor axis ratio a1/a2 (alpha)
-    """    
+        Specify the :math:`n`th derivative with respect to :math:`alpha`. 
+    alpha : float
+        Semi-major axis ratio, :math:`\alpha=a_{in}/a_{out}`.
+
+    Returns
+    -------
+    float
+        The value of the coefficient.
+    """
     assert alpha>=0 and alpha<1, "alpha not in range [0,1): alpha={}".format(alpha)
     if j<0:
         return laplace_b(s,-j,n,alpha)
@@ -199,33 +283,33 @@ def laplace_b(s,j,n,alpha):
         )
     return 2 * poch(s,j) * alpha**j * hyp2f1(s,s+j,j+1,alpha**2)/ factorial(j)
 
-def eval_DFCoeff_dict(Coeff_dict,alpha):
+def evaluate_df_coefficient_dict(coeff_dict,alpha):
     r"""
     Evaluate a dictionary representing a sum
     of Laplace coefficient terms like those returned
-    by DFCoeff_C and DFCoeff_Ctilde evaluated at a 
+    by df_coefficient_C and df_coefficient_Ctilde evaluated at a 
     specific value of semi-major axis ratio, alpha.
 
     Arguments
     ---------
-    Coeff_dict : dictionary
+    coeff_dict : dictionary
         Dictionary with entries {(p,(s,j,n)) : coeff}
         representing a sum of Laplace coefficients:
 
         .. math::
-         \mathrm{coeff}  \alpha^p \frac{ d^n b_s^{(j)}(\alpha)} { d\alpha^n}
+         \mathrm{coeff} \times \alpha^p \frac{ d^n b_s^{(j)}(\alpha)} { d\alpha^n}
     alpha : float
-        Value of semi-major axis ratio a1/a2 appearing
+        Value of semi-major axis ratio, :math:`\alpha=a_i/a_j`, appearing
         as an argument of Laplace coefficients.
 
     Returns
     -------
-    float : 
+    float :
         The sum of Laplace coefficeint terms represented
         by dictionary entries.
     """
     tot = 0
-    for key,val in Coeff_dict.items():
+    for key,val in coeff_dict.items():
         if key[0] == 'indirect':
             pwer = key[1]
             rt_alpha_inv = 1 / np.sqrt(alpha) 
@@ -236,17 +320,19 @@ def eval_DFCoeff_dict(Coeff_dict,alpha):
     return tot
 
 
-
 def calB(n,k,p):
     arglist = [negative_binom(p,l) * factorial(l) for l in range(1,n-k+3)]
     return bell(n,k,arglist)
+
 def falling_factorial(x,n):
     return poch(-x,n) * (-1)**n
+
 def _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2):
     return binom(l1,m1) * binom(l2,m2) *\
     falling_factorial(-2*r1 - p2/2,m2) * falling_factorial(-p1/2,m1) *\
     calB(l1-m1,r1,2) * calB(l2-m2,r2,-2)
-def _calc_DFCoeffC_l1_l2_Taylor_coeff(l1,l2,p1,p2,derivs_list):
+
+def _calc_df_coefficient_C_l1_l2_Taylor_coeff(l1,l2,p1,p2,derivs_list):
     tot = 0
     l1fact_inv = 1/factorial(l1)
     l2fact_inv = 1/factorial(l2)
@@ -275,7 +361,7 @@ def _p1_p2_from_k_nu(kvec,nuvec):
     p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
     return p1,p2
 
-def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
+def evaluate_df_coefficient_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
     r"""
     Calculate coefficients of the Taylor series of `Coeff_dict` in 
     powers math:`\delta_i` and math::`\delta_j` evaluated at semi-major
@@ -291,7 +377,7 @@ def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
             p1 = abs(k3) + abs(k5) + 2 * nu1 + 2 * nu3
     p2 : int
         Integer specific to the DF term's (k,nu) values
-        given by 
+        given by
             p2 = 4 + abs(k4) + abs(k6) + 2 * nu2 + 2 * nu4
     lmax : int
         Maximum power of Taylor expansion.
@@ -301,17 +387,17 @@ def eval_DFCoeff_delta_expansion(Coeff_dict,p1,p2,lmax,alpha):
     answer = dict()
     C = Coeff_dict
     # Derivatives of C w.r.t. alpha
-    NC_derivs = [eval_DFCoeff_dict(C,alpha)]
+    NC_derivs = [evaluate_df_coefficient_dict(C,alpha)]
     for ltot in range(lmax+1):
-        C=deriv_DFCoeff(C)
-        NC_derivs.append(alpha**(ltot+1) * eval_DFCoeff_dict(C,alpha))
+        C=deriv_df_coefficient(C)
+        NC_derivs.append(alpha**(ltot+1) * evaluate_df_coefficient_dict(C,alpha))
         for lIn in range(ltot+1):
             lOut = ltot - lIn
-            answer[(lIn,lOut)] = _calc_DFCoeffC_l1_l2_Taylor_coeff(lIn,lOut,p1,p2,NC_derivs)
+            answer[(lIn,lOut)] = _calc_df_coefficient_C_l1_l2_Taylor_coeff(lIn,lOut,p1,p2,NC_derivs)
     return answer
 
 # Vector of resonance coefficients
-def get_res_coeff_vector(j,k,include_indirect_terms=True):
+def get_res_coefficient_vector(j,k,include_indirect_terms=True):
     r"""
     Get a vector comprised of all sub-resonance coefficients for the j:j-k mean motion resonance.
 
@@ -333,15 +419,16 @@ def get_res_coeff_vector(j,k,include_indirect_terms=True):
     """ 
     res_pratio = float(j - k) /float(j)
     alpha = res_pratio**(2./3.)
-    Cjkl = lambda j,k,l,alpha: eval_DFCoeff_dict(DFCoeff_C(j,k-j,-l,l-k,0,0,0,0,0,0,include_indirect_terms),alpha)
+    res_ecc_arg = lambda j,k,l: (j,k-j,-l,l-k,0,0,0,0,0,0) # k and nu values
+    Cjkl = lambda j,k,l,alpha: evaluate_df_coefficient_dict(df_coefficient_C(*res_ecc_arg(j,k,l),include_indirect_terms=include_indirect_terms),alpha)
     vals = np.array([Cjkl(j,k,l,alpha) for l in range(k+1)],dtype=np.float64)
     return vals
 
-def get_fg_coeffs(res_j,res_k):
+def get_fg_coefficients(res_j,res_k):
     """Get 'f' and 'g' coefficients for approximating the disturbing function coefficients associated with an MMR."""
     res_pratio = float(res_j - res_k) /float(res_j)
     alpha = res_pratio**(2./3.)
-    vec = get_res_coeff_vector(res_j,res_k)
+    vec = get_res_coefficient_vector(res_j,res_k)
     resids_vec_fn = lambda fg: vec - np.array([binomial(res_k,l) * fg[0]**(l) * fg[1]**(res_k-l) for l in range(res_k+1)],dtype=np.float64)
     ex = (1-alpha)
     f0 = -1 / ex
@@ -556,16 +643,25 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
 
     
 
-def DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
+def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
     r"""
     Get the coefficient of the disturbing function term:
-    
-      s1^{|k5|+2nu1} s2^{|k6|+2nu2} * e2^{|k4|+2*nu4} * e1^{|k3|+2*nu3} \times 
-          cos[k1*L2 + k2*L1 + k3 * pomega1 + k4 * w2 + k5 * Omega1 + k6 * Omega2)
 
-    where s1 = sin(I1/2) and s2 = sin(I2/2) as a dictionary of Laplace coefficient 
+    .. math::
+        s_i^{|k_5|+2\nu_1} s_j^{|k_6|+2\nu_2}
+        e_i^{|k_3|+2\nu_4} e_j^{|k_4|+2\nu_3} 
+        \times
+        \cos[
+            k_1\lambda_j + k_2\lambda_i +
+            k_3 \varpi_i + k_4 \varpi_j +
+            k_5 \Omega_i + k_6 \Omega_j
+        ]
+
+    where the indices :math:`i` and :math:`j` corresponds to the
+    inner and outer planets, respectively.
+    The result is returned as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
-    
+
     Arguments:
     ----------
     k1 : int
@@ -606,14 +702,14 @@ def DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
     # must be even power in inclination
     if abs(k5 + k6) % 2:
         warnings.warn(
-                "\n DFCoeff called with an argument not symmetric w.r.t. planet inclinations:\n" + 
+                "\n df_coefficient called with an argument not symmetric w.r.t. planet inclinations:\n" + 
                 "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
                 )
         return dict(total)
     # Sum of integer coefficients must be 0
     if k1 + k2 + k3 + k4 + k5 + k6:
         warnings.warn(
-                "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" + 
+                "\n df_coefficient called with an argument that does not satisfy D'Alembert relation:\n" + 
                 "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
                 )
         return dict(total)
@@ -648,11 +744,11 @@ def DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = True):
 
     # add indirect term
     if include_indirect:
-        coeff = DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        coeff = df_coefficient_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
         total[('indirect',1)] = coeff
     return dict(total)
 
-def _DFCoeff_mult_by_alpha_power(coeffdict,r):
+def _df_coeff_mult_by_alpha_power(coeffdict,r):
     """
     For a DF coefficient 'coeff' represented by 'coeffdict', 
     return the new coefficient dictionary  alpha^r * coeff
@@ -667,7 +763,7 @@ def _DFCoeff_mult_by_alpha_power(coeffdict,r):
         new[newkey]=val
     return new
 
-def _DFCoeff_scalar_mult(coeffdict,s):
+def _df_coefficient_scalar_mult(coeffdict,s):
     """
     Return dictionary for s * coeffdict for scalar value 's'
     """
@@ -677,31 +773,33 @@ def _get_alpha_times_derivs_list(coeffdict, ltot):
     derivs_list=[coeffdict]
     dcoeff = coeffdict.copy()
     for l in range(ltot):
-        dcoeff = deriv_DFCoeff(dcoeff)
-        derivs_list.append(_DFCoeff_mult_by_alpha_power(dcoeff,l+1))
+        dcoeff = deriv_df_coefficient(dcoeff)
+        derivs_list.append(_df_coeff_mult_by_alpha_power(dcoeff,l+1))
     return derivs_list
 
 
 
-def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms = True):
+def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms = True):
     r"""
-    Get the coefficient of the disturbing function term:
-    
+    Get the coefficient of the disturbing function term
+
     .. math ::
 
-        |Y_1|^{|k_5|+2\nu_1} 
-        |Y_2|^{|k_6|+2\nu_2} 
-        |X_1|^{|k_3|+2\nu_3} 
-        |X_2|^{|k_4|+2\nu_4} 
-        \delta_1^{l_1}
-        \delta_2^{l_2}
+        |Y_i|^{|k_5|+2\nu_1}
+        |Y_j|^{|k_6|+2\nu_2}
+        |X_i|^{|k_3|+2\nu_3}
+        |X_j|^{|k_4|+2\nu_4}
+        \delta_i^{l_1}
+        \delta_j^{l_2}
         \times \cos[
-            k_1 \lambda_2 + k_2 \lambda_1 +
-            k_3 \varpi_1 + k_4 \varpi_2 + 
-            k_5 \Omega_1 + k_6 \Omega_2
-        ]
+            k_1 \lambda_j + k_2 \lambda_i +
+            k_3 \varpi_i + k_4 \varpi_j +
+            k_5 \Omega_i + k_6 \Omega_j
+        ]~,
 
-    as a dictionary of Laplace coefficient
+    where the indices :math:`i` and :math:`j` corresponds to the
+    inner and outer planets, respectively.
+    The result it returned as a dictionary of Laplace coefficient
     arguemnts and their numerical coefficents.
 
     Arguments:
@@ -757,7 +855,7 @@ def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms
     assert np.alltrue(np.array([nu1,nu2,nu3,nu4,l1,l2])>=0), msg
     for n3 in range(nu3+1):
         for n4 in range(nu4+1):
-            term_dict = DFCoeff_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,n3,n4,include_indirect_terms)
+            term_dict = df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,n3,n4,include_indirect_terms)
             prefactor = Xi(nu3-n3,n3+abs(k3)/2,nu1+abs(k5)/2) * Xi(nu4-n4,n4+abs(k4)/2,nu2+abs(k6)/2)
             if prefactor != 0.:
                 for key,val in term_dict.items():
@@ -776,12 +874,9 @@ def DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirect_terms
             for r1 in range(l1-m1+1):
                 for m2 in range(l2+1):
                     for r2 in range(l2-m2+1):
-                        to_add = _DFCoeff_scalar_mult(derivs_list[r1+r2],prefactor * _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2))
+                        to_add = _df_coefficient_scalar_mult(derivs_list[r1+r2],prefactor * _Psi_coeff(l1,l2,p1,p2,m1,m2,r1,r2))
                         result = _add_dicts(result,to_add)      
     return result
-
-
-
 
 def has_indirect_component(k1,k2,k3,k4,k5,k6):
     two_p = k2 + k4 + 1 
@@ -793,7 +888,7 @@ def has_indirect_component(k1,k2,k3,k4,k5,k6):
 def is_zero_or_two(n):
     return n == 0 or n == 2
     
-def deriv_DFCoeff(coeff):
+def deriv_df_coefficient(coeff):
     r"""
     Derivative of a disturbing function coefficient with repsect to 
     alpha.
@@ -880,7 +975,7 @@ def _Cindirect_type2(k1,k2,m,z1,z2,z3,z4):
         return binom(1 ,z2) * (1 - _delta(z1)) * (-1)**(z2) * base_case
 
 
-def DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
+def df_coefficient_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     r"""
     Get the indirect contribution to disturbing function coefficient
 
@@ -889,7 +984,7 @@ def DFCoeff_Ctilde_indirect_piece(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     """
     if np.sum([k1,k2,k3,k4,k5,k6]) !=0:
         warnings.warn(
-        "\n DFCoeff called with an argument that does not satisfy D'Alembert relation:\n" +
+        "\n df_coefficient called with an argument that does not satisfy D'Alembert relation:\n" +
         "\t (k1,k2,k3,k4,k5,k6)=({},{},{},{},{},{})".format(k1,k2,k3,k4,k5,k6)
         )
         return 0
@@ -963,12 +1058,12 @@ def terms_list_to_HamiltonianCoefficients_dict(terms_list,G,mIn,mOut,MIn,MOut,La
     prefactor = -G * mIn * mOut * aOut_inv
     result = dict()
     for kvec,zvec in terms_list:
-        C = DFCoeff_C(*kvec,*zvec)
-        coeff = prefactor * eval_DFCoeff_dict(C,alpha)
+        C = df_coefficient_C(*kvec,*zvec)
+        coeff = prefactor * evaluate_df_coefficient_dict(C,alpha)
         if include_alpha_derivs:
             ind = C.pop(('indirect',1))
-            dC = deriv_DFCoeff(C)
-            dcoeff = prefactor * ( eval_DFCoeff_dict(dC,alpha) - 0.5 * ind / np.sqrt(alpha*alpha*alpha))
+            dC = deriv_df_coefficient(C)
+            dcoeff = prefactor * ( evaluate_df_coefficient_dict(dC,alpha) - 0.5 * ind / np.sqrt(alpha*alpha*alpha))
             result[(kvec,zvec)] = coeff,dcoeff
         else:
             result[(kvec,zvec)] = coeff
@@ -1163,14 +1258,14 @@ def _add_dicts(*dicts):
 
 
 def _resonance_arguments_of_fixed_order(j,k,N):
-    args_dict = DFArguments_dictionary(N)
+    args_dict = df_arguments_dictionary(N)
     args = []
     for N1 in range(k,N+1,2):
         if (N-N1) % 2:
             continue
         nutot = (N-N1)//2
         for arg in args_dict[N1][k]:
-            for nuc in _nucombos_iter(nutot):
+            for nuc in _nucombos(nutot):
                 js = (j,k - j,*arg)
                 args.append((js,nuc))
     return args

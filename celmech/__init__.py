@@ -2,7 +2,6 @@
 """Tools for celestial mechanics."""
 
 import sympy # sympy autodetects python 3 here, but errors when importing from other .py files in package
-
 # Find suffix
 import sysconfig
 suffix = sysconfig.get_config_var('EXT_SUFFIX')
@@ -35,7 +34,7 @@ except:
     # Might fails on python3 versions, but not important
     pass
 
-from .andoyer import Andoyer, AndoyerHamiltonian
+sympy.init_printing(use_latex='mathjax')
 from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
-
-__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","LaplaceLagrangeSystem"]
+from .miscellaneous import get_symbol, get_symbol0
+__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","LaplaceLagrangeSystem", "get_symbol", "get_symbol0"]

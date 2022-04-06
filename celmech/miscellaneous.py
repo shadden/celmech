@@ -1,17 +1,51 @@
 import numpy as np
+from sympy import symbols, series
 from scipy.special import k0,k1,p_roots
 import warnings
 from . import clibcelmech
+from .nbody_simulation_utilities import get_canonical_heliocentric_orbits
 from ctypes import POINTER,c_int,c_double,c_long
 
 _machine_eps = np.finfo(np.float64).eps
+
+def get_symbol(latex, subscript=None, **kwargs): # i=None, kwargs
+    """
+    Get a sympy sympy based on an input LaTeX string.
+    Valid keyword arguments for the function ``sympy.symbols``
+    can also be passed. 
+
+    Arguments
+    ---------
+    latex : string
+        LaTeX expression to render as a sympy symbol
+    subscript : string or int, optional
+        A subscript for the sympy symbol
+
+    Returns
+    -------
+    sympy symbol
+    """
+    if subscript:
+        return symbols(r"{0}_{{{1}}}".format(latex, subscript), **kwargs)
+    else:
+        return symbols(r"{0}".format(latex), **kwargs)
+
+def get_symbol0(latex, subscript=None, **kwargs): # i=None, kwargs
+    """
+    Same as :func:`get_symbol`, but appends a "0" to the subscript.
+    """
+    if subscript:
+        return symbols(r"{0}_{{{1}\,0}}".format(latex, subscript), **kwargs)
+    else:
+        return symbols(r"{0}_0".format(latex), **kwargs)
+
 def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
-    Approximate disturibing function coefficient described in 
-    Hadden & Lithwick (2018) [#]_
+    Approximate disturibing function coefficient described in
+    `Hadden & Lithwick (2018)`_
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract>`
-    
+    .. _Hadden & Lithwick (2018): https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract
+
     Quadrature routine based on scipy.quadrature.
 
     Arguments
@@ -50,6 +84,7 @@ def sk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     else:
         warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
+
 def _sk_integral_fixed_quad(k,y,Nquad):
 
     # Get numerical quadrature nodes and weight
@@ -67,9 +102,9 @@ def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     """
     Derivative of disturibing function coefficient s_k
     with respect to argument y. Coefficients are described 
-    in Hadden & Lithwick (2018) [#]_
+    in `Hadden & Lithwick (2018)`_
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract>`
+    .. _Hadden & Lithwick (2018): https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract
     
     Quadrature routine based on scipy.quadrature.
 
@@ -109,6 +144,7 @@ def Dsk(k,y,tol=1.49e-08,rtol=1.49e-08,maxiter=50,miniter=1):
     else:
         warnings.warn("maxiter (%d) exceeded. Latest difference = %e" % (maxiter, err))
     return val
+
 def _Dsk_integral_fixed_quad(k,y,Nquad):
 
     # Get numerical quadrature nodes and weight
@@ -138,13 +174,14 @@ def getOmegaMatrix(n):
     -------
     numpy.array
     """
+    zeros = np.zeros((n,n),dtype=int)
+    I = np.eye(n,dtype=int)
     return np.vstack(
         (
-         np.concatenate([np.zeros((n,n)),np.eye(n)]).T,
-         np.concatenate([-np.eye(n),np.zeros((n,n))]).T
+         np.concatenate([zeros,I]).T,
+         np.concatenate([-I,zeros]).T
         )
     )
-
 ######################################################
 ################ AMD Calculation #####################
 ######################################################
@@ -252,15 +289,19 @@ def compute_AMD(sim):
     """
 
     pstar = sim.particles[0]
+    Mstar = pstar.m
     Ltot = pstar.m * np.cross(pstar.xyz,pstar.vxyz)
     ps = sim.particles[1:]
     Lmbda=np.zeros(len(ps))
     G = np.zeros(len(ps))
     Lhat = np.zeros((len(ps),3))
+    ch_orbits = get_canonical_heliocentric_orbits(sim)
     for k,p in enumerate(sim.particles[1:]):
-        orb = p.calculate_orbit(primary=pstar)
-        Lmbda[k] = p.m * np.sqrt(p.a)
-        G[k] = Lmbda[k] * np.sqrt(1-p.e*p.e)
+        orb = ch_orbits[k]
+        GMi = sim.G * (p.m + Mstar)
+        mu = p.m*Mstar/(p.m + Mstar)
+        Lmbda[k] = mu * np.sqrt(GMi * orb.a)
+        G[k] = Lmbda[k] * np.sqrt(1-orb.e*orb.e)
         hvec = np.cross(p.xyz,p.vxyz)
         Lhat[k] = hvec / np.linalg.norm(hvec)
         Ltot = Ltot + p.m * hvec
@@ -367,12 +408,14 @@ def _nearest_pow2(x):
 	return int(2**np.floor(np.log2(x)))
 def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
     """
-    Apply the frequency-modified Fourier transfrorm algorithm (Šidlichovský & Nesvorný 1996) [#]_
+    Apply the frequency-modified Fourier transfrorm algorithm of `Šidlichovský & Nesvorný (1996)`_
     to a time series to determine the series' principle Fourier modes. This function simply
-    proivdes a wrapper to to C implementation written by D. Nesvorný available at 
-    https://www-n.oca.eu/nesvorny/programs.html.
+    proivdes a wrapper to to C implementation written by D. Nesvorný available
+    at `www-n.oca.eu/nesvorny/programs.html`_.
 
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1996CeMDA..65..137S/abstract>`
+
+    .. _Šidlichovský & Nesvorný (1996): https://ui.adsabs.harvard.edu/abs/1996CeMDA..65..137S/abstract>
+    .. _www-n.oca.eu/nesvorny/programs.html: https://www-n.oca.eu/nesvorny/programs.html
 
     Arguments
     ---------
@@ -410,11 +453,11 @@ def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_fr
 
 def holman_weigert_stability_boundary(mu,e,Ptype=True):
     r"""
-    Compute the critical semi-major axis represnting an approximate 
+    Compute the critical semi-major axis represnting an approximate
     stability boundary for circumbinary planets in P- or S-type orbits.
-    Formulas for critical semi-major axes are taken from Holman & Wiegert (1999)[#]_
-    
-    .. [#] `ADS link <https://ui.adsabs.harvard.edu/abs/1999AJ....117..621H/abstract>`
+    Formulas for critical semi-major axes are taken from `Holman & Wiegert (1999)`_
+
+    .. _Holman & Wiegert (1999): https://ui.adsabs.harvard.edu/abs/1999AJ....117..621H/abstract
 
     Arguments
     ---------
@@ -423,12 +466,14 @@ def holman_weigert_stability_boundary(mu,e,Ptype=True):
 
       .. math::
         \mu = \frac{m_B}{m_A+m_B}
+
       where math:`m_A` and math:`m_B` are the component masses of the binary.
     e : float
-      The eccentricity of the binary. 
+      The eccentricity of the binary.
     Ptype : bool, optional
-      If `True` (default) orbit is assumed to be a P-type circumbinary orbit. 
-      If `False`, a S-type circum-primary/secondary orbit is considered.
+      If ``True`` (default) orbit is assumed to be a P-type circumbinary orbit.
+      If ``False``, a S-type circum-primary/secondary orbit is considered.
+
     Returns
     -------
     aC : float
@@ -460,26 +505,27 @@ def holman_weigert_stability_boundary(mu,e,Ptype=True):
     return aC
 #######################
 from sympy import diff, Matrix
-def PoissonBracket(f,g,re_varslist,complex_varslist):
+def poisson_bracket(f,g,re_varslist,complex_varslist):
     r"""
-    Calculate the Poisson bracket 
+    Calculate the Poisson bracket
 
     .. math::
         [f,g] = \sum_{i=1}^N
-                    \frac{\partial f}{\partial q_i}
-                    \frac{\partial g}{\partial p_i}
-                    -
-                    \frac{\partial f}{\partial p_i}
-                    \frac{\partial g}{\partial q_i}
-                -
-                i \sum_{j=1}^{M}
-                    \frac{\partial f}{\partial z_j}
-                    \frac{\partial g}{\partial \bar{z}_j}
-                    -
-                    \frac{\partial f}{\partial \bar{z}_j}
-                    \frac{\partial g}{\partial {z}_i}
-    where :code:`re_varslist` :math:`=(q_1,...,q_N,p_1,...,p_N)`
-    and :code:`complex_varslist` :math:`=(x_1,...,x_M,\bar{x}_1,...,\bar{x}_M)`.
+        \frac{\partial f}{\partial q_i}
+        \frac{\partial g}{\partial p_i}
+        -
+        \frac{\partial f}{\partial p_i}
+        \frac{\partial g}{\partial q_i}
+        -
+        i \sum_{j=1}^{M}
+        \frac{\partial f}{\partial z_j}
+        \frac{\partial g}{\partial \bar{z}_j}
+        -
+        \frac{\partial f}{\partial \bar{z}_j}
+        \frac{\partial g}{\partial {z}_i}
+
+    where :code:`re_varslist` is :math:`=(q_1,...,q_N,p_1,...,p_N)`
+    and :code:`complex_varslist` is :math:`=(x_1,...,x_M,\bar{x}_1,...,\bar{x}_M)`.
 
     Arguments
     ---------
@@ -503,10 +549,50 @@ def PoissonBracket(f,g,re_varslist,complex_varslist):
         Omega_c =Matrix(-1j * getOmegaMatrix(len(complex_varslist)//2))
         gradf_c = Matrix([diff(f,v) for v in complex_varslist])
         gradg_c = Matrix([diff(g,v) for v in complex_varslist])
-        br +=  gradf_c.dot(Omega_c.dot(gradg_c))
+        br +=  gradf_c.dot(Omega_c * gradg_c)
     if len(re_varslist)>0:
         Omega_re=Matrix(getOmegaMatrix(len(re_varslist)//2))
         gradf_re = Matrix([diff(f,v) for v in re_varslist])
         gradg_re = Matrix([diff(g,v) for v in re_varslist])
-        br+= gradf_re.dot(Omega_re.dot(gradg_re))
+        br+= gradf_re.dot(Omega_re * gradg_re)
     return br
+
+def truncated_expansion(exprn,order_rules,max_order):
+    r"""
+    Expand a sympy expression up to a maximum order in a
+    small book-keeping parameter after assigning variables 
+    appearing in the expression a given order using the 
+    `order_rules` argument.
+
+    Arguments
+    ---------
+    exprn : sympy expression
+        The original expression from which to calculate
+        expansion.
+    order_rules : dict
+        A dictionary specifying what order various variables
+        should be assumed to have in the book-keeping parameter.
+        Each key-value pair ``{n:[x_1,x_2,..,x_m]}`` in ``order_rules``
+        specifies that a set of variables 
+
+        .. math::
+            (x_1,...,x_m) \sim \mathcal{O}(\epsilon^n)
+        
+        where :math:`\epsilon` is the book-keeping parameter.
+    max_order : int
+        The order at which the resulting series expansion in 
+        the book-keeping parameter :math:`\epsilon` should
+        be truncated.
+
+    Returns
+    -------
+    sympy expression
+    """
+    eps = symbols("epsilon")
+    assert eps not in exprn.free_symbols, "Epsilon appears as a free symbols in 'exprn'."
+    rule = dict()
+    for n,variables in order_rules.items():
+        rule.update({v:eps**n * v for v in variables})
+    sexprn = series(exprn.subs(rule),eps,0,max_order+1)
+    result = sexprn.removeO().subs({eps:1})
+    return result

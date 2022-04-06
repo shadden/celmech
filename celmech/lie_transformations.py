@@ -4,8 +4,8 @@ from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan
 from sympy import lambdify as sym_lambdify
 from sympy.functions import elliptic_f,elliptic_k
 from sympy.core import pi
-from .disturbing_function import  _p1_p2_from_k_nu, eval_DFCoeff_delta_expansion
-from .disturbing_function import DFCoeff_C,eval_DFCoeff_dict,get_DFCoeff_symbol
+from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import df_coefficient_C,evaluate_df_coefficient_dict,get_df_coefficient_symbol
 from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
 from .hamiltonian import _my_elliptic_e, _lambdify_kwargs
 import warnings
@@ -18,7 +18,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     'averaged' Hamiltonian or normal form.  
 
     The generating function is constructed to first order in 
-    planet-star mass ratios by specifying indivdual monomial
+    planet-star mass ratios by specifying indivdual cosine 
     terms to be eliminated from the full Hamiltonian.
 
     This class is a sub-class of 
@@ -32,7 +32,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     ----------
     chi : sympy expression
         Symbolic expression for the generating function.
-    Nchi : sympy expression
+    N_chi : sympy expression
         Symbolic expression for the generating function 
         with numerical values of parameters substituted
         where applicable.
@@ -53,12 +53,12 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     def chi(self):
         return self.H
     @property
-    def Nchi(self):
-        return self.NH
+    def N_chi(self):
+        return self.N_H
 
     def _get_approximate_corrections(self,y):
         corrections = np.zeros(y.shape)
-        for i,deriv_func in enumerate(self.Nderivs):
+        for i,deriv_func in enumerate(self.N_derivs):
             corrections[i] = deriv_func(*y)
         return corrections
 
@@ -138,9 +138,9 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         variables from osculating
         to mean canonical variables.
         """
-        y_osc = self.state_to_list(self.state)
+        y_osc = self.state.values
         y_mean = self.osculating_to_mean_state_vector(y_osc)
-        self.update_state_from_list(self.state,y_mean)
+        self.state.values = y_mean
 
     def mean_to_osculating(self,**integrator_kwargs):
         """
@@ -148,9 +148,9 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         variables from osculating
         to mean canonical variables.
         """
-        y_mean = self.state_to_list(self.state)
+        y_mean = self.state.values
         y_osc = self.mean_to_osculating_state_vector(y_mean)
-        self.update_state_from_list(self.state,y_osc)
+        self.state.values = y_osc
 
     def add_zeroth_order_term(self,indexIn=1,indexOut=2,update=True):
         r"""
@@ -205,16 +205,16 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         nOut = self.get_mean_motion(indexOut)
         return kvec[0] * nOut + kvec[1] * nIn
 
-    def add_monomial_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
+    def add_cosine_term(self,kvec,nuvec,indexIn=1,indexOut=2,lmax=0,update=True):
         """
-        Add individual monomial term to generating function. The term 
+        Add individual cosine term to generating function. The term 
         is specified by 'kvec', which specifies the cosine argument
         and 'zvec', which specfies the order of inclination and
         eccentricities in the Taylor expansion of the 
         cosine coefficient. 
         """
         if (indexIn,indexOut,(kvec,nuvec)) in self.resonance_indices:
-            warnings.warn("Monomial term k=({},{},{},{},{},{}) , nu = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*nuvec))
+            warnings.warn("Cosine term k=({},{},{},{},{},{}) , nu = ({},{},{},{}) already included Hamiltonian; no new term added.".format(*kvec,*nuvec))
             return
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn,kappaIn,etaIn,sigmaIn,rhoIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0},kappa{0},eta{0},sigma{0},rho{0}'.format(indexIn)) 
@@ -222,7 +222,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         
         Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
         alpha_sym = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
-        alpha_val = self.Hparams[alpha_sym]
+        alpha_val = self.H_params[alpha_sym]
         aOut0 = _get_a0_symbol(indexOut)
         deltaIn = (LambdaIn - Lambda0In) / Lambda0In
         deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
@@ -236,14 +236,14 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         #
         k1,k2,k3,k4,k5,k6 = kvec
         nu1,nu2,nu3,nu4 = nuvec
-        C_dict = DFCoeff_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
+        C_dict = df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4)
         p1,p2 = _p1_p2_from_k_nu(kvec,nuvec)
-        C_delta_expansion_dict = eval_DFCoeff_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
+        C_delta_expansion_dict = evaluate_df_coefficient_delta_expansion(C_dict,p1,p2,lmax,alpha_val)
         Ctot = 0
         for key,C_val in C_delta_expansion_dict.items():
             l1,l2=key
-            Csym = get_DFCoeff_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
-            self.Hparams[Csym] = C_val
+            Csym = get_df_coefficient_symbol(*kvec,*nuvec,*key,indexIn,indexOut)
+            self.H_params[Csym] = C_val
             Ctot += Csym * deltaIn**l1 * deltaOut**l2
         rtLIn = sqrt(Lambda0In)
         rtLOut = sqrt(Lambda0Out)
@@ -280,7 +280,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         if update:
             self._update()
 
-    def perturbative_solution(self,expression,free_variables=[],correction_only=False,lambdify=False,time_symbol=None):
+    def get_perturbative_solution(self,expression,free_variables=[],correction_only=False,lambdify=False,time_symbol=None):
         r"""
         Calculate a solution for the time evolution of an expression using
         first-order perturbation theory.
@@ -316,7 +316,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         result: sympy expression or function
             An expression for the solution as a function of time.
         """
-        subsrule=dict(zip(self.varsymbols,self.state_to_list(self.state)))
+        subsrule=self.qp.copy()
         for var in free_variables:
             subsrule.pop(var)
 
@@ -326,113 +326,18 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
             t = time_symbol
 
         for i in range(1,self.N):
-            n=self.get_mean_motion(i).subs(self.Hparams)
+            n=self.get_mean_motion(i).subs(self.H_params)
             lsymb = symbols("lambda{}".format(i))
             exprn = n * t + lsymb
             subsrule[lsymb] = exprn.subs(subsrule)
 
         if correction_only:
-            pt_solution = self.NLie_deriv(expression)
+            pt_solution = self.N_Lie_deriv(expression)
         else:
-            pt_solution = expression + self.NLie_deriv(expression)
+            pt_solution = expression + self.N_Lie_deriv(expression)
         result = pt_solution.subs(subsrule)
         if lambdify:
             args = list(free_variables) + [t]
             return sym_lambdify(args,result , **_lambdify_kwargs)
         else:
             return result
-
-
-def get_contanct_transformation_rules(pham,Amtrx,**kwargs):
-	r"""
-	Get rules for a canonical transformation 
-	:math:`(\mathbf{q},\mathbf{p}) \rightarrow (\mathbf{Q},\mathbf{P})` 
-	generated by the type-2 generating function,
-	
-	.. math::
-	    F_2 = \mathbf{P}^\mathrm{T} \cdot A \cdot \mathbf{q}
-	    
-	where the old coordinates are 
-	:math:`\mathbf{q} = (\lambda_1,...,\lambda_{N-1},\gamma_1,...,\gamma_{N-1},q_1,...,q_{N-1})`.
-	The new canonical variables are related to the old by 
-	
-	.. math::
-	    \mathbf{Q} = A \cdot \mathbf{q} \\
-	    \mathbf{P} = (A^{-1})^{\mathrm{T}} \cdot \mathbf{p}
-	    
-	
-	Arguments
-	---------
-	pham : PoincareHamiltonian 
-	    Hamiltonian to which the transformation applies
-	Amtrx : matrix
-	    Matrix defining the transformation.
-	kwargs : 
-	    Additional keyword arguments 'q_symbols' and 'p_symbols'
-	    may be used to specify the symbols to use for the new
-	    canonical coordinates and momenta. By default, the 
-	    symbols :math:`Q_i` and :math:`P_i` will be used.
-
-	Returns
-	-------
-	transform_rules : dict
-	    Rules for transforming old variables to new variables.
-	inv_transform_rules : dict
-	    Rules for transforming new variables back to old variables.
-	"""
-	
-	N = pham.N
-	Npl = N - 1
-	
-	assert Amtrx.shape == (3*Npl,3*Npl),\
-	"'Amtrx' shape ({0},{1}) does not match required shape ({2},{2})".format(*Amtrx.shape,3*Npl)
-	
-	Amtrx=Matrix(Amtrx)
-	
-	new_Qs = kwargs.get("q_symbols",symbols("Q(1:{})".format(3*Npl+1)))
-	new_Ps = kwargs.get("p_symbols",symbols("P(1:{})".format(3*Npl+1)))
-	
-	old_Qs = []
-	for s in "lambda,gamma,q".split(","):
-	    var = symbols("{:s}(1:{:d})".format(s,N)) 
-	    old_Qs += list(var)
-	    
-	old_Ps = []
-	for s in "Lambda,Gamma,Q".split(","):
-	    var = symbols("{:s}(1:{:d})".format(s,N)) 
-	    old_Ps += list(var)
-	
-	old_Q_exprns = Amtrx.inv() * Matrix(new_Qs)
-	old_P_exprns = Amtrx.transpose() * Matrix(new_Ps)
-	
-	old_to_new_rule = dict(zip(old_Qs,old_Q_exprns))
-	old_to_new_rule.update(dict(zip(old_Ps,old_P_exprns)))
-	
-	new_Q_exprns = Amtrx * Matrix(old_Qs)
-	new_P_exprns = Amtrx.transpose().inv() * Matrix(old_Ps)
-	new_to_old_rule = dict(zip(new_Qs,new_Q_exprns))
-	new_to_old_rule.update(dict(zip(new_Ps,new_P_exprns)))
-	
-	
-	cart_to_polar = dict()
-	polar_to_cart = dict()
-	for i in range(1,N):
-	    eta,kappa,rho,sigma = symbols("eta{0},kappa{0},rho{0},sigma{0}".format(i))
-	    Gamma,gamma,Q,q = symbols("Gamma{0},gamma{0},Q{0},q{0}".format(i))
-	    rule = {
-	        eta:sqrt(2*Gamma)*sin(gamma),
-	        kappa:sqrt(2*Gamma)*cos(gamma),
-	        rho:sqrt(2*Q)*sin(q),
-	        sigma:sqrt(2*Q)*cos(q)
-	    }
-	    cart_to_polar.update(rule)
-	    rule_inv = {
-	        Gamma:(eta*eta+kappa*kappa)/S(2),
-	        Q:(rho*rho+sigma*sigma)/S(2),
-	        gamma:atan2(eta,kappa),
-	        q:atan2(rho,sigma)
-	    }
-	    polar_to_cart.update(rule_inv)
-	old_to_new_rule.update({key:val.subs(old_to_new_rule) for key,val in cart_to_polar.items()})
-	new_to_old_rule = {key:val.subs(polar_to_cart) for key,val in new_to_old_rule.items()}
-	return {s:old_to_new_rule[s] for s in pham.varsymbols}, new_to_old_rule
