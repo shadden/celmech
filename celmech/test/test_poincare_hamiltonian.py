@@ -77,7 +77,6 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp2.add_cosine_term((3,-2,0,0,0,-1))
         self.assertEqual(Hp.H, Hp2.H)
 
-
     def test_add_cos_vs_MMR_high_order_ecc(self):
         sim = get_sim_res()
         pvars = Poincare.from_Simulation(sim)
@@ -115,6 +114,7 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp2.add_cosine_term((9,-6,0,0,-1,-2),max_order=3,eccentricities=False)
         Hp2.add_cosine_term((9,-6,0,0,0,-3),max_order=3,eccentricities=False)
         self.assertEqual(Hp.H, Hp2.H)
+
     def test_add_double_tuple_list(self):
         sim = get_sim_res()
         pvars = Poincare.from_Simulation(sim)
@@ -132,6 +132,7 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp.add_cosine_term(kvec, nu_vecs=[(0, 1, 0, 0)], l_vecs=[[0,0]], eccentricities=False) 
         Hp.add_cosine_term(kvec, nu_vecs=[(0, 1, 0, 0)], l_vecs=[(0,0)], eccentricities=False) 
         self.assertEqual(len(Hp.resonance_indices), 4)
+
     def test_negative_kvec(self):
         sim = get_sim_res()
         pvars = Poincare.from_Simulation(sim)
@@ -142,6 +143,24 @@ class TestPoincareHamiltonian(unittest.TestCase):
         kvec = (0,0,0,0,2,-2)
         Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)],eccentricities=False)
         self.assertEqual(len(Hp.resonance_indices), 1)
+    
+    def test_invalid_inc_kvec(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        kvecs = [(3,-2,0,0,0,-1),(3,-2,0,0,-2,1),(1,0,0,0,0,-1)]
+        for kvec in kvecs:
+            Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)])
+        self.assertEqual(len(Hp.resonance_indices), 0)
+                
+    def test_invalid_dalembert_kvec(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        kvecs = [(3,-2,0,0,0,0),(0,0,-2,1,0,0),(0,0,0,0,0,-1)]
+        for kvec in kvecs:
+            with self.assertRaises(AttributeError):
+                Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)])
                 
 if __name__ == '__main__':
     unittest.main()
