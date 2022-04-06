@@ -341,6 +341,8 @@ class Hamiltonian(object):
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
+        if self._needs_update:
+            self._update()
         self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
@@ -505,7 +507,7 @@ class ParamDict(MutableMapping):
         return self._params[key]
     
     def __setitem__(self, key, value):
-        self.hamiltonian._needs_udpate = True
+        self.hamiltonian._needs_update = True
         self._params[key] = value
     
     def __delitem__(self, key):

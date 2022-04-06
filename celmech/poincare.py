@@ -616,11 +616,13 @@ class PoincareHamiltonian(Hamiltonian):
         if np.sum(k_vec) != 0:
             raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
         k1,k2,k3,k4,k5,k6 = k_vec
+        k_vec = (k1,k2,k3,k4,k5,k6) # ensure k_vec is a tuple
         if nu_vecs:
             if max_order:
                 raise AttributeError('Must pass EITHER max_order OR nu_vecs to add_cos_term, but not both. See docstring.')
         else:
-            min_order = abs(k3)+abs(k4)+abs(k5)+abs(k6)
+            # this is the leading order for the cosine term chosen (k3+k4+k5+k6 = -(k1+k2) by d'Alembert)
+            min_order = abs(k3) + abs(k4) + abs(k5) + abs(k6)
             if not max_order:
                 max_order = min_order
             nu_max = (max_order - min_order)//2 # each nu contributes 2 powers of e or i, so divide by 2 rounding down
