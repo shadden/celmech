@@ -613,10 +613,12 @@ class PoincareHamiltonian(Hamiltonian):
             By default, includes all inclination terms.
             Can set to False to exclude any inclination terms (e.g., co-planar systems).
         """
-        if np.sum(k_vec) != 0:
-            raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation.".format(k_vec))
         k1,k2,k3,k4,k5,k6 = k_vec
         k_vec = tuple(k_vec) # ensure k_vec is a tuple
+        if np.sum(k_vec) != 0:
+            raise AttributeError("Invalid k_vec={0}. The coefficients must sum to zero to satisfy the d'Alembert relation (rotational symmetry).".format(k_vec))
+        if (k5+k6) % 2 != 0:
+            raise AttributeError("Invalid k_vec={0}. Last two entries ({1} and {2}) must be divisible by 2 to maintain problem's reflection symmetry.".format(k_vec, k5, k6))
         if nu_vecs:
             nu_vecs = [tuple(nu_vec) for nu_vec in nu_vecs]
             if max_order:
@@ -626,6 +628,8 @@ class PoincareHamiltonian(Hamiltonian):
             min_order = abs(k3) + abs(k4) + abs(k5) + abs(k6)
             if not max_order:
                 max_order = min_order
+            if max_order < min_order:
+                raise AttributeError("Passed a k_vec={0} whose order={1} is higher than the specified max_order={2}".format(k_vec, min_order, max_order))
             nu_max = (max_order - min_order)//2 # each nu contributes 2 powers of e or i, so divide by 2 rounding down
             nu_vecs = []
             for nu_tot in range(nu_max+1):
@@ -644,11 +648,7 @@ class PoincareHamiltonian(Hamiltonian):
                 raise
         except:
             raise AttributeError("l_vecs = {0} must be a list of (l1, l2) pairs, e.g., [(0, 0), (0, 1), ...]".format(l_vecs))
-
-        try:
-            if np.array(nu_vecs).shape[1] != 4:
-                raise
-        except:
+        if np.array(nu_vecs).shape[1] != 4:
             raise AttributeError("nu_vecs = {0} must be a list of (nu1, nu2, nu3, nu4) tuples, e.g., [(0, 0, 0, 0), (1, 0, 0, 0), ...]".format(nu_vecs))
         lmax = np.max([l1+l2 for l1, l2 in l_vecs]) # maximum total l=l1+l2
 
@@ -682,7 +682,7 @@ class PoincareHamiltonian(Hamiltonian):
                     warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
                     continue
                 if l_vecs and (indexIn,indexOut,(tuple([-k for k in k_vec]),nu_vec,l_vec)) in self.resonance_indices:
-                    warnings.warn("Cosine term k_vec={0}, nu_vec={1}, l_vec={2} already included Hamiltonian; no new term added.".format(k_vec, nu_vec, l_vec))
+                    warnings.warn("The same cosine term k_vec={0}, nu_vec={1}, l_vec={2} (with all k_vec entries made negative) already included Hamiltonian; no new term added to avoid duplication (cos(x) = cos(-x)).".format(k_vec, nu_vec, l_vec))
                     continue
                 self.resonance_indices.append((indexIn,indexOut,(k_vec,nu_vec,l_vec)))
                 Csym = get_df_coefficient_symbol(*k_vec,*nu_vec,*l_vec,indexIn,indexOut)
