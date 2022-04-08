@@ -24,42 +24,68 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
     C  = r"\tilde{{C}}_{{({0},{1},{2},{3},{4},{5})}}".format(k1,k2,k3,k4,k5,k6)
     C += r"^{{({0},{1},{2},{3}),({4},{5})}}".format(nu1,nu2,nu3,nu4,l1,l2)
     C += r"(\alpha_{{{0},{1}}})".format(indexIn,indexOut)
+    term = r"-\frac{{Gm_{0}m_{1}}}{{a_{{{2},0}}}}".format(indexIn,indexOut,indexOut)
+    term += C
+    e1exp = abs(k3) + 2*nu3
+    e2exp = abs(k4) + 2*nu4
+    i1exp = abs(k5) + 2*nu1
+    i2exp = abs(k6) + 2*nu2
+    if e1exp > 0:
+        if e1exp == 1:
+            term += r"e_{0}".format(indexIn)
+        else:
+            term += r"e_{0}^{1}".format(indexIn, e1exp)
+    if e2exp > 0:
+        if e2exp == 1:
+            term += r"e_{0}".format(indexOut)
+        else:
+            term += r"e_{0}^{1}".format(indexOut, e2exp)
+    if i1exp > 0:
+        if i1exp == 1:
+            term += r"i_{0}".format(indexIn)
+        else:
+            term += r"i_{0}^{1}".format(indexIn, i1exp)
+    if i2exp > 0:
+        if i2exp == 1:
+            term += r"i_{0}".format(indexOut)
+        else:
+            term += r"i_{0}^{1}".format(indexOut, i2exp)
     arg = r""
-    if k1 != 0:
+    if k1 == 0 and k2 == 0 and k3 == 0 and k4 == 0 and k5==0 and k6 == 0:
+        pass # don't write cosine
+    else:
         if k1 < 0:
             arg += r"-"
         if abs(k1) > 1:
             arg += r"{0}".format(abs(k1))
         arg += r"\lambda_{0}".format(indexOut)
-    if k2 != 0:
-        arg += r"+" if k2 > 0 else r"-"
-        if abs(k2) > 1:
-            arg += r"{0}".format(abs(k2))
-        arg += r"\lambda_{0}".format(indexIn)
-    if k3 != 0:
-        arg += r"+" if k3 > 0 else r"-"
-        if abs(k3) > 1:
-            arg += r"{0}".format(abs(k3))
-        arg += r"\varpi_{0}".format(indexIn)  
-    if k4 != 0:
-        arg += r"+" if k4 > 0 else r"-"
-        if abs(k4) > 1:
-            arg += r"{0}".format(abs(k4))
-        arg += r"\varpi_{0}".format(indexOut)
-    if k5 != 0:
-        arg += r"+" if k5 > 0 else r"-"
-        if abs(k5) > 1:
-            arg += r"{0}".format(abs(k5))
-        arg += r"\Omega_{0}".format(indexIn)
-    if k6 != 0:
-        arg += r"+" if k6 > 0 else r"-"
-        if abs(k6) > 1:
-            arg += r"{0}".format(abs(k6))
-        arg += r"\Omega_{0}".format(indexOut)
+        if k2 != 0:
+            arg += r"+" if k2 > 0 else r"-"
+            if abs(k2) > 1:
+                arg += r"{0}".format(abs(k2))
+            arg += r"\lambda_{0}".format(indexIn)
+        if k3 != 0:
+            arg += r"+" if k3 > 0 else r"-"
+            if abs(k3) > 1:
+                arg += r"{0}".format(abs(k3))
+            arg += r"\varpi_{0}".format(indexIn)  
+        if k4 != 0:
+            arg += r"+" if k4 > 0 else r"-"
+            if abs(k4) > 1:
+                arg += r"{0}".format(abs(k4))
+            arg += r"\varpi_{0}".format(indexOut)
+        if k5 != 0:
+            arg += r"+" if k5 > 0 else r"-"
+            if abs(k5) > 1:
+                arg += r"{0}".format(abs(k5))
+            arg += r"\Omega_{0}".format(indexIn)
+        if k6 != 0:
+            arg += r"+" if k6 > 0 else r"-"
+            if abs(k6) > 1:
+                arg += r"{0}".format(abs(k6))
+            arg += r"\Omega_{0}".format(indexOut)
+        term += r"\cos({0})".format(arg)
         
-    term = r"-\frac{{Gm_{0}m_{1}}}{{a_{{{2},0}}}}".format(indexIn,indexOut,indexOut)
-    term += C   
-    term += r"\cos({0})".format(arg)
     return term
 
 def get_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
