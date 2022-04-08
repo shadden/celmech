@@ -73,10 +73,7 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp.add_MMR_terms(p=3,q=1,max_order=1)
         Hp2.add_cosine_term((3,-2,-1,0,0,0))
         Hp2.add_cosine_term((3,-2,0,-1,0,0))
-        Hp2.add_cosine_term((3,-2,0,0,-1,0))
-        Hp2.add_cosine_term((3,-2,0,0,0,-1))
         self.assertEqual(Hp.H, Hp2.H)
-
 
     def test_add_cos_vs_MMR_high_order_ecc(self):
         sim = get_sim_res()
@@ -103,18 +100,56 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp = PoincareHamiltonian(pvars)
         Hp2 = PoincareHamiltonian(pvars)
         Hp.add_MMR_terms(p=3,q=1,max_order=3,eccentricities=False) 
-        Hp2.add_cosine_term((3,-2,0,0,-1,0),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((3,-2,0,0,0,-1),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((3,-2,0,0,-2,1),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((3,-2,0,0,1,-2),max_order=3,eccentricities=False)
         Hp2.add_cosine_term((6,-4,0,0,-2,0),max_order=3,eccentricities=False)
         Hp2.add_cosine_term((6,-4,0,0,-1,-1),max_order=3,eccentricities=False)
         Hp2.add_cosine_term((6,-4,0,0,0,-2),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((9,-6,0,0,-3,0),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((9,-6,0,0,-2,-1),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((9,-6,0,0,-1,-2),max_order=3,eccentricities=False)
-        Hp2.add_cosine_term((9,-6,0,0,0,-3),max_order=3,eccentricities=False)
         self.assertEqual(Hp.H, Hp2.H)
+    
+    def test_add_higher_order_than_max_order(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        with self.assertRaises(AttributeError):
+            Hp.add_cosine_term((3,-2,0,-3,2,0),max_order=3) # kvec has order 5, max_order=3
+
+    def test_add_cos_vs_MMR_high_order(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        Hp2 = PoincareHamiltonian(pvars)
+        Hp.add_MMR_terms(p=3,q=1,max_order=3)
+        Hp2.add_cosine_term((3,-2,-1,0,0,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,-1,0,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,-1,1,-1),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,-1,-1,1),max_order=3)
+        Hp2.add_cosine_term((3,-2,-1,0,1,-1),max_order=3)
+        Hp2.add_cosine_term((3,-2,-1,0,-1,1),max_order=3)
+        Hp2.add_cosine_term((3,-2,-2,1,0,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,1,-2,0,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,1,-2,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,1,0,-2),max_order=3)
+        Hp2.add_cosine_term((3,-2,0,1,-1,-1),max_order=3)
+        Hp2.add_cosine_term((3,-2,1,0,-2,0),max_order=3)
+        Hp2.add_cosine_term((3,-2,1,0,0,-2),max_order=3)
+        Hp2.add_cosine_term((3,-2,1,0,-1,-1),max_order=3)
+        Hp2.add_cosine_term((6,-4,-2,0,0,0),max_order=3)
+        Hp2.add_cosine_term((6,-4,-1,-1,0,0),max_order=3)
+        Hp2.add_cosine_term((6,-4,0,-2,0,0),max_order=3)
+        Hp2.add_cosine_term((6,-4,0,0,-2,0),max_order=3)
+        Hp2.add_cosine_term((6,-4,0,0,-1,-1),max_order=3)
+        Hp2.add_cosine_term((6,-4,0,0,0,-2),max_order=3)
+        Hp2.add_cosine_term((9,-6,-3,0,0,0),max_order=3)
+        Hp2.add_cosine_term((9,-6,0,-3,0,0),max_order=3)
+        Hp2.add_cosine_term((9,-6,0,-1,-2,0),max_order=3)
+        Hp2.add_cosine_term((9,-6,0,-1,-1,-1),max_order=3)
+        Hp2.add_cosine_term((9,-6,0,-1,0,-2),max_order=3)
+        Hp2.add_cosine_term((9,-6,-1,0,-2,0),max_order=3)
+        Hp2.add_cosine_term((9,-6,-1,0,-1,-1),max_order=3)
+        Hp2.add_cosine_term((9,-6,-1,0,0,-2),max_order=3)
+        Hp2.add_cosine_term((9,-6,-2,-1,0,0),max_order=3)
+        Hp2.add_cosine_term((9,-6,-1,-2,0,0),max_order=3)
+        self.assertEqual(Hp.H, Hp2.H)
+
     def test_add_double_tuple_list(self):
         sim = get_sim_res()
         pvars = Poincare.from_Simulation(sim)
@@ -132,6 +167,7 @@ class TestPoincareHamiltonian(unittest.TestCase):
         Hp.add_cosine_term(kvec, nu_vecs=[(0, 1, 0, 0)], l_vecs=[[0,0]], eccentricities=False) 
         Hp.add_cosine_term(kvec, nu_vecs=[(0, 1, 0, 0)], l_vecs=[(0,0)], eccentricities=False) 
         self.assertEqual(len(Hp.resonance_indices), 4)
+
     def test_negative_kvec(self):
         sim = get_sim_res()
         pvars = Poincare.from_Simulation(sim)
@@ -142,6 +178,24 @@ class TestPoincareHamiltonian(unittest.TestCase):
         kvec = (0,0,0,0,2,-2)
         Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)],eccentricities=False)
         self.assertEqual(len(Hp.resonance_indices), 1)
+    
+    def test_invalid_inc_kvec(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        kvecs = [(3,-2,0,0,0,-1),(3,-2,0,0,-2,1),(1,0,0,0,0,-1)]
+        for kvec in kvecs:
+            with self.assertRaises(AttributeError):
+                Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)])
+                
+    def test_invalid_dalembert_kvec(self):
+        sim = get_sim_res()
+        pvars = Poincare.from_Simulation(sim)
+        Hp = PoincareHamiltonian(pvars)
+        kvecs = [(3,-2,0,0,0,0),(0,0,-2,1,0,0),(0,0,0,0,0,-1)]
+        for kvec in kvecs:
+            with self.assertRaises(AttributeError):
+                Hp.add_cosine_term(kvec,nu_vecs=[(0,0,0,0)])
                 
 if __name__ == '__main__':
     unittest.main()
