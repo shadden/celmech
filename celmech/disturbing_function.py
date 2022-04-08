@@ -58,7 +58,8 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
             arg += r"-"
         if abs(k1) > 1:
             arg += r"{0}".format(abs(k1))
-        arg += r"\lambda_{0}".format(indexOut)
+        if k1 != 0:
+            arg += r"\lambda_{0}".format(indexOut)
         if k2 != 0:
             arg += r"+" if k2 > 0 else r"-"
             if abs(k2) > 1:
