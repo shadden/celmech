@@ -910,7 +910,7 @@ def negative_binom(minus_q,l):
 
 
 def _Cindirect_type1(k1,k2,m,z1,z2,z3,z4):
-    """
+    r"""
     Indirect term cosine coefficient for argument:
          \theta = k_1\lambda_j + k_2\lambda_i
                     - (k_1-1)\varpi_j - (k_2+1) \varpi_i
