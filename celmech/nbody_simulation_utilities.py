@@ -379,14 +379,14 @@ def _get_lhat(p):
     lhat = lvec / np.linalg.norm(lvec)
     return lhat
 from itertools import combinations
-def calculate_mutual_inclinations(sa):
+def calculate_mutual_inclinations(s):
     """
     Calculate the mutual inclination between pairs
     of bodies in a simulation archive
 
     Arguments
     ---------
-    sa : rebound.SimulationArchive
+    s : rebound.Simulation or rebound.SimulationArchive
 
     Returns
     -------
@@ -397,6 +397,8 @@ def calculate_mutual_inclinations(sa):
         arrays of mutual inclination values for that 
         key pair.
     """
+    if type(s)==rb.Simulation:
+        return _calculate_mutual_inc(s)
     combs = combinations(range(1,sa[0].N_real),2)
     imut = {comb:np.zeros(len(sa)) for comb in combs}
     for i,sim in enumerate(sa):
@@ -407,3 +409,8 @@ def calculate_mutual_inclinations(sa):
             imut[comb][i] = np.arccos(cosimut)
 
     return imut
+def _calculate_mutual_inc(sim):
+    combs = combinations(range(1,sim.N_real),2)
+    lhats = [_get_lhat(p) for p in sim.particles[1:]]
+    return {(j,k):np.arccos(lhats[j-1]@lhats[k-1]) for j,k in combs}
+    
