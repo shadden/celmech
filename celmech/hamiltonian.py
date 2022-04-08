@@ -336,8 +336,8 @@ class Hamiltonian(object):
         integrator_kwargs : dict,optional
             A dictionary of integrator keyword arguments
             to pass to the integrator. ``celmech`` uses
-            the scipy.ode 'dop853' integrator.  Valid 
-            keyword options can be found 
+            the scipy.ode 'vode' integrator with the 'adams'
+            method by default. Valid keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
@@ -392,7 +392,7 @@ class Hamiltonian(object):
         self._integrator = ode(
                 lambda t,y: self._N_flow(*y),
                 jac = lambda t,y: self._N_jac(*y))
-        self._integrator.set_integrator('dop853')# ('lsoda') #
+        self._integrator.set_integrator('vode',method='adams')# ('lsoda') #
 
 def reduce_hamiltonian(ham):
     state = ham.state
