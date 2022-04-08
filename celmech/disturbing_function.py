@@ -10,6 +10,58 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
+def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+    r"""
+    Get the latex expression for the disturbing function coefficient
+
+    .. math::
+        C_{\pmb{k}}^{\pmb{\nu},\pmb{l}}(\alpha_{i,j})
+
+    Returns
+    -------
+    latex
+    """
+    C  = r"\tilde{{C}}_{{({0},{1},{2},{3},{4},{5})}}".format(k1,k2,k3,k4,k5,k6)
+    C += r"^{{({0},{1},{2},{3}),({4},{5})}}".format(nu1,nu2,nu3,nu4,l1,l2)
+    C += r"(\alpha_{{{0},{1}}})".format(indexIn,indexOut)
+    arg = r""
+    if k1 != 0:
+        if k1 < 0:
+            arg += r"-"
+        if abs(k1) > 1:
+            arg += r"{0}".format(abs(k1))
+        arg += r"\lambda_{0}".format(indexOut)
+    if k2 != 0:
+        arg += r"+" if k2 > 0 else r"-"
+        if abs(k2) > 1:
+            arg += r"{0}".format(abs(k2))
+        arg += r"\lambda_{0}".format(indexIn)
+    if k3 != 0:
+        arg += r"+" if k3 > 0 else r"-"
+        if abs(k3) > 1:
+            arg += r"{0}".format(abs(k3))
+        arg += r"\varpi_{0}".format(indexIn)  
+    if k4 != 0:
+        arg += r"+" if k4 > 0 else r"-"
+        if abs(k4) > 1:
+            arg += r"{0}".format(abs(k4))
+        arg += r"\varpi_{0}".format(indexOut)
+    if k5 != 0:
+        arg += r"+" if k5 > 0 else r"-"
+        if abs(k5) > 1:
+            arg += r"{0}".format(abs(k5))
+        arg += r"\Omega_{0}".format(indexIn)
+    if k6 != 0:
+        arg += r"+" if k6 > 0 else r"-"
+        if abs(k6) > 1:
+            arg += r"{0}".format(abs(k6))
+        arg += r"\Omega_{0}".format(indexOut)
+        
+    term = r"-\frac{{Gm_{0}m_{1}}}{{a_{{{2},0}}}}".format(indexIn,indexOut,indexOut)
+    term += C   
+    term += r"\cos({0})".format(arg)
+    return term
+
 def get_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
     r"""
     Get a sympy symbol for the disturbing function coefficient

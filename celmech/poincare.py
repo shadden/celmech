@@ -1,9 +1,10 @@
 import numpy as np
+from IPython.display import Math
 from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
-from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
+from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion, get_df_term_latex
 from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
 from .disturbing_function import k_nu_depend_on_eccentricities, k_nu_depend_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
@@ -11,6 +12,7 @@ from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate
 from itertools import combinations
 import rebound
 import warnings
+from IPython.display import Math
 def get_re_im_components(x,y,k):
     """
     Get the real and imaginary components of
@@ -565,7 +567,14 @@ class PoincareHamiltonian(Hamiltonian):
     @property 
     def t(self):
         return self.state.t
-    
+
+    @property
+    def df(self):
+        d = r""
+        for i1, i2, (kvec, nuvec, lvec) in self.resonance_indices:
+            d += get_df_term_latex(*kvec,*nuvec,*lvec,i1,i2)
+        display(Math(d))
+
     def add_Hkep_term(self, H, index):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.
