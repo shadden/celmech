@@ -21,15 +21,24 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
     -------
     latex
     """
+    assert l1 + l2 < 2, "I'm not going to print something so ridiculuous!"
     C  = r"\tilde{{C}}_{{({0},{1},{2},{3},{4},{5})}}".format(k1,k2,k3,k4,k5,k6)
-    C += r"^{{({0},{1},{2},{3}),({4},{5})}}".format(nu1,nu2,nu3,nu4,l1,l2)
+    if l1==1:
+        C = r"\alpha\frac{d}{d\alpha}" + C
+    if l2==1:
+        C = r"\alpha\frac{d}{d\alpha}" + C
+    C += r"^{{({0},{1},{2},{3})}}".format(nu1,nu2,nu3,nu4)
     C += r"(\alpha_{{{0},{1}}})".format(indexIn,indexOut)
-    term = r"-\frac{{Gm_{0}m_{1}}}{{a_{{{2},0}}}}".format(indexIn,indexOut,indexOut)
+    term = r"{0}\frac{{Gm_{1}m_{2}}}{{a_{{{2},0}}}}".format(["-","+"][l2],indexIn,indexOut)
     term += C
     e1exp = abs(k3) + 2*nu3
     e2exp = abs(k4) + 2*nu4
     i1exp = abs(k5) + 2*nu1
     i2exp = abs(k6) + 2*nu2
+    if l1==1:
+        term+=r"\left(\frac{{\delta a_{0}}}{{a_{{{0},0}}}}\right)".format(indexIn)
+    if l2==1:
+        term+=r"\left(\frac{{\delta a_{0}}}{{a_{{{0},0}}}}\right)".format(indexOut)
     if e1exp > 0:
         if e1exp == 1:
             term += r"e_{0}".format(indexIn)
