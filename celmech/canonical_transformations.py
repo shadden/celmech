@@ -311,6 +311,31 @@ class CanonicalTransformation():
     
     @classmethod
     def cartesian_to_polar(cls,old_qp_vars,indices=None,polar_symbol_pairs=None,**kwargs):
+        r"""
+        Initialize a canonical transformation that transforms a user-specified
+        subset of conjugate coordinate-momentum pairs, :math:`(q_i,p_i)`, to
+        new 'polar-style' variable pairs
+
+        .. math::
+            (Q_i,P_i) = \left(\tan^{-1}(q_i/p_i), \frac{1}{2}(q_i^2+p_i^2)\right)
+
+        Arguments
+        ---------
+        old_qp_vars : array-like
+            The list of old canonical variables
+        indices : array-list
+            List of integer indices of the coordinate-momentum pairs to be
+            transformed.
+        polar_symbol_pairs : list, optional
+            List of symbols to use for the new polar-style variables.
+            Default symbols are :math:`(Q_i,P_i)` where the index i
+            ranges over the number of variable pairs being transformed.
+
+        Returns
+        -------
+        celmech.canonical_transformations.CanonicalTransformation
+            The resulting transformation.
+        """
         N_dof = int(len(old_qp_vars)/2)
         old_qp_pairs = [(old_qp_vars[i], old_qp_vars[i+N_dof]) for i in range(N_dof)]
         if not indices:
@@ -346,6 +371,31 @@ class CanonicalTransformation():
     
     @classmethod
     def polar_to_cartesian(cls,old_qp_vars,indices=None,cartesian_symbol_pairs=None,**kwargs):
+        r"""
+        Initialize a canonical transformation that transforms a user-specified
+        subset of conjugate coordinate-momentum pairs, :math:`(q_i,p_i)`, to
+        new 'cartesian-style' variable pairs
+
+        .. math::
+            (Q_i,P_i) = \left(\sqrt{2p_i}\sin q_i,\sqrt{2p_i}\cos q_i\right)
+
+        Arguments
+        ---------
+        old_qp_vars : array-like
+            The list of old canonical variables
+        indices : array-list
+            List of integer indices of the coordinate-momentum pairs to be
+            transformed.
+        polar_symbol_pairs : list, optional
+            List of symbols to use for the new cartesian-style variables.
+            Default symbols are :math:`(y_i,x_i)` where the index i ranges
+            over the number of variable pairs being transformed.
+
+        Returns
+        -------
+        celmech.canonical_transformations.CanonicalTransformation
+            The resulting transformation.
+        """
         N_dof = int(len(old_qp_vars)/2)
         old_qp_pairs = [(old_qp_vars[i], old_qp_vars[i+N_dof]) for i in range(N_dof)]
         if not indices:
