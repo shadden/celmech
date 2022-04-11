@@ -480,6 +480,32 @@ class CanonicalTransformation():
 
     @classmethod
     def from_poincare_angles_matrix(cls,p_vars,Tmtrx,new_qp_pairs=None,**kwargs):
+        r"""
+        Given an input :class:`~celmech.poincare.Poincare` instanace and an
+        invertible matrix, :math:`T`, generate a transformation for which 
+        the new angle variables are given by
+        
+        .. math::
+            \pmb{Q} = T \cdot 
+            \begin{pmatrix}
+            \lambda_1 \\ \vdots \\ \lambda_N \\
+            \gamma_1 \\ \vdots \\ \gamma_N \\
+            \Omega_1 \\ \vdots \\ \Omega_N
+            \end{pmatrix}~.
+
+        Arguments
+        ---------
+        pvars : celmech.poincare.Poincare
+            A Poincare instance with variables to which the resulting
+            transformation will apply.
+        Tmtrx : ndarray, shape (N,N)
+            An invertible matrix determining the new canonical angle variables
+            as linear combinations of the planets' orbital elements.
+        Returns
+        -------
+        celmech.canonical_transformations.CanonicalTransformation
+            The resulting transformation.
+        """
         if not type(p_vars) == Poincare:
             raise TypeError("'p_vars' must be of type 'Poincare'")
         try:
