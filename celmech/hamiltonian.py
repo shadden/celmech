@@ -463,6 +463,9 @@ class qpDict(MutableMapping):
     def __repr__(self):
         return repr(self._qp)
 
+    def copy(self):
+        return qpDict(self._qp.keys(), self._qp.values())
+
 class Fullqp(MutableMapping):
     def __init__(self, hamiltonian):
         self.hamiltonian = hamiltonian

@@ -10,7 +10,7 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
-def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1=0,nu2=0,nu3=0,nu4=0,l1=0,l2=0,indexIn=1,indexOut=2):
     r"""
     Get the latex expression for the disturbing function coefficient
 
@@ -89,7 +89,7 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
         
     return term
 
-def get_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
+def get_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,nu1=0,nu2=0,nu3=0,nu4=0,l1=0,l2=0,indexIn=1,indexOut=2):
     r"""
     Get a sympy symbol for the disturbing function coefficient
 
