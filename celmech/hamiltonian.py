@@ -269,7 +269,7 @@ class Hamiltonian(object):
     def flow_func(self):
         if self._needs_update:
             self._update()
-        return self._flow_func
+        return lambda x: self._flow_func(*x).reshape(-1)
     @property
     def jacobian_func(self):
         if self._needs_update:
