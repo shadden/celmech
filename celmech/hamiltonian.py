@@ -234,10 +234,10 @@ class Hamiltonian(object):
         return self._N_H
     
     @property
-    def Energy(self):
+    def value_H(self):
         if self._needs_update:
             self._update()
-        return self._Energy
+        return self._Hfunc(*self.values)
     
     @property
     def derivs(self):
@@ -280,7 +280,7 @@ class Hamiltonian(object):
         if self._needs_update:
             self._update()
         return self._integrator
-     
+
     def Lie_deriv(self,exprn):
         r"""
         Return the Lie derivative of an expression with respect to the Hamiltonian.
@@ -368,7 +368,7 @@ class Hamiltonian(object):
             self._N_H = self._N_H.subs(keyval[0],keyval[1])
         
         qp_vars = self.qp_vars
-        self._Energy = lambdify(qp_vars,self._N_H,**_lambdify_kwargs)
+        self._Hfunc = lambdify(qp_vars,self._N_H,**_lambdify_kwargs)
         self._derivs = {}
         self._N_derivs = []
         flow = []
