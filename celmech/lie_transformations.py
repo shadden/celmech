@@ -58,10 +58,11 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         return self.N_H
 
     def _get_approximate_corrections(self,y):
-        corrections = np.zeros(y.shape)
-        for i,deriv_func in enumerate(self.N_derivs):
-            corrections[i] = deriv_func(*y)
-        return corrections
+        return self.flow_func(*y).reshape(-1)
+        #corrections = np.zeros(y.shape)
+        #for i,deriv_func in enumerate(self.N_derivs):
+        #    corrections[i] = deriv_func(*y)
+        #return corrections
 
     def osculating_to_mean_state_vector(self,y,approximate=True,**integrator_kwargs):
         r"""
@@ -153,7 +154,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         y_osc = self.mean_to_osculating_state_vector(y_mean)
         self.state.values = y_osc
 
-    def add_zeroth_order_term(self,indexIn=1,indexOut=2,update=True):
+    def add_zeroth_order_term(self,indexIn=1,indexOut=2):
         r"""
         Add generating function term that elimiates 
         planet-planet interactions to 0th order in 
@@ -172,10 +173,6 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
           Index of inner planet
         indexOut : int, optional
           Index of outer planet
-        update : bool, optional
-          Whether the numerical values of the generating function
-          should be updated. It may be desirable to this option
-          to :code:`False` when numerous terms are being added.
         """
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexIn)) 
@@ -194,13 +191,11 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         psi_integral = 2 * F - 2 * psi * elliptic_k(m) / pi - sin(psi) / sqrt(alpha)
         term = prefactor * psi_integral / omega_syn
         self.H += term
-        if update:
-            self._update()
-        
+
     def get_mean_motion(self,index):
         G,mu,M,Lambda = symbols('G,mu{0},M{0},Lambda{0}'.format(index)) 
         return G*G*M*M*mu*mu*mu / Lambda / Lambda / Lambda
-        
+
     def kvec_to_omega(self,kvec,indexIn,indexOut):
         nIn = self.get_mean_motion(indexIn)
         nOut = self.get_mean_motion(indexOut)
@@ -385,9 +380,7 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         result: sympy expression or function
             An expression for the solution as a function of time.
         """
-        subsrule=self.qp.copy()
-        for var in free_variables:
-            subsrule.pop(var)
+        subsrule = {k:v for k,v in self.qp.items() if k not in free_variables}
 
         if time_symbol is None:
             t = symbols('t')
