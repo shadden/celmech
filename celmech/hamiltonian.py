@@ -269,7 +269,7 @@ class Hamiltonian(object):
     def flow_func(self):
         if self._needs_update:
             self._update()
-        return lambda x: self._flow_func(*x).reshape(-1)
+        return self._flow_func
     @property
     def jacobian_func(self):
         if self._needs_update:
@@ -311,7 +311,7 @@ class Hamiltonian(object):
             the current phase space state of the system.
             N is twice the number of degrees of freedom of the system.
         """
-        flow = self.flow_func(*self.values)
+        flow = self.flow_func(*self.values).reshape(-1)
         return flow
     def calculate_jacobian(self):
         """
