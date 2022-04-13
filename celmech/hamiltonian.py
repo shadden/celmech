@@ -159,13 +159,6 @@ class Hamiltonian(object):
     def t(self):
         return self.state.t
 
-    @property
-    def H(self):
-        return self._H
-    @H.setter
-    def H(self, H):
-        self._H = H
-        self._needs_update = True
    
     # Property so that user can't inadvertently replace it with a regular dictionary
     @property
@@ -226,55 +219,119 @@ class Hamiltonian(object):
     @property
     def full_values(self):
         return list(self.full_qp.values())
-    
+    ##############
+    # symbolic Hamiltonian, flow, and Jacobian
+    ##############
     @property
-    def N_H(self):
-        if self._needs_update:
-            self._update()
-        return self._N_H
-    
-    @property
-    def Energy(self):
-        if self._needs_update:
-            self._update()
-        return self._Energy
-    
-    @property
-    def derivs(self):
-        if self._needs_update:
-            self._update()
-        return self._derivs
-
-    @property
-    def N_derivs(self):
-        if self._needs_update:
-            self._update()
-        return self._N_derivs
-
+    def H(self):
+        return self._H
+    @H.setter
+    def H(self, H):
+        self._H = H
+        self._needs_update = True
     @property
     def flow(self):
         if self._needs_update:
             self._update()
         return self._flow
-    
+    @property
+    def jacobian(self):
+        if self._needs_update:
+            self._update()
+        return self._jacobian
+    ##############
+    # numerical Hamiltonian, flow, and Jacobian
+    ##############
+    @property
+    def N_H(self):
+        if self._needs_update:
+            self._update()
+        return self._N_H
     @property
     def N_flow(self):
         if self._needs_update:
             self._update()
         return self._N_flow
-    
     @property
-    def jac(self):
+    def N_jacobian(self):
         if self._needs_update:
             self._update()
-        return self._jac
+        return self._N_jacobian
+    ##############
+    # functions for Hamiltonian, flow, and Jacobian
+    ##############
+    @property
+    def H_func(self):
+        if self._needs_update:
+            self._update()
+        return self._H_func
+    @property
+    def flow_func(self):
+        if self._needs_update:
+            self._update()
+        return self._flow_func
+    @property
+    def jacobian_func(self):
+        if self._needs_update:
+            self._update()
+        return self._jacobian_func
+    ##################
+    # evaluate Hamiltonian, flow, and jacobian at current state
+    #################
+    def calculate_energy(self):
+        """
+        Calculate the energy (i.e., the Hamiltonian) of the system
+        in its current state.
 
-    @property
-    def N_jac(self):
-        if self._needs_update:
-            self._update()
-        return self._N_jac
-    
+        Arguments
+        ---------
+        None
+
+        Returns
+        -------
+        energy : float
+            The numerical value of the Hamiltonian evaluated at
+            the current phase space state of the system.
+        """
+        energy = self.H_func(*self.values)
+        return energy
+    def calculate_flow(self):
+        """
+        Calculate the flow vector for the system
+        in its current state.
+
+        Arguments
+        ---------
+        None
+
+        Returns
+        -------
+        flow : ndarray, shape (N,)
+            The numerical value of the flow vector evaluated at
+            the current phase space state of the system.
+            N is twice the number of degrees of freedom of the system.
+        """
+        flow = self.flow_func(*self.values)
+        return flow
+    def calculate_jacobian(self):
+        """
+        Calculate the jacobian matrix of the equations of motion
+        for the system in its current state.
+
+        Arguments
+        ---------
+        None
+
+        Returns
+        -------
+        jacobian : ndarray, shape (N,N)
+            The numerical value of the Jacobian matrix evaluated at
+            the current phase space state of the system.
+            N is twice the number of degrees of freedom of the system.
+        """
+        jac = self.jacobian_func(*self.values)
+        return jac
+
     @property
     def integrator(self):
         if self._needs_update:
@@ -366,32 +423,29 @@ class Hamiltonian(object):
                 function_keyval_pairs.append((key,val)) 
         for keyval in function_keyval_pairs:
             self._N_H = self._N_H.subs(keyval[0],keyval[1])
-        
+
         qp_vars = self.qp_vars
-        self._Energy = lambdify(qp_vars,self._N_H,**_lambdify_kwargs)
-        self._derivs = {}
-        self._N_derivs = []
         flow = []
         Nflow = []
         for v in self.qp_vars:
             deriv = self.Lie_deriv(v)
             Nderiv = self.N_Lie_deriv(v)
-            self._derivs[v] = self.N_Lie_deriv(v)
             flow.append(deriv)
             Nflow.append(Nderiv)
 
         N_dim = 2*self.N_dof
         self._flow = Matrix(flow)
-        self._jac = Matrix(N_dim,N_dim, lambda i,j: diff(flow[i],qp_vars[j]))
+        self._N_flow = Matrix(Nflow)
+        self._jacobian = Matrix(N_dim,N_dim, lambda i,j: diff(flow[i],qp_vars[j]))
+        self._N_jacobian = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
 
-        # is this used anywhere?
-        self._N_derivs = [lambdify(qp_vars,fun,**_lambdify_kwargs) for fun in Nflow]
-        self._N_flow = lambdify(qp_vars,Nflow,**_lambdify_kwargs)
-        NjacMtrx = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
-        self._N_jac = lambdify(qp_vars,NjacMtrx,**_lambdify_kwargs)
+        self._H_func = lambdify(qp_vars,self._N_H,**_lambdify_kwargs)
+        self._flow_func = lambdify(qp_vars,self._N_flow,**_lambdify_kwargs)
+        self._jacobian_func = lambdify(qp_vars,self._N_jacobian,**_lambdify_kwargs)
+
         self._integrator = ode(
-                lambda t,y: self._N_flow(*y),
-                jac = lambda t,y: self._N_jac(*y))
+                lambda t,y: self._flow_func(*y),
+                jac = lambda t,y: self._jacobian_func(*y))
         self._integrator.set_integrator('vode',method='adams')# ('lsoda') #
 
 def reduce_hamiltonian(ham):
