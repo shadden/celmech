@@ -278,9 +278,9 @@ class Hamiltonian(object):
     ##################
     # evaluate Hamiltonian, flow, and jacobian at current state
     #################
-    def calculate_energy(self):
+    def calculate_H(self):
         """
-        Calculate the energy (i.e., the Hamiltonian) of the system
+        Calculate the Hamiltonian of the system
         in its current state.
 
         Arguments
@@ -295,6 +295,8 @@ class Hamiltonian(object):
         """
         energy = self.H_func(*self.values)
         return energy
+    # Alias for calculate H
+    calculate_energy = calculate_H
     def calculate_flow(self):
         """
         Calculate the flow vector for the system
