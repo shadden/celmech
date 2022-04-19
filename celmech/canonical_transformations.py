@@ -96,6 +96,42 @@ def _get_default_xy_symbols(N):
     return default_xy_symbols
 
 class CanonicalTransformation():
+    r"""
+    A class for representing canonical transformations.
+    
+    An instance represents a transformation from old canonical variables,
+    :math:`(q,p)` to new variables :math:`(q',p')`.
+
+    Attributes
+    ----------
+    old_qp_vars : list
+        A list of symbols representing the old variables, :math:`(q,p)`.
+        The list should contain all coordinate variables, :math:`q`, followed
+        by their conjugate momentum variables :math:`p`.
+    new_qp_vars : list
+        A list of symbols representing the new variables, :math:`(q',p')`.
+        The list should contain all coordinate variables, :math:`q'`, followed
+        by their conjugate momentum variables :math:`p'`.
+    old_to_new_rule : dictionary
+        A dictionary defining the substitution rules applied to transform from
+        old canonical variables to new ones.
+    new_to_old_rule : dictionary
+        A dictionary defining the substitution rules applied to transform from
+        new canonical variables to old ones.
+    old_to_new_simplify : function
+        A function that will be applied to expressions when transforming from
+        old to new variables.
+    new_to_old_simplify : function
+        A function that will be applied to expression when transforming from
+        new to old variables.
+    params : dict
+        A dictionary setting the numerical values of any parameters on which
+        the transformation depends.
+    H_scale : symbol or float
+        A factor by which the transformation rescales the Hamiltonian. This is
+        used when applying transformations that simulatneously rescale the
+        momenta and the Hamiltonian.
+    """
     def __init__(self,
             old_qp_vars,
             new_qp_vars,
