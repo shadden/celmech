@@ -36,5 +36,8 @@ except:
 
 sympy.init_printing(use_latex='mathjax')
 from .poincare import PoincareParticle, Poincare, PoincareHamiltonian
+from .hamiltonian import Hamiltonian,PhaseSpaceState
+from .canonical_transformations import CanonicalTransformation
 from .miscellaneous import get_symbol, get_symbol0
-__all__ = ["Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare", "PoincareHamiltonian","LaplaceLagrangeSystem", "get_symbol", "get_symbol0"]
+__all__ = ["Hamiltonian","PhaseSpaceState","Andoyer", "AndoyerHamiltonian", "PoincareParticle", "Poincare",
+           "PoincareHamiltonian","CanonicalTransformation","LaplaceLagrangeSystem", "get_symbol", "get_symbol0"]
