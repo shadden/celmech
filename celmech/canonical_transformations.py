@@ -1,3 +1,4 @@
+from warnings import warn
 import numpy as np
 from .miscellaneous import poisson_bracket
 from sympy import lambdify, solve, diff,sin,cos,sqrt,atan2,symbols,Matrix, Mul,S
@@ -280,11 +281,15 @@ class CanonicalTransformation():
     
     def _test_new_to_old_canonical(self):
         pb = lambda q,p: poisson_bracket(q,p,self.old_qp_vars,[]) / self.H_scale
-        return [pb(self.new_to_old(qq),self.new_to_old(pp)).simplify() for qq,pp in self.new_qp_pairs]
+        bracket_results = [pb(self.new_to_old(qq),self.new_to_old(pp)).simplify() for qq,pp in self.new_qp_pairs]
+        br_arr = [np.isclose(float(x.subs(self.params)),1,atol=1e-10) for x in bracket_results]
+        return np.alltrue(br_arr)
 
     def _test_old_to_new_canonical(self):
         pb = lambda q,p: poisson_bracket(q,p,self.new_qp_vars,[]) * self.H_scale
-        return [pb(self.old_to_new(qq),self.old_to_new(pp)).simplify() for qq,pp in self.old_qp_pairs]
+        bracket_results = [pb(self.old_to_new(qq),self.old_to_new(pp)).simplify() for qq,pp in self.old_qp_pairs]
+        br_arr = [np.isclose(float(x.subs(self.params)),1,atol=1e-10) for x in bracket_results]
+        return np.alltrue(br_arr)
     def test_canonical(self):
         """
         Test whether the substitution rules of this tranformation constitute 
@@ -341,8 +346,25 @@ class CanonicalTransformation():
         new_qp_pairs = [(new_qp_vars[i], new_qp_vars[i+N_dof]) for i in range(N_dof)]
         eqs = [p - diff(F2func,q) for q,p in old_qp_pairs]
         eqs += [Q - diff(F2func,P) for Q,P in new_qp_pairs]
-        o2n = solve(eqs,old_qp_vars)
-        n2o = solve(eqs,new_qp_vars)
+        o2n_soln = solve(eqs,old_qp_vars)
+
+        if type(o2n_soln) is dict:
+            o2n = o2n_soln
+        elif type(o2n_soln) is list:
+            msg ="Multiple roots found when solving for old variables in"
+            msg+="of new. The desired transformation may not be produced"
+            warn(msg)
+            o2n = dict(zip(old_qp_vars,o2n_soln[0]))
+
+        n2o_soln = solve(eqs,new_qp_vars)
+        if type(n2o_soln) is dict:
+            n2o = n2o_soln
+        elif type(n2o_soln) is list:
+            msg ="Multiple roots found when solving for new variables in"
+            msg+="terms of old. The desired transformation may not be produced"
+            warn(msg)
+            n2o = dict(zip(new_qp_vars,n2o_soln[0]))
+
         return cls(old_qp_vars,new_qp_vars,old_to_new_rule=o2n,new_to_old_rule = n2o)
     
     @classmethod
