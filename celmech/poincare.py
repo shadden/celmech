@@ -479,15 +479,13 @@ class Poincare(PhaseSpaceState):
         sim.move_to_com()
         particles = []
         #pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
-        ps = sim.particles
-        Mstar = ps[0].m
         o = reb_calculate_orbits(sim, coordinates=coordinates)
         for i in range(1,sim.N_real):
             orb = o[i-1]
             if orb.a <= 0. or orb.e >= 1.:
                 raise AttributeError("Celmech error: Poincare.from_Simulation only support elliptical orbits. Particle {0}'s (heliocentric) a={1}, e={2}".format(i, orb.a, orb.e))
             # always pass physical masses, PoincareParticle will calculate appropriate canonical mass based on coord
-            particle = PoincareParticle(m=ps[i].m, Mstar=Mstar, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega,coordinates=coordinates,G=sim.G)
+            particle = PoincareParticle(m=sim.particles[i].m, Mstar=sim.particles[0].m, a=orb.a, l=orb.l, e=orb.e, pomega=orb.pomega, inc=orb.inc, Omega=orb.Omega,coordinates=coordinates,G=sim.G)
             particles.append(particle)
         return cls(G=sim.G,poincareparticles=particles, coordinates=coordinates,t=sim.t)
 
@@ -569,12 +567,33 @@ class PoincareHamiltonian(Hamiltonian):
         return self.state.t
 
     @property
-    def df(self):
+    def df_raw_latex(self):
+        """
+        Get the raw latex string (r"...") for the terms currently included in the disturbing function.
+        This property is likely not what you're looking for.
+        Most users will either want df to pretty print df in a jupyter notebook,
+        or df_latex for the actual latex (with single slashes) to copy-paste into a paper.
+        """
         d = r""
         for i1, i2, (kvec, nuvec, lvec) in self.resonance_indices:
             d += get_df_term_latex(*kvec,*nuvec,*lvec,i1,i2)
-        display(Math(d))
-
+        return d
+    
+    @property
+    def df(self):
+        """
+        Pretty print the terms currently included in the disturbing function in a jupyter notebook.
+        """
+        display(Math(self.df_raw_latex))
+    
+    @property
+    def df_latex(self):
+        """
+        Print the latex for the terms currently included in the disturbing function
+        (e.g., to copy-paste into a paper)
+        """
+        print(self.df_raw_latex)
+    
     def add_Hkep_term(self, H, index):
         """
         Add the Keplerian component of the Hamiltonian for planet ''.

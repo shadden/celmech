@@ -448,7 +448,7 @@ class Hamiltonian(object):
         self._integrator = ode(
                 lambda t,y: self._flow_func(*y),
                 jac = lambda t,y: self._jacobian_func(*y))
-        self._integrator.set_integrator('vode',method='adams')# ('lsoda') #
+        self._integrator.set_integrator('vode',method='adams',rtol=1e-14)
 
 def reduce_hamiltonian(ham):
     state = ham.state
