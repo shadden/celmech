@@ -16,7 +16,7 @@ is called a canonical transformation. Often the equations of motion encountered
 in celestial mechanics problems can be simplified by canonical coordinate
 trasformations.
 
-The `CanonicalTransformation` class
+The ``CanonicalTransformation`` class
 -----------------------------------
 
 The class
@@ -179,8 +179,58 @@ system is integrated forward in time.
 Common transformations
 **********************
 
+The :class:`~celmech.canonical_transformations.CanonicalTransformation` class provides a number of convenient class methods for initializing frequently-used canonical transformations. These include:
 
-Reducing Degrees of Freedom
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.cartesian_to_polar`
+  implements a transformation taking user-specified canonical variable pairs
+  :math:`(q_i,p_i)` to new variable pairs
+  :math:`(Q_i,P_i)=\left((\tan^{-1}(q_i/p_i),\frac{1}{2}(q_i^2+p_i^2)\right)`
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.polar_to_cartesian`
+  implements a transformation taking user-specified canonical variable pairs
+  :math:`(q_i,p_i)` to new variable pairs :math:`(Q_i,P_i)=\left(\sqrt{2p_i}\sin
+  q_i,\sqrt{2p_i}\cos q_i\right)`
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.from_linear_angle_transformation`
+  produces the transformation
+  :math:`(\pmb{q},\pmb{p})\rightarrow(\pmb{Q},\pmb{P})` given by 
+
+  .. math::
+    \begin{eqnarray}
+         \pmb{Q} = T \cdot \pmb{q} ~&;~
+         \pmb{P} = (T^{-1})^\mathrm{T} \cdot \pmb{p}
+    \end{eqnarray}
+
+  where :math:`T` is a user-specified invertible matrix.
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.from_poincare_angles_matrix`
+  takes a :class:`~celmech.poincare.Poincare` instance as input, along with an
+  invertible matrix :math:`T`, and produces a transformation where the new
+  canonical coordinates are linear combinations of the planets' angular orbital
+  elements given by :math:`\pmb{Q} = T\cdot (\lambda_1 ,...,
+  \lambda_N,-\varpi_1,... ,-\varpi_N,-\Omega_1 ,..., -\Omega_N)`.
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.from_type2_generating_function`
+  allows the user to specify a generating function
+  :math:`F_2(\pmb{q},\pmb{P})` producing a canonical transformation that
+  satisfies the equations
+
+   .. math::
+
+         \begin{eqnarray}
+         \mathbf{Q} = \nabla_{\mathbf{P}}F_2~&;~
+         \mathbf{p} = \nabla_{\mathbf{q}}F_2~.
+         \end{eqnarray}
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.rescale_transformation`
+  allows users to simulaneously rescale the Hamiltonian and canonical variables. 
+
+- :meth:`~celmech.canonical_transformations.CanonicalTransformation.Lambdas_to_delta_Lambdas`
+  transforms the :math:`\Lambda_i` variables of a
+  :class:`~celmech.poincare.Poincare` instance to new variables
+  :math:`\delta\Lambda_i=\Lambda_i - \Lambda_{i,0}` 
+
+Reducing Degrees of Freedom 
 ***************************
 
 If the transformed Hamiltonian :math:`H' = H \circ T^{-1}` 
@@ -219,20 +269,34 @@ In other words, usually one seeks to transform a Hamiltonian of the form :math:`
 where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is integrable if one igonres terms of order :math:`\epsilon^N` and smaller.
 In other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity up to order :math:`\epsilon^{N-1}`.
 
-The FirstOrderGeneratingFunction class
-**************************************
+We'll focus on constructing the transformation to first order in :math:`\epsilon`.
 
-``celmech`` provides the :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` class that can be used to apply transformations between osculating coordiantes used by :math:`N`-body simulatoins and transformed variables appropriate for that Hamiltonian models used by ``celmech``. 
-These transformations will apply corrections at first order in planet-star mass ratio.
+The ``FirstOrderGeneratingFunction`` class
+******************************************
 
-Generating function [DO SOME STUFF]
+``celmech`` provides the :class:`FirstOrderGeneratingFunction
+<celmech.generating_functions.FirstOrderGeneratingFunction>` class that can be
+used to apply transformations between osculating coordiantes used by
+:math:`N`-body simulatoins and transformed variables appropriate for that
+Hamiltonian models used by ``celmech``.  These transformations will apply
+corrections at first order in planet-star mass ratio.
 
-.. math:: 
-        \begin{eqnarray}
-        \bar{H}(\bar{\pmb{p}},\bar{\pmb{q}}) &=& \exp[L_{\chi_1}]{H}(\bar{\pmb{p}},\bar{\pmb{q}})\\
-         &=&{H}_0(\bar{\pmb{p}}) + H_1(\bar{\pmb{p}},\bar{\pmb{q}}) + \{{H}_0(\bar{\pmb{p}}), {\chi_1} \} + {\cal O}(\epsilon^2)
-         \end{eqnarray}
+A :class:`FirstOrderGeneratingFunction
+<celmech.generating_functions.FirstOrderGeneratingFunction>` instance provides
+a representation of a the generating function, :math:`\chi`, for a Lie series
+transformation. The user constructs builds up this function by specifying which
+terms from the disturbing function the transformation should be eliminated from
+the full Hamiltonian at first order in planet masses. The interface for adding
+disturbing function terms is very similar to the interface for adding terms to
+a :class:`~celmech.poincare.PoincareHamiltonian` object. (In fact, the
+:class:`~celmech.generating_functions.FirstOrderGeneratingFunction` is a
+special sub-class of :class:`~celmech.poincare.PoincareHamiltonian` that simple
+overwrites the methods for adding disturbing function terms and adds some
+additional functionality.)
 
+
+As usual, the most straightforward way to understand how this class works is by
+way of example.
 
 Choosing 
 

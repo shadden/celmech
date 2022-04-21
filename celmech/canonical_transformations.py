@@ -489,6 +489,35 @@ class CanonicalTransformation():
 
     @classmethod
     def from_linear_angle_transformation(cls,old_qp_vars,Tmtrx,old_cartesian_indices=[],new_cartesian_indices=[],**kwargs):
+        r"""
+        Produces the transformation :math:`(\pmb{q},\pmb{p})\rightarrow(\pmb{Q},\pmb{P})` given by
+
+        .. math::
+            \begin{eqnarray}
+                 \pmb{Q} = T \cdot \pmb{q} ~&;~
+                 \pmb{P} = (T^{-1})^\mathrm{T} \cdot \pmb{p}
+            \end{eqnarray}
+
+        where :math:`T` is a user-specified matrix.
+
+
+        Arguments
+        ---------
+        old_qp_vars : list
+            List of old variable symbols.
+        Tmtrx : array-like
+            Matrix defining the canonical transformation.
+        old_cartesian_indicies : list
+            List of indices specifying which old variables are cartesian-style
+            pairs.
+        new_cartesian_indicies : list
+            List of indices specify which new variables should be created as
+            cartesian style pairs.
+
+        Returns
+        -------
+        :class:`~celmech.canonical_transformations.CanonicalTransformation`
+        """
         try:
             N_dof = len(old_qp_vars)//2
             Tmtrx = np.array(Tmtrx).reshape(N_dof,N_dof)
