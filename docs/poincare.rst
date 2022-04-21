@@ -175,78 +175,10 @@ to compute these 'canonical heliocentric' elements from
 a REBOUND simulation along with 
 :func:`nbody_simulation_utilities.add_canonical_heliocentric_elements_particle <celmech.nbody_simulation_utilities.add_canonical_heliocentric_elements_particle>` to add particles to a REOBOUND simulation by specifying the particles orbit in terms of these elements.
 
-Lie Transformations
--------------------
-
-Constructing a Hamiltonian with a finite number of disturbing function terms
-implicitly assumes that an infinite number of other terms can be ignored 
-because they are rapdily oscillating such that there average effect on the
-dynamics is negligible. In reality, these rapidly oscillating terms lead to
-rapid oscillations in the dynamical variables under study. 
-
-A generating function, :math:`\chi(q',p')`, is a function of canconical elements that is used to create a canonical transformation of variables. 
-This is accomplished by means of a Lie transformation. 
-The Lie transformation, :math:`f\rightarrow f'` of a function :math:`f`, induced by :math:`\chi`, is defined as
-
-.. math::
-        f'(q',p') = \exp[{\cal L}_\chi]f(q',p') = \sum_{n=0}^\infty \frac{1}{n!}{\cal L}_\chi^n f(q',p')
-
-where :math:`{\cal L}_\chi= [\cdot,\chi]` is the Lie derivative with respect to :math:`\chi`, i.e., the Poisson bracket of a function with :math:`\chi`.
-
-Generally, the goal of applying a Lie transformation is to eliminate the dependence of a Hamiltonian on a set of variables up to a specific order in some small parameter. 
-In other words, usually one seeks to transform a Hamiltonian of the form :math:`H = H_0(p) + \epsilon H_1(q,p) + \epsilon^2H_2(q,p) + ...`, such that 
-
-.. math::
-        H'(q',p') = \exp[{\cal L}_\chi]H(q',p') = H'_0(p') + \epsilon^NH'_N(q',p')+....
-
-where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is integrable if one igonres terms of order :math:`\epsilon^N` and smaller.
-In other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity up to order :math:`\epsilon^{N-1}`.
-
-The FirstOrderGeneratingFunction class
-**************************************
-
-``celmech`` provides the :class:`FirstOrderGeneratingFunction <celmech.generating_functions.FirstOrderGeneratingFunction>` class that can be used to apply transformations between osculating coordiantes used by :math:`N`-body simulatoins and transformed variables appropriate for that Hamiltonian models used by ``celmech``. 
-These transformations will apply corrections at first order in planet-star mass ratio.
-
-Generating function [DO SOME STUFF]
-
-.. math:: 
-        \begin{eqnarray}
-        \bar{H}(\bar{\pmb{p}},\bar{\pmb{q}}) &=& \exp[L_{\chi_1}]{H}(\bar{\pmb{p}},\bar{\pmb{q}})\\
-         &=&{H}_0(\bar{\pmb{p}}) + H_1(\bar{\pmb{p}},\bar{\pmb{q}}) + \{{H}_0(\bar{\pmb{p}}), {\chi_1} \} + {\cal O}(\epsilon^2)
-         \end{eqnarray}
-
-
-Choosing 
-
-.. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
-
-eliminates oscliating terms to first order in :math:`\epsilon`.
-
-To zeroth order in eccentricity, 
-
-.. math:: H_{1,\mathrm{osc}} = -\frac{Gm_1m_2}{a_2}\left(\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\lambda_2 - \lambda_1})} - \frac{1}{2}b^{(0)}_{1/2}(\alpha) - \frac{\cos\psi}{\sqrt{\alpha}}\right)
-
-Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \lambda_2-\lambda_1`,
-
-.. math:: 
-        \frac{\partial \chi_1}{\partial\psi} = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}f(\psi,\alpha)
-
-with the solution 
-
-.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({\frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg| -\frac{4\alpha}{(1-\alpha)^2} \right)} - \frac{2\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
-
-where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
-
 API
 ---
-.. autoclass:: celmech.hamiltonian.Hamiltonian
-        :members:
-        :special-members: __init__
 
 .. automodule:: celmech.poincare
         :members:
         :special-members: __init__
 
-.. autoclass:: celmech.generating_functions.FirstOrderGeneratingFunction
-        :members:

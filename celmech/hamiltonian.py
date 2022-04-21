@@ -231,11 +231,14 @@ class Hamiltonian(object):
         self._needs_update = True
     @property
     def flow(self):
+        r"""Symbolic representation of the flow,
+        :math:`(\frac{\partial}{\partial p}H,-\frac{\partial}{\partial q}H)`"""
         if self._needs_update:
             self._update()
         return self._flow
     @property
     def jacobian(self):
+        r"""Symbolic representation of the Jacobian of the flow."""
         if self._needs_update:
             self._update()
         return self._jacobian
@@ -262,16 +265,21 @@ class Hamiltonian(object):
     ##############
     @property
     def H_func(self):
+        r"""Hamiltonian function, taking canonical variables as arguments."""
         if self._needs_update:
             self._update()
         return self._H_func
     @property
     def flow_func(self):
+        r"""Fucntion of canonical variables that returns the Hamiltonian flow
+        vector."""
         if self._needs_update:
             self._update()
         return self._flow_func
     @property
     def jacobian_func(self):
+        r"""Function of canonical variables that returns the Jacobian of the
+        Hamiltonian flow with respect to the canonical variables."""
         if self._needs_update:
             self._update()
         return self._jacobian_func
