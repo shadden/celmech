@@ -25,10 +25,12 @@ These include:
 
         3. The function :func:`~celmech.miscellaneous.holman_weigert_stability_boundary` 
            which computes a stability criterion for circum-binary planets based on `Holman & Wiegert (1999)`_
+
         4. The functions :func:`~celmech.miscellaneous.sk` and :func:`~celmech.miscellaneous.Dsk`
            which give approximate disturbing function coefficient amplitudes as and their derivatives
            with respect to eccentricity. 
            See `Hadden & Lithwick (2018) <https://ui.adsabs.harvard.edu/abs/2018AJ....156...95H/abstract>`_
+
         5. Convenience functions :func:`~celmech.miscellaneous.get_symbol` and :func:`~celmech.miscellaneous.get_symbol0` for generating sympy symbols from LaTeX strings.
         
         6. The function :func:`~celmech.miscellaneous.truncated_expansion` for expanding and

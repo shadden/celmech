@@ -626,9 +626,9 @@ def threeFtwo(a,b):
 
 def KaulaF(n,q,p,j):
     """
-    Series coefficient in the Taylor expansion of the
-    Kaula inclination function F_{nqp}(I).
-    See, e.g., Kaula (1962,1966) or Ellis & Murray (2000).
+    Series coefficient in the Taylor expansion of the Kaula inclination
+    function F_{nqp}(I).  See, e.g., `Kaula (1962,1966)`_ or `Ellis & Murray
+    (2000)`_.
 
     The function returns the jth term of the Taylor
     expansion in the variable s = sin(I/2). I.e.
@@ -638,6 +638,8 @@ def KaulaF(n,q,p,j):
     package by Fabio Zugno available at:
         https://library.wolfram.com/infocenter/MathSource/4256/
 
+    .. _Kaula (1962,1966): https://ui.adsabs.harvard.edu/abs/1962AJ.....67..300K/abstract
+    .. _Ellis & Murray (2000): https://ui.adsabs.harvard.edu/abs/2000Icar..147..129E/abstract
     Arguments
     ---------
     n : int
@@ -717,10 +719,9 @@ def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = T
             k_5 \Omega_i + k_6 \Omega_j
         ]
 
-    where the indices :math:`i` and :math:`j` corresponds to the
-    inner and outer planets, respectively.
-    The result is returned as a dictionary of Laplace coefficient
-    arguemnts and their numerical coefficents.
+    where the indices :math:`i` and :math:`j` corresponds to the inner and
+    outer planets, respectively.  The result is returned as a dictionary of
+    Laplace coefficient arguemnts and their numerical coefficents.
 
     Arguments:
     ----------
@@ -747,16 +748,17 @@ def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = T
     include_indirect : booole, optional
         Whether to include the indirect contribution to the disturibing function
         coefficient.
-        
+
     Returns
     -------
-    dictionary 
+    dictionary
         The coefficient is given by the sum over laplace coefficients
         contained in the dictionary entries: 
 
         ..math::
-            \sum C \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
-        where the dictionary entries are in the form { (p,(s,j,n)) : C }
+            \sum A \times \alpha^p \frac{d^{n}}{d\alpha^{n}} b_{s}^{j}(\alpha)
+
+        where the dictionary entries are in the form { (p,(s,j,n)) : A }
     """
     total = defaultdict(float)
     # must be even power in inclination
@@ -886,13 +888,13 @@ def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirec
         Select specific term where the exponent of X2 is |k4|+2*nu4 
     l1 : int, optional
         Select specifc term where exponent of 
-        :math:'\delta_1 = (\Lambda_1 - \Lambda_{1,0})/\Lambda_{1,0})
-        is l1. 
+        :math:`\delta_1 = (\Lambda_1 - \Lambda_{1,0})/\Lambda_{1,0})`
+        is l1.
         Default value is l1 = 0
     l2 : int, optional
         Select specifc term where exponent of 
-        :math:'\delta_2 = (\Lambda_2 - \Lambda_{2,0})/\Lambda_{2,0})
-        is l2. 
+        :math:`\delta_2 = (\Lambda_2 - \Lambda_{2,0})/\Lambda_{2,0})`
+        is l2.
         Default value is l2 = 0
     include_indirect_terms :  boole, optional
         whether the contribution of indirect terms should be

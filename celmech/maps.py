@@ -150,27 +150,23 @@ class StandardMap():
 
     def inv_partial_derivs(self,x,Nmax):
         r"""
-        Get the partial derivatives of
-        the inverse map evaluated at the point
+        Get the partial derivatives of the inverse map evaluated at the point
         `x0` up to order `Nmax`.
 
         Arguments
         ---------
         x : array-like
-            The point at which derivatives
-            are to be evaluated
+            The point at which derivatives are to be evaluated
         Nmax : int
-            Maximum order of the partial 
-            derivatives
+            Maximum order of the partial derivatives
 
         Returns
         -------
         T : array, shape (2,Nmax+1,Nmax+1)
-            The partial derivatives of the map.
-            Writing the value of the map at a point
-            :math:`(x_1,x_2)` as 
-            :math:`T(x_1,x_2) = (T_1(x_1,x_2),T_2(x_1,x_2))`,
-            the entry T[i,n,m] stores
+            The partial derivatives of the map.  Writing the value of the map
+            at a point :math:`(x_1,x_2)` as :math:`T(x_1,x_2) =
+            (T_1(x_1,x_2),T_2(x_1,x_2))`, the entry T[i,n,m] stores
+
             .. math::
                 \frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i
 
@@ -193,10 +189,9 @@ class StandardMap():
 
     def jac(self,x):
         r"""
-        Evaluate the Jacobian map at :math:`x=(\theta,p)`,
-        given by 
-            
-            .. math::
+        Evaluate the Jacobian map at :math:`x=(\theta,p)`, given by
+
+        .. math::
             DT(x) = \begin{pmatrix}
                         1 + K\cos\theta & 1 \\
                         K\cos\theta     & 1
@@ -205,8 +200,7 @@ class StandardMap():
         Aruments
         --------
         x : array
-            Point(s) at which to evaluate the
-            Jacobian.
+            Point(s) at which to evaluate the Jacobian.
 
         Returns
         -------
