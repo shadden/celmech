@@ -179,29 +179,93 @@ class CanonicalTransformation():
         self._new_to_old_vfunc = lambdify(qpv_new,[self.N_old_to_new(v) for v in qpv_old])
    
     def old_to_new(self,exprn):
+        r"""
+        Transform an expression in terms of old canonical variables to one in
+        terms of new varialbes.
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to transform
+        Returns
+        -------
+        sympy expression
+            The transformed expression.
+        """
         exprn = exprn.subs(self.old_to_new_rule)
         exprn = self.old_to_new_simplify_function(exprn)
         return exprn
 
     def N_old_to_new(self,exprn):
+        r"""
+        Same as
+        :func:`~celmech.canonical_transformations.CanonicalTransformation.old_to_new`
+        but with numerical values replacing any symbolic parameters.
+        """
         exprn = self.old_to_new(exprn)
         Nexprn = exprn.subs(self.params)
         return Nexprn
 
     def new_to_old(self,exprn):
+        r"""
+        Transform an expression in terms of new canonical variables to one in
+        terms of old varialbes.
+
+        Arguments
+        ---------
+        exprn : sympy expression
+            The expression to transform.
+        Returns
+        -------
+        sympy expression
+            The transformed expression.
+        """
         exprn = exprn.subs(self.new_to_old_rule)
         exprn = self.new_to_old_simplify_function(exprn)
         return exprn
     
     def N_new_to_old(self,exprn):
+        r"""
+        Same as
+        :func:`~celmech.canonical_transformations.CanonicalTransformation.new_to_old`
+        but with numerical values replacing any symbolic parameters.
+        """
         exprn = self.new_to_old(exprn)
         Nexprn = exprn.subs(self.params)
         return Nexprn
 
     def old_to_new_array(self,arr):
+        r"""
+        Convert an array of old variable values to the corresponding values of
+        new canonical variables.
+
+        Arguments
+        ---------
+        arr : array-like
+            Value of old variables
+
+        Returns
+        -------
+        new_arr : numpy.array
+            Array of new variable values.
+        """
         return np.array(self._old_to_new_vfunc(*arr))
 
     def new_to_old_array(self,arr):
+        r"""
+        Convert an array of new variable values to the corresponding values of
+        old canonical variables.
+
+        Arguments
+        ---------
+        arr : array-like
+            Value of new variables
+
+        Returns
+        -------
+        new_arr : numpy.array
+            Array of old variable values.
+        """
         return np.array(self._new_to_old_vfunc(*arr))
 
     def new_to_old_state(self,state):
@@ -210,6 +274,27 @@ class CanonicalTransformation():
         return old_state
     
     def old_to_new_hamiltonian(self,ham,do_reduction = False):
+        r"""
+        Apply canonical transformation to a
+        :class:`~celmech.hamiltonian.Hamiltonian` object, transforming the
+        Hamiltonian and producing a new object with a
+        :attr:`~celmech.hamiltonian.Hamiltonian.state` attribute representing
+        the phase space position in the new canonical variables.
+
+        Arguments
+        ---------
+        ham : celmech.hamiltonian.Hamiltonian
+            The Hamiltonian object to which transformation is applied.
+        do_reduction : bool, optional
+            If ``True``, automatically reduce the number of degrees of freedom
+            by detecting which canonical variables do not appear in the
+            expression of the transformed Hamiltonian.
+
+        Returns
+        -------
+        new_ham : celmech.hamiltonian.Hamiltonian
+            The transformed Hamiltonian.
+        """
         # Get full values
         new_values = self.old_to_new_array(ham.full_values)
         # The full set of q,p variables
@@ -318,14 +403,14 @@ class CanonicalTransformation():
         r"""
         Initialize a canonical transformation derived from a `type 2 generating
         function`_. Given a set of old variables :math:`(q,p)`, new variables,
-        :math:`(Q,P)` and generating function :math:`F_2(q,P)`, the 
+        :math:`(Q,P)` and generating function :math:`F_2(q,P)`, the
         transformation rules are given by
 
         .. math::
             p &=& \frac{\partial }{\partial q}F_2(q,P) \\ 
             Q &=& \frac{\partial }{\partial P}F_2(q,P) 
 
-        .. type 2 generating function: https://en.wikipedia.org/wiki/Canonical_transformation#Type_2_generating_function
+        .. _type 2 generating function: https://en.wikipedia.org/wiki/Canonical_transformation#Type_2_generating_function
 
         Arguments
         ---------
@@ -338,7 +423,7 @@ class CanonicalTransformation():
 
         Returns
         -------
-        celmech.canonical_transformations.CanonicalTransformation
+        .CanonicalTransformation
             The resulting transformation.
         """
         N_dof = int(len(old_qp_vars)/2)
@@ -391,7 +476,7 @@ class CanonicalTransformation():
 
         Returns
         -------
-        celmech.canonical_transformations.CanonicalTransformation
+        .CanonicalTransformation
             The resulting transformation.
         """
         N_dof = int(len(old_qp_vars)/2)
@@ -451,7 +536,7 @@ class CanonicalTransformation():
 
         Returns
         -------
-        celmech.canonical_transformations.CanonicalTransformation
+        .CanonicalTransformation
             The resulting transformation.
         """
         N_dof = int(len(old_qp_vars)/2)
@@ -516,7 +601,7 @@ class CanonicalTransformation():
 
         Returns
         -------
-        :class:`~celmech.canonical_transformations.CanonicalTransformation`
+        .CanonicalTransformation
         """
         try:
             N_dof = len(old_qp_vars)//2
@@ -590,7 +675,7 @@ class CanonicalTransformation():
             as linear combinations of the planets' orbital elements.
         Returns
         -------
-        celmech.canonical_transformations.CanonicalTransformation
+        .CanonicalTransformation
             The resulting transformation.
         """
         if not type(p_vars) == Poincare:
@@ -721,6 +806,25 @@ class CanonicalTransformation():
 
     @classmethod
     def composite(cls, transformations, old_to_new_simplify = None, new_to_old_simplify = None):
+        r"""
+        Create a canonical transformation as the composition of canonical
+        transformations.
+
+        Arguments
+        ---------
+        transformations : list of :class:`~celmech.canonical_transformations.CanonicalTransformation`
+            List of transformations to compose. Transformations are composed in
+            the order
+
+            .. math::
+                T_N \circ T_{N-1}\circ ...\circ T_1 \circ T_0
+
+            when passed the list :math:`[T_0,T_1,...,]`.
+
+        Returns
+        -------
+        .CanonicalTransformation
+        """
         old_qp_vars = transformations[0].old_qp_vars
         new_qp_vars = transformations[-1].new_qp_vars
         scale = Mul(*[t.H_scale for t in transformations])

@@ -63,9 +63,10 @@ the original Hamiltonian and we’ll set :math:`Q_2 = q_2`.
 
 We use the :class:`~celmech.canonical_transformations.CanonicalTransformation`
 class method
-:method:`~celmech.canonical_transformations.CanonicalTransformation.from_linear_angle_transformation`
-to produce a :class:`~celmech.canonical_transformations.CanonicalTransformation`
-instance representing the desired transformation:
+:meth:`~celmech.canonical_transformations.CanonicalTransformation.from_linear_angle_transformation`
+to produce a
+:class:`~celmech.canonical_transformations.CanonicalTransformation` instance
+representing the desired transformation:
 
 .. code:: python
 
@@ -274,22 +275,22 @@ We'll focus on constructing the transformation to first order in :math:`\epsilon
 The ``FirstOrderGeneratingFunction`` class
 ******************************************
 
-``celmech`` provides the :class:`FirstOrderGeneratingFunction
-<celmech.generating_functions.FirstOrderGeneratingFunction>` class that can be
-used to apply transformations between osculating coordiantes used by
+``celmech`` provides the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class that
+can be used to apply transformations between osculating coordiantes used by
 :math:`N`-body simulatoins and transformed variables appropriate for that
 Hamiltonian models used by ``celmech``.  These transformations will apply
 corrections at first order in planet-star mass ratio.
 
-A :class:`FirstOrderGeneratingFunction
-<celmech.generating_functions.FirstOrderGeneratingFunction>` instance provides
-a representation of a the generating function, :math:`\chi`, for a Lie series
-transformation. The user constructs builds up this function by specifying which
-terms from the disturbing function the transformation should be eliminated from
-the full Hamiltonian at first order in planet masses. The interface for adding
-disturbing function terms is very similar to the interface for adding terms to
-a :class:`~celmech.poincare.PoincareHamiltonian` object. (In fact, the
-:class:`~celmech.generating_functions.FirstOrderGeneratingFunction` is a
+A :class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` instance
+provides a representation of a the generating function, :math:`\chi`, for a Lie
+series transformation. The user constructs builds up this function by
+specifying which terms from the disturbing function the transformation should
+be eliminated from the full Hamiltonian at first order in planet masses. The
+interface for adding disturbing function terms is very similar to the interface
+for adding terms to a :class:`~celmech.poincare.PoincareHamiltonian` object.
+(In fact, the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` is a
 special sub-class of :class:`~celmech.poincare.PoincareHamiltonian` that simple
 overwrites the methods for adding disturbing function terms and adds some
 additional functionality.)
@@ -325,5 +326,5 @@ API
 .. autoclass:: celmech.canonical_transformations.CanonicalTransformation
         :members:
 
-.. autoclass:: celmech.generating_functions.FirstOrderGeneratingFunction
+.. autoclass:: celmech.lie_transformations.FirstOrderGeneratingFunction
         :members:

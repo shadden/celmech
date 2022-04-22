@@ -13,20 +13,17 @@ import warnings
 
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
     """
-    A class representing a generating function that maps 
-    from the 'osculating' canonical variables of the full 
-    :math:`N`-body problem to 'mean' variables of an 
-    'averaged' Hamiltonian or normal form.  
+    A class representing a generating function that maps from the 'osculating'
+    canonical variables of the full :math:`N`-body problem to 'mean' variables
+    of an 'averaged' Hamiltonian or normal form.  
 
-    The generating function is constructed to first order in 
-    planet-star mass ratios by specifying indivdual cosine 
-    terms to be eliminated from the full Hamiltonian.
+    The generating function is constructed to first order in planet-star mass
+    ratios by specifying indivdual cosine terms to be eliminated from the full
+    Hamiltonian.
 
-    This class is a sub-class of 
-    :class:`celmech.poincare.PoincareHamiltonian`
-    and disturbing function terms to be eliminated are added 
-    in the same manner that disturbing function terms can be
-    added to 
+    This class is a sub-class of :class:`celmech.poincare.PoincareHamiltonian`
+    and disturbing function terms to be eliminated are added in the same manner
+    that disturbing function terms can be added to
     :class:`celmech.poincare.PoincareHamiltonian`.
 
     Attributes
@@ -34,17 +31,15 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
     chi : sympy expression
         Symbolic expression for the generating function.
     N_chi : sympy expression
-        Symbolic expression for the generating function 
-        with numerical values of parameters substituted
-        where applicable.
+        Symbolic expression for the generating function with numerical values
+        of paramteters substituted where applicable.
     state : :class:`celmech.poincare.Poincare`
-        A set of Poincare variables to which 
-        transformations are applied.
+        A set of Poincare variables to which transformations are applied.
     N : int
         Number of particles
     particles : list
-        List of :class:`celmech.poincare.PoincareParticle`s 
-        making up the system.
+        List of :class:`~celmech.poincare.PoincareParticle` objects making up
+        the system.
     """
     def __init__(self,pvars):
         super(FirstOrderGeneratingFunction,self).__init__(pvars)
