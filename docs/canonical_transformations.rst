@@ -17,7 +17,7 @@ in celestial mechanics problems can be simplified by canonical coordinate
 trasformations.
 
 The ``CanonicalTransformation`` class
------------------------------------
+-------------------------------------
 
 The class
 :class:`~celmech.canonical_transformations.CanonicalTransformation`
@@ -67,7 +67,7 @@ class method
 to produce a :class:`~celmech.canonical_transformations.CanonicalTransformation`
 instance representing the desired transformation:
 
-.. code:: ipython3
+.. code:: python
 
     Tmtrx = [[3,2],[0,1]]
     qp_old = ham.qp_vars
@@ -76,7 +76,7 @@ instance representing the desired transformation:
 We examine the resulting transformation by expressing each old canonical
 variable in terms of new variables and vice versa
 
-.. code:: ipython3
+.. code:: python
 
     for variable in ct.old_qp_vars:
         exprn = ct.old_to_new(variable)
@@ -140,7 +140,7 @@ Now we’ll use our canonical transformation to generate a new Hamiltonian
 with the 
 :meth:`~celmech.canonical_transformations.CanonicalTransformation.old_to_new_hamiltonian` method:
 
-.. code:: ipython3
+.. code:: python
 
     kam = ct.old_to_new_hamiltonian(ham,do_reduction=True)
     kam.H

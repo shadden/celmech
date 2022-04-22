@@ -12,7 +12,7 @@ of the more general :class:`~celmech.hamiltonian.Hamiltonian` class that
 of the basic features of the class by using it to model the dynamics of a
 simple pendulum.
 
-.. code:: ipython3
+.. code:: python
 
     import numpy as np
     from sympy import symbols,cos,sqrt
@@ -47,7 +47,7 @@ their Jacobian with respect to the canonical variables under the attributes
 :attr:`~celmech.hamiltonian.Hamiltonian.flow`, and
 :attr:`~celmech.hamiltonian.Hamiltonian.jacobian`:
 
-.. code:: ipython3
+.. code:: python
 
    ham.flow
 
@@ -56,7 +56,7 @@ their Jacobian with respect to the canonical variables under the attributes
    \left[\begin{matrix}\frac{p}{l^{2} m}\\- g l m \sin{\left(\theta \right)}\end{matrix}\right]
 
    
-.. code:: ipython3
+.. code:: python
 
    ham.jacobian
 
@@ -103,7 +103,7 @@ updated. Furthermore, if any changes are made to the parameters of the
 Hamiltonian, the equations of motion are updated accordingly.  The short
 integration loop below illustrates these prinicpals:
 
-.. code:: ipython3
+.. code:: python
 
     omega0 = float(sqrt(g/l).subs(ham.H_params))
     T0 = 2 * np.pi / omega0
@@ -117,7 +117,7 @@ integration loop below illustrates these prinicpals:
         ham.integrate(t)
         soln[i]=ham.state.values
 
-.. code:: ipython3
+.. code:: python
 
     from matplotlib import pyplot as plt
     fig,ax = plt.subplots(2,1,sharex=True)
