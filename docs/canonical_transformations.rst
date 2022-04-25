@@ -180,7 +180,9 @@ system is integrated forward in time.
 Common transformations
 **********************
 
-The :class:`~celmech.canonical_transformations.CanonicalTransformation` class provides a number of convenient class methods for initializing frequently-used canonical transformations. These include:
+The :class:`~celmech.canonical_transformations.CanonicalTransformation` class
+provides a number of convenient class methods for initializing frequently-used
+canonical transformations. These include:
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.cartesian_to_polar`
   implements a transformation taking user-specified canonical variable pairs
@@ -234,43 +236,106 @@ The :class:`~celmech.canonical_transformations.CanonicalTransformation` class pr
 Reducing Degrees of Freedom 
 ***************************
 
-If the transformed Hamiltonian :math:`H' = H \circ T^{-1}` 
-is independent of one or more of the new canonical cooridnate variables,
-:math:`q'_i`, then the corresponding new momentum variable, :math:`p'_i`
-is a constant of motion. Finding transformations that elminate the
-dependence on one or more degrees of freedom allows one to consider a
-simpler, lower-dimensional Hamiltonian problem involving only those
-conjugate variable pairs, :math:`(q'_i,p'_i)`, for which both variables
-appear explicitly in the Hamiltonian.
+If the transformed Hamiltonian :math:`H' = H \circ T^{-1}` is independent of
+one or more of the new canonical cooridnate variables, :math:`q'_i`, then the
+corresponding new momentum variable, :math:`p'_i` is a constant of motion.
+Finding transformations that elminate the dependence on one or more degrees of
+freedom allows one to consider a simpler, lower-dimensional Hamiltonian problem
+involving only those conjugate variable pairs, :math:`(q'_i,p'_i)`, for which
+both variables appear explicitly in the Hamiltonian.
 
 Lie Series Transformations
 --------------------------
 
+``celmech`` offers functionality for doing canonical perturbation theory
+calculations through the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class. We
+give a brief overview of canonical perturbation theory before describing the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class below.
+
+
+Overview of Canonical Perturbation Theory
+*****************************************
+
 Constructing a Hamiltonian with a finite number of disturbing function terms
-implicitly assumes that an infinite number of other terms can be ignored 
+implicitly assumes that an infinite number of other terms can be ignored
 because they are rapdily oscillating such that there average effect on the
 dynamics is negligible. In reality, these rapidly oscillating terms lead to
-rapid oscillations in the dynamical variables under study. 
+rapid oscillations in the dynamical variables under study. The goal of
+canonical perturbation theory is to construct a near-identity canonical
+transformation to new dynamical variables governed by a Hamiltonian that no
+longer possesses these rapidly oscillating terms.  Lie series transformations
+provide a particularly elegant means by which to construct such a
+transformation.
 
-A generating function, :math:`\chi(q',p')`, is a function of canconical elements that is used to create a canonical transformation of variables. 
-This is accomplished by means of a Lie transformation. 
-The Lie transformation, :math:`f\rightarrow f'` of a function :math:`f`, induced by :math:`\chi`, is defined as
+A Lie series transformation is defined by its generating function,
+:math:`\chi(q',p')`, a function of canconical variables.  The Lie
+transformation, :math:`f\rightarrow f'` of a function :math:`f`, induced by a
+particular generating function :math:`\chi`, is defined as
 
 .. math::
         f'(q',p') = \exp[{\cal L}_\chi]f(q',p') = \sum_{n=0}^\infty \frac{1}{n!}{\cal L}_\chi^n f(q',p')
 
-where :math:`{\cal L}_\chi= [\cdot,\chi]` is the Lie derivative with respect to :math:`\chi`, i.e., the Poisson bracket of a function with :math:`\chi`.
+where :math:`{\cal L}_\chi= [\cdot,\chi]` is the Lie derivative with respect to
+:math:`\chi`, i.e., the Poisson bracket of a function with :math:`\chi`.
 
-Generally, the goal of applying a Lie transformation is to eliminate the dependence of a Hamiltonian on a set of variables up to a specific order in some small parameter. 
-In other words, usually one seeks to transform a Hamiltonian of the form :math:`H = H_0(p) + \epsilon H_1(q,p) + \epsilon^2H_2(q,p) + ...`, such that 
+Generally, the goal of applying a Lie transformation is to eliminate the
+dependence of a Hamiltonian on a set of variables up to a specific order in
+some small parameter.  In other words, usually one seeks to transform a
+Hamiltonian of the form :math:`H = H_0(p) + \epsilon H_1(q,p) +
+\epsilon^2H_2(q,p) + ...`, such that 
 
 .. math::
         H'(q',p') = \exp[{\cal L}_\chi]H(q',p') = H'_0(p') + \epsilon^NH'_N(q',p')+....
 
-where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is integrable if one igonres terms of order :math:`\epsilon^N` and smaller.
-In other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity up to order :math:`\epsilon^{N-1}`.
+where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is
+integrable if one igonres terms of order :math:`\epsilon^N` and smaller.  In
+other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity
+up to order :math:`\epsilon^{N-1}`.
 
-We'll focus on constructing the transformation to first order in :math:`\epsilon`.
+We'll focus on constructing the transformation to first order in
+:math:`\epsilon`. If :math:`\chi\sim\mathcal{O}(\epsilon)`, then the
+transformed Hamiltonian is
+
+.. math::
+        H'(q',p') = H_0(p') + \epsilon [H_0(p'),\chi(q',p')] + \epsilon H_1(q',p') + \mathcal{O}(\epsilon^2)~.
+
+Thus, we can eliminate the :math:`q'` dependence of :math:`H'` if
+:math:`[H_0(p'),\chi(q',p')] = -H_1(q',p')`. Suppose we can express the
+perturbation Hamiltonian as a Fourier series in the variables :math:`q`:
+
+.. math::
+        H_{1}(q,p) = \sum_{\mathbf{k}} A_{\mathbf{k}}(p) e^{i\mathbf{k}\cdot q}~.
+
+Then the condition :math:`[H_0(p'),\chi(q',p')] = -H_1(q',p')` can be written
+as
+
+.. math::
+        \mathbf{\omega}(p') \cdot \nabla_q' \chi(q',p') = \sum_{\mathbf{k}} A_{\mathbf{k}}(p) e^{i\mathbf{k}\cdot q}
+  
+where :math:`\mathbf{\omega}(p') = \nabla_{p'}H_0(p')`. This equation is
+readily solved by taking
+
+.. math::
+        \chi(q',p') = \sum_{\mathbf{k}} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}
+
+however, in order for this solution to be valid, we must have
+:math:`\mathbf{k}\cdot\omega(p') \ne 0`. In other words, our transformation
+cannot be applied to *resonant* domains of phase space. Generally, resonances
+are dense in phase space, so our goal of eliminating any dependence on
+:math:`q'` in the transformed Hamiltonian will not be possible. However we can
+still eliminate non-resonant harmonics from the transformed Hamiltonian.
+
+
+.. math:: 
+        \mathcal{K}_\mathrm{res}(D) = \{ k ~|~ \exists p \in D \mathrm{~s.t.~} k \cdot \omega(p) =  0  \}
+
+Then the generating function
+
+.. math::
+       \chi(q',p') = \sum_{\mathbf{k}\notin \mathcal{K}_\mathrm{res}(D)} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}
+
+will eliminate non-resonant terms.
 
 The ``FirstOrderGeneratingFunction`` class
 ******************************************
@@ -297,7 +362,10 @@ additional functionality.)
 
 
 As usual, the most straightforward way to understand how this class works is by
-way of example.
+way of example. Let's suppose we want to study the secular dynamics of a pair
+of planets near, but not in, a 3:2 MMR.
+
+
 
 Choosing 
 

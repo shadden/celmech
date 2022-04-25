@@ -106,14 +106,14 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
           State vector of 'averaged' canonical variables.
 
         approximate : bool, optional
-          If True, Lie transformation is computed approximately
-          to first order.  In other words, the approximation
+            If True, Lie transformation is computed approximately
+            to first order.  In other words, the approximation
 
-          .. math::
-            \exp[{\cal L}_{\chi}]f \approx f + \left[f,\chi \right]
+            .. math::
+              \exp[{\cal L}_{\chi}]f \approx f + \left[f,\chi \right]
 
-        is used. If False, the exact Lie transformation is computed
-        numerically.
+            is used. Otherwise, the exact Lie transformation is computed
+            numerically.
 
         Returns
         -------
