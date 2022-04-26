@@ -324,18 +324,27 @@ however, in order for this solution to be valid, we must have
 cannot be applied to *resonant* domains of phase space. Generally, resonances
 are dense in phase space, so our goal of eliminating any dependence on
 :math:`q'` in the transformed Hamiltonian will not be possible. However we can
-still eliminate non-resonant harmonics from the transformed Hamiltonian.
-
+still eliminate non-resonant harmonics from the transformed Hamiltonian if we
+only sum over :math:`\mathbf{k}` values that are non-resonant in whatever
+region of phase-space we are interested in. More technically, if we are
+intersted in some domain of action space, :math:`D`, then we should exclude the
+set of :math:`\mathbf{k}` vectors
 
 .. math:: 
         \mathcal{K}_\mathrm{res}(D) = \{ k ~|~ \exists p \in D \mathrm{~s.t.~} k \cdot \omega(p) =  0  \}
 
-Then the generating function
+and define our generating function as
 
 .. math::
-       \chi(q',p') = \sum_{\mathbf{k}\notin \mathcal{K}_\mathrm{res}(D)} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}
+       \chi(q',p') = \sum_{\mathbf{k}\notin \mathcal{K}_\mathrm{res}(D)} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}~.
 
-will eliminate non-resonant terms.
+The sum above will generally include an inifinte number of :math:`k` vectors.
+However, the Fourier properties of smooth functions generally guaruntee that
+:math:`A_\mathbf{k}(p')\sim \exp(-|\mathbf{k}|_{1})` where
+:math:`|\mathbf{k}|_{1}=\sum_i|k_i|`. If we're interested in constructing a
+perturbation theory to first order in :math:`\epsilon`, then we only need to
+include a limited number of terms with :math:`|\mathbf{k}|_1 < k_\mathrm{max}
+\sim -\log\epsilon`.
 
 The ``FirstOrderGeneratingFunction`` class
 ******************************************
