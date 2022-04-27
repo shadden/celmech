@@ -17,7 +17,7 @@
 #define str(s) #s
 
 const char* celmech_build_str = __DATE__ " " __TIME__; // Date and time build string. 
-const char* celmech_version_str = "0.3.7";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
+const char* celmech_version_str = "0.4.0";         // **VERSIONLINE** This line gets updated automatically. Do not edit manually.
 const char* celmech_githash_str = STRINGIFY(CELMECHGITHASH);             // This line gets updated automatically. Do not edit manually.
 
 double laplace(double s, int i, int j, double a);
