@@ -23,7 +23,9 @@ in order to install the Python package.
 
 Pip
 ---
-Coming soon!
+``celmech`` is available through `PyPI <https://pypi.org>`_ and can be installed with the terminal command::
+
+   pip install celmech
 
 .. _first_example:
 
@@ -127,9 +129,8 @@ The method :meth:`add_all_MMR_and_secular_terms <celmech.poincare.PoincareHamilt
 method for adding these terms to our Hamiltonian:
 
 .. code:: python
-
-        pham.add_all_MMR_and_secular_terms(3,1,1)
-        pham.H
+  pham.add_MMR_terms(3,1,max_order=1)
+  pham.H
 
 which should now display
 
