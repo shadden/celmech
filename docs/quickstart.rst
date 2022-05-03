@@ -11,11 +11,15 @@ Installation of ``celmech`` will require a few additional Python packages.
 GitHub
 ------
 
-In order to install ``celmech`` you will first need to clone the GitHub repository located `here <https://github.com/shadden/celmech>`_. This can be accomplished from the terminal by first navigating to the desired target directory and then issuing the command::
+In order to install ``celmech`` you will first need to clone the GitHub
+repository located `here <https://github.com/shadden/celmech>`_. This can be
+accomplished from the terminal by first navigating to the desired target
+directory and then issuing the command::
 
         git clone https://github.com/shadden/celmech.git
 
-After you have cloned the git repository, navigate into the top celmech directory and issue the terminal command::
+After you have cloned the git repository, navigate into the top celmech
+directory and issue the terminal command::
         
         python setup.py install
 
@@ -23,7 +27,9 @@ in order to install the Python package.
 
 Pip
 ---
-``celmech`` is available through `PyPI <https://pypi.org>`_ and can be installed with the terminal command::
+
+``celmech`` is available through `PyPI <https://pypi.org>`_ and can be
+installed with the terminal command::
 
    pip install celmech
 
@@ -32,8 +38,12 @@ Pip
 A First Example
 ===============
 
-Now that ``celmech`` is installed, we'll run through a short example of how to use it. In our example we'll use it in conjunction with the ``REBOUND`` N-body integrator to build and integrate a simple Hamiltonian model for the dynamics of a pair of planets in a mean motion resonance.
-The example presented below is also available as a `Jupyter notebook on GitHub <https://github.com/shadden/celmech/tree/master/jupyter_examples/QuickstartExample.ipynb>`_.
+Now that ``celmech`` is installed, we'll run through a short example of how to
+use it. In our example we'll use it in conjunction with the ``rebound`` N-body
+integrator to build and integrate a simple Hamiltonian model for the dynamics
+of a pair of planets in a mean motion resonance.  The example presented below
+is also available as a `Jupyter notebook on GitHub
+<https://github.com/shadden/celmech/tree/master/jupyter_examples/QuickstartExample.ipynb>`_.
 
 
 Setup
@@ -49,7 +59,9 @@ We'll start by importing the requisite packages.
         from sympy import init_printing
         init_printing() # This will typeset symbolic expressions in LaTeX
 
-Now we'll initialize a REBOUND simulation containing a pair of Earth-mass planets orbiting a central solar-mass star with a 3:2 period ratio commensurability.
+Now we'll initialize a ``rebound`` simulation containing a pair of Earth-mass
+planets orbiting a central solar-mass star with a 3:2 period ratio
+commensurability.
 
 .. code:: python
 
@@ -61,23 +73,27 @@ Now we'll initialize a REBOUND simulation containing a pair of Earth-mass planet
         rb.OrbitPlot(sim,periastron=True)
 
 
-After running the above code, we should see a represntation of our planetary system:
+After running the above code, we should see a represntation of our planetary
+system:
 
 .. image:: images/quickstart_orbit_plot.png
         :width: 300
 
-We'd like a construct a Hamiltonian that can capture the dynamical evolution of the system. 
-To start, we'll initialize a :class:`celmech.Poincare <celmech.poincare.Poincare>` object in order to represent our system
-and a :class:`celmech.PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` object to model its dynamical evolution. 
-These objects can be initialized directly from the ``REBOUND`` simulation that we created above:
+We'd like a construct a Hamiltonian that can capture the dynamical evolution of
+the system.  To start, we'll initialize a :class:`~celmech.poincare.Poincare`
+object in order to represent our system and a
+:class:`~celmech.poincare.PoincareHamiltonian` object to model its dynamical
+evolution.  These objects can be initialized directly from the ``rebound``
+simulation that we created above:
 
 .. code:: python
         
         pvars = Poincare.from_Simulation(sim)
         pham = PoincareHamiltonian(pvars)
 
-Now that we've now generated a :class:`poincare.PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` object, 
-we'll examine the symbolic expression for the Hamiltonian governing our system:
+Now that we've now generated a :class:`~celmech.poincare.PoincareHamiltonian`
+object, we'll examine the symbolic expression for the Hamiltonian governing our
+system:
 
 .. code:: python
 
@@ -89,8 +105,12 @@ which should display:
 
         - \frac{G^{2} M_{2}^{2} m_{2}^{3}}{2 \Lambda_{2}^{2}} - \frac{G^{2} M_{1}^{2} m_{1}^{3}}{2 \Lambda_{1}^{2}}
 
-This expression is the just Hamiltonian of two non-interacting Keplerian orbits expressed in canonical variables used by ``celmech``.
-The canonical momenta for the :math:`i`-th planet are defined [#]_ in terms of the planet's standard `orbital elements <https://en.wikipedia.org/wiki/Orbital_elements>`_ :math:`(a_i,e_i,I_i,\lambda_i,\varpi_i,\Omega_i)` and mass parameters :math:`\mu_i\sim m_i` and :math:`M_i \sim M_*`:
+This expression is the just Hamiltonian of two non-interacting Keplerian orbits
+expressed in canonical variables used by ``celmech``.  The canonical momenta
+for the :math:`i`-th planet are defined [#]_ in terms of the planet's standard
+`orbital elements <https://en.wikipedia.org/wiki/Orbital_elements>`_
+:math:`(a_i,e_i,I_i,\lambda_i,\varpi_i,\Omega_i)` and mass parameters
+:math:`\mu_i\sim m_i` and :math:`M_i \sim M_*`:
 
 .. math::
         \begin{align*}       
@@ -109,26 +129,32 @@ and their conjugate coordinates are:
         \end{align*}
 
 
-When a :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` is first initialized, it will only contain the 'Keplerian' terms of the Hamiltonian 
-and will not contain any terms representing gravitaional interactions between the planets.  
-This will result in quite boring dynamical evolution: the planets' mean longitudes, :math:`\lambda_i`, 
-will simply increase linearly with time at a rate of 
-:math:`n_i = \frac{G^{2} M_{2}^{2} m_{i}^{3}}{\Lambda_{i}^{3}}`, while all other orbital elements remain constant.
+When a :class:`~celmech.poincare.PoincareHamiltonian` is first initialized, it
+will only contain the 'Keplerian' terms of the Hamiltonian and will not contain
+any terms representing gravitaional interactions between the planets.  This
+will result in quite boring dynamical evolution: the planets' mean longitudes,
+:math:`\lambda_i`, will simply increase linearly with time at a rate of
+:math:`n_i = \frac{G^{2} M_{2}^{2} m_{i}^{3}}{\Lambda_{i}^{3}}`, while all
+other orbital elements remain constant.
 
-In order explore more interesting dynamics, we need to add terms to Hamiltonian that capture pieces of the gravitational interactions between planets.
-Since our planet pair is near a 3:2 MMR, terms associated with this resonance are a natural choice to explore. 
-For a pair of co-planar planets, these terms will all involve linear combinations of the two resonant angles 
+In order explore more interesting dynamics, we need to add terms to Hamiltonian
+that capture pieces of the gravitational interactions between planets.  Since
+our planet pair is near a 3:2 MMR, terms associated with this resonance are a
+natural choice to explore.  For a pair of co-planar planets, these terms will
+all involve linear combinations of the two resonant angles 
 
 .. math::
         \theta_1 = 3\lambda_2-2\lambda_1 - \varpi_1 \\
         \theta_2 = 3\lambda_2-2\lambda_1 - \varpi_2 
 
-In fact, at lowest order in the planets' eccentricities, there are just two such terms,
-:math:`\propto e_1\cos\theta_1` and :math:`\propto e_2\cos\theta_2`.
-The method :meth:`add_all_MMR_and_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_MMR_and_secular_terms>` provides a convenient
-method for adding these terms to our Hamiltonian:
+In fact, at lowest order in the planets' eccentricities, there are just two
+such terms, :math:`\propto e_1\cos\theta_1` and :math:`\propto
+e_2\cos\theta_2`.  The method
+:meth:`~celmech.poincare.PoincareHamiltonian.add_MMR_terms` provides a
+convenient method for adding these terms to our Hamiltonian:
 
 .. code:: python
+
   pham.add_MMR_terms(3,1,max_order=1)
   pham.H
 
@@ -148,8 +174,9 @@ but expressed in the canonical variables used by ``celmech``. [#]_
 Integration
 -----------
 
-Now that we have a Hamiltonain model, we'll integrate it and compare the results to direct :math:`N`-body.
-First, we'll set up some preliminary python dictionaries and arrays to hold the results of both integrations.
+Now that we have a Hamiltonain model, we'll integrate it and compare the
+results to direct :math:`N`-body.  First, we'll set up some preliminary python
+dictionaries and arrays to hold the results of both integrations.
 
 .. code:: python
 
@@ -170,8 +197,11 @@ First, we'll set up some preliminary python dictionaries and arrays to hold the 
         cm_particles = pvars.particles
 
 
-The :class:`celmech.PoincareHamiltonian` class inherits the method :meth:`celmech.hamiltonian.Hamiltonian.integrate` that can be used to evolve the system forward in much the same way as ``REBOUND``'s :meth:`rebound.Simulation.integrate` method.
-Below is the main integration loop where we'll integrate our system and store the results: 
+The :class:`~celmech.poincare.PoincareHamiltonian` class inherits the method
+:meth:`~celmech.hamiltonian.Hamiltonian.integrate` that can be used to evolve
+the system forward in much the same way as ``rebound``'s
+:meth:`rebound.Simulation.integrate` method.  Below is the main integration
+loop where we'll integrate our system and store the results: 
 
 .. code:: python
 
@@ -222,12 +252,16 @@ This should produce a figure that looks something like this:
 .. image:: images/quickstart_example_plot.png
         :width: 600
 
-Not too bad! Our ``celmech`` model reproduces the libration amplitudes and frequencies observed in the :math:`N`-body results quite successfully.
+Not too bad! Our ``celmech`` model reproduces the libration amplitudes and
+frequencies observed in the :math:`N`-body results quite successfully.
 
 Next steps
 ----------
 
-Check out ...
+Check out the rest of the documentation for other features. There are also
+numerous `Jupyter notebook examples
+<https://github.com/shadden/celmech/tree/master/jupyter_examples>`_ available
+on GitHub.
 
 .. [#] The precise definitions of the orbital elements and mass parameters :math:`\mu_i,M_i` depend on the adopted coordinate system.  By default ``celmech`` uses canonical heliocentric coordinates.  
 .. [#] The :math:`C` coefficients used by ``celmech`` are defined in :ref:`disturbing_function`. For those familiar with the notation of `Murray & Dermott (1999) <https://ui.adsabs.harvard.edu/abs/2000ssd..book.....M/abstract>`_, :math:`C^{0,0,0,0;(1,2)}_{3,-2,-1,0,0,0} = f_{27}(\alpha)` and :math:`C^{0,0,0,0;(1,2)}_{3,-2,0,-1,0,0} = f_{31}(\alpha)` evaluated at :math:`\alpha\approx (2/3)^{2/3}`.
