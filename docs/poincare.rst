@@ -53,13 +53,23 @@ Upon intialization, a :class:`PoincareHamiltonian <celmech.poincare.PoincareHami
 .. math::
         H =  -\sum_{i=1}^{N}\frac{G^2M_i^2\mu^3}{2\Lambda_i^2}
 
-Individual disturbing funtion terms from planet pairs' interactions can then be added
-with the :meth:`Poincare.add_monomial_term <celmech.poincare.PoincareHamiltonian.add_monomial_term>` method.
-:class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` also has numerous methods that can be used to conveniently add multiple disturbing function terms at once. These include:
-        - :meth:`Poincare.add_all_MMR_and_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_MMR_and_secular_terms>`
-        - :meth:`Poincare.add_eccentricity_MMR_terms <celmech.poincare.PoincareHamiltonian.add_eccentricity_MMR_terms>`
-        - :meth:`Poincare.add_all_secular_terms <celmech.poincare.PoincareHamiltonian.add_all_secular_terms>`
-        
+Individual disturbing funtion terms from planet pairs' interactions can then be
+added with the :meth:`~celmech.poincare.PoincareHamiltonian.add_cosine_term`
+method. For example, to add the leading order term :math:`\propto
+\cos(3\lambda_2 - \lambda_1 - \varpi_1-\varpi_2)` to the Hamiltonian represented
+by a :class:`~celmech.poincare.PoincareHamiltonian` instance, :code:`pham`, you would
+call
+
+.. code:: python
+
+   pham.add_cosine_term([3,-1,-1,-1,0,0],indexIn=1,indexOut=2)
+
+More details about the disturbing function expansion are described in the
+:ref:`Disturbing Function <disturbing_function>` section. The
+:class:`~celmech.poincare.PoincareHamiltonian` provides additional methods
+that can be used to conveniently add multiple disturbing function terms at
+once, including :meth:`~celmech.poincare.PoincareHamiltonian.add_MMR_terms`
+and :meth:`~celmech.poincare.PoincareHamiltonian.add_secular_terms`.
 
 .. _ch_coordinates:
 

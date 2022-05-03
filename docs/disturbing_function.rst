@@ -6,7 +6,8 @@ Disturbing Function
 Introduction
 ------------
 
-The full  Hamiltonian for a system of :math:`N` planets can be written in terms of canonical heliocentric variables as 
+The full  Hamiltonian for a system of :math:`N` planets can be written in terms
+of canonical heliocentric variables as 
 
 .. math::
 
@@ -14,37 +15,49 @@ The full  Hamiltonian for a system of :math:`N` planets can be written in terms 
         -\frac{Gm_im_j}{|\pmb{r}_i-\pmb{r}_j|} + \frac{\tilde {\bf r}_i \cdot \tilde {\bf r}_j}{m_0}
         \right)
 
-The second term, representing the gravitational interaction potential between the planets in the system, makes the problem non-integrable.
-Pairwise interactions between two planets, :math:`i` and :math:`j`, can be expressed in terms of 
-the so-called 'disturbing function', :math:`{\cal R}^{(i,j)}`, defined so that
+The second term, representing the gravitational interaction potential between
+the planets in the system, makes the problem non-integrable.  Pairwise
+interactions between two planets, :math:`i` and :math:`j`, can be expressed in
+terms of the so-called 'disturbing function', :math:`{\cal R}^{(i,j)}`, defined
+so that
 
 .. math::
 
         -\frac{Gm_im_j}{|\pmb{r}_i-\pmb{r}_j|} + \frac{\tilde {\bf r}_i \cdot \tilde {\bf r}_j}{m_0} = -\frac{Gm_im_j}{a_j}{\cal R}^{(i,j)}~.
 
-The disturbing function, :math:`{\cal R}^{(i,j)}`, can be expanded in a cosine series in the planets' angular orbital elements. 
-Defining :math:`\pmb{\theta}_{i,j} = (\lambda_j,\lambda_i,\varpi_i,\varpi_j,\Omega_i,\Omega_j)`, we can write this cosine series as
+The disturbing function, :math:`{\cal R}^{(i,j)}`, can be expanded in a cosine
+series in the planets' angular orbital elements.  Defining
+:math:`\pmb{\theta}_{i,j} =
+(\lambda_j,\lambda_i,\varpi_i,\varpi_j,\Omega_i,\Omega_j)`, we can write this
+cosine series as
 
 .. math::
 
         {\cal R}^{(i,j)} = \sum_{\bf k}c_{\pmb{k}}(\alpha,e_i,e_j,I_i,I_j)\cos(\pmb{k}\cdot \pmb{\theta}_{i,j})
 
-where :math:`\alpha = a_i/a_j`. 
-Rotation and reflection symmetries of the planets' gravitational interactions dictate that :math:`c_{\bf k}\ne 0` only if :math:`\sum_{l=1}^{6}k_l = 0` and :math:`k_5+k_6=2n` where :math:`n` is an integer.
+where :math:`\alpha = a_i/a_j`.  Rotation and reflection symmetries of the
+planets' gravitational interactions dictate that :math:`c_{\bf k}\ne 0` only if
+:math:`\sum_{l=1}^{6}k_l = 0` and :math:`k_5+k_6=2n` where :math:`n` is an
+integer.
 
-In classical disturbing function expansions, the cosine amplitudes :math:`c_{\pmb{k}}` are further expanded as Taylor series in powers of the planets' eccentricities :math:`e` and :math:`s = \sin(I_i/2)` as
+In classical disturbing function expansions, the cosine amplitudes
+:math:`c_{\pmb{k}}` are further expanded as Taylor series in powers of the
+planets' eccentricities :math:`e` and :math:`s = \sin(I_i/2)` as
 
 .. math::
 
    c_{\bf k}(\alpha,e_i,e_j,I_i,I_j) = e_i^{|k_3|}e_j^{|k_4|}s_i^{|k_5|}s_j^{|k_6|}
-                                       \sum_{z_1,z_2,z_3,z_4=0}^\infty 
-                                       \tilde{C}_{\bf k}^{(z_1,z_2,z_3,z_4)}(\alpha)
-                                       s_i^{2z_1}s_j^{2z_2}e_i^{2z_3}e_j^{2z_4}
+                                       \sum_{\nu_1,\nu_2,\nu_3,\nu_4=0}^\infty 
+                                       \tilde{C}_{\bf k}^{(\nu_1,\nu_2,\nu_3,\nu_4)}(\alpha)
+                                       s_i^{2\nu_1}s_j^{2\nu_2}e_i^{2\nu_3}e_j^{2\nu_4}
 
-``celmech`` offers the capability to compute the individual disturbing function coefficients through the function :func:`df_coefficient_Ctilde() <celmech.disturbing_function.df_coefficient_Ctilde>`.
+``celmech`` offers the capability to compute the individual disturbing function
+coefficients through the function
+:func:`~celmech.disturbing_function.df_coefficient_Ctilde`.
 
-Since ``celmech`` formulates equations of motion in terms of canonical variables rather than orbital elements,
-it is often more convenient to formulate the Taylor series expansion of the disturbing function as 
+Since ``celmech`` formulates equations of motion in terms of canonical
+variables rather than orbital elements, it is often more convenient to
+formulate the Taylor series expansion of the disturbing function as 
 
 .. math::
 
@@ -55,60 +68,103 @@ it is often more convenient to formulate the Taylor series expansion of the dist
                 \bar{Y_i}^{-k_5}
                 \bar{Y_j}^{-k_6}
                 \\
-                \times\sum_{z_1,z_2,z_3,z_4=0}^\infty 
-                {C}_{\bf k}^{(z_1,z_2,z_3,z_4)}(\alpha)
-                |Y_i|^{2z_1}
-                |Y_j|^{2z_2}
-                |X_i|^{2z_3}
-                |X_j|^{2z_4}
+                \times\sum_{\nu_1,\nu_2,\nu_3,\nu_4=0}^\infty 
+                \hat{C}_{\bf k}^{(\nu_1,\nu_2,\nu_3,\nu_4)}(\alpha_{ij})
+                |Y_i|^{2\nu_1}
+                |Y_j|^{2\nu_2}
+                |X_i|^{2\nu_3}
+                |X_j|^{2\nu_4}
 
-, where :math:`|X_i| = \sqrt{\frac{2}{\Lambda_i}}x_i` and :math:`|Y_i| = \sqrt{\frac{1}{2\Lambda_i}}y_i` and assuming :math:`k_3,k_4,k_5,k_6 \le 0` and bars denote complex conjugates.
-If :math:`k_3>0` then one makes the replacement :math:`\bar{X_i}^{-k_3}\rightarrow {X_i}^{k_3}` and  a similar replacement is made if  :math:`k_4,k_5,` or :math:`k_6>0`.
-Note that :math:`{C}_{\bf k}^{(0,0,0,0)} = \tilde{C}_{\bf k}^{(0,0,0,0)}`.
+, where :math:`|X_i| = \sqrt{\frac{2}{\Lambda_i}}x_i` and :math:`|Y_i| =
+\sqrt{\frac{1}{2\Lambda_i}}y_i` and assuming :math:`k_3,k_4,k_5,k_6 \le 0` and
+bars denote complex conjugates.  If :math:`k_3>0` then one makes the
+replacement :math:`\bar{X_i}^{-k_3}\rightarrow {X_i}^{k_3}` and  a similar
+replacement is made if  :math:`k_4,k_5,` or :math:`k_6>0`.  Note that
+:math:`\hat{C}_{\bf k}^{(0,0,0,0)} = \tilde{C}_{\bf k}^{(0,0,0,0)}`. The
+relationship between the coefficients :math:`\hat{C}_{\bf k}^{\pmb{\nu}}` and
+:math:`\tilde{C}_{\bf k}^{\pmb{\nu}}` when :math:`\pmb{\nu}\ne0` is more
+complicated.
 
-When construction canonical equations of motion, it is useful to 
-Taylor-expand the coefficents :math:`{C}_{\bf k}^{\pmb{\nu}}(\alpha_{i,j})` 
-with respect to :ref:`Poincare <poincare_intro>` momenta :math:`\Lambda_i` about some reference values :math:`\Lambda_{i,0}`. 
-Defining :math:`\delta_i = (\Lambda_i-\Lambda_{i,0}) / \Lambda_{i,0}`, we write 
+
+Often, the explicit dependence of the disturbing function on the variables
+:math:`\Lambda_i` is ignored. This allows the resulting equiations of motion to
+be expressed as polynomials with fixed coefficients involving the variables
+:math:`\eta_i,\kappa_i,\rho_i,\sigma_i` and various trignometric functions of
+the :math:`\lambda_i` variables. At this level of approximation, Hamilton's
+equations for :math:`\lambda_i` become :math:`\dot{\lambda_i} =
+\frac{\partial}{\partial \Lambda_i}H\approx \frac{\partial}{\partial
+\Lambda_i}H_\mathrm{Kep}`. We can construct a more accurate model while
+retaining the polynomial nature of the equations of motion by Taylor-expanding
+the disturbing function coefficients :math:`{C}_{\bf
+k}^{\pmb{\nu}}(\alpha_{i,j})` with respect to :ref:`Poincare <poincare_intro>`
+momenta :math:`\Lambda_i` about some reference values :math:`\Lambda_{i,0}`.
+Defining :math:`\delta_i = (\Lambda_i-\Lambda_{i,0}) / \Lambda_{i,0}`, we write
 
 .. math::
-        {C}_{\bf k}^{\pmb{\nu}}(\alpha_{i,j}) = \sum_{l_1,l_2 = 0}^\infty {C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}(\alpha_{i,j,0})\delta_i^{l_1}\delta_j^{l_2}
+        \hat{C}_{\bf k}^{\pmb{\nu}}(\alpha_{ij}) = \sum_{l_1,l_2 = 0}^\infty {C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}(\alpha_{ij,0})\delta_i^{l_1}\delta_j^{l_2}
+
+The complete expansion of the interaction term between planets :math:`i` and
+:math:`j` can therefore be written as
+
+.. math::
+        \begin{multline}
+        -\frac{Gm_im_j}{|\mathbf{r}_i - \mathbf{r}_j|} + \frac{\tilde{\mathbf{r}}_i \cdot \tilde{\mathbf{r}}_j}{m_*}
+         = \\
+         -\frac{Gm_im_j}{a_{j,0}}\sum_{\mathbf{k}}\sum_{\nu_1,...,\nu_4 = 0}^\infty \sum_{l_1,l_2=0}^\infty 
+      C_{\bf{k}}^{\pmb{\nu},\pmb{l}}(\alpha_{ij,0})
+      |Y_i|^{|k_5|+2\nu_1}
+      |Y_j|^{|k_6|+2\nu_2}
+      |X_i|^{|k_3|+2\nu_3}
+      |X_j|^{|k_4|+2\nu_4}
+      \delta_i^{l_1}\delta_j^{l_j}
+      \\
+      \times \cos(k_1\lambda_j+k_2\lambda_i+k_3\varpi_i+k_4\varpi_j+k_5\Omega_i+k_6\Omega_j)~.
+      \end{multline}
+
+Individual terms from this sum are added when constructing a Hamiltonian with
+the :class:`~celmech.poincare.PoincareHamiltonian` class.
 
 Calculating Coefficients
 ------------------------
 
-The functions :func:`df_coefficient_Ctilde() <celmech.disturbing_function.df_coefficient_Ctilde>`
-and :func:`df_coefficient_C()<celmech.disturbing_function.df_coefficient_C>` can be used to calculate the 
-disturbing function coefficients :math:`\tilde{C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}` and :math:`{C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}`, respectively.
-These functions return results as dictionaries representing sums of Laplace coefficients,
+The functions :func:`df_coefficient_Ctilde()
+<celmech.disturbing_function.df_coefficient_Ctilde>` and
+:func:`df_coefficient_C()<celmech.disturbing_function.df_coefficient_C>` can be
+used to calculate the disturbing function coefficients :math:`\tilde{C}_{\bf
+k}^{\pmb{\nu}}` and :math:`{C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}`, respectively.
+These functions return results as dictionaries representing sums of Laplace
+coefficients,
 
 .. math::
         b_{s}^{(j)}(\alpha) = \frac{1}{\pi}\int_{0}^\pi \frac{\cos(j\theta)}{(1 + \alpha^2 - 2\alpha\cos\theta)^{s}},
 
-and their derivatives with respect to :math:`\alpha`.
-Specifically, the dictionary keys represent Laplace coefficients and values represent their coefficients. 
-These dictionaries can be evaluated at a specific semi-major axis ratio, :math:`\alpha`, using the function 
-:func:`evaluate_df_coefficient_dict()<celmech.disturbing_function.evaluate_df_coefficient_dict>`.
-Note that individual Laplace coefficient values can also be evaluated using 
-the :func:`laplace_b<celmech.disturbing_function.laplace_b>` function.
+and their derivatives with respect to :math:`\alpha`.  Specifically, the
+dictionary keys represent Laplace coefficients and values represent their
+coefficients.  These dictionaries can be evaluated at a specific semi-major
+axis ratio, :math:`\alpha`, using the function
+:func:`~celmech.disturbing_function.evaluate_df_coefficient_dict`.  Note that
+individual Laplace coefficient values can also be evaluated using the
+:func:`~celmech.disturbing_function.laplace_b` function.
 
 Generating Arguments
 --------------------
 
-In many applications, a collection of disturbing function terms with related arguments are desired.
-For example, a user might want all of the arguments corresponding to a particular mean motion resonance
-or all of the secular terms up to a given order in some planet pair's eccentricities.
-The `disturbing_function` module provides methods to 
-generate lists of disturbing function arguments (i.e., :math:`(\pmb{k},\pmb{\nu})` combinations) 
-related to one another.
+In many applications, a collection of disturbing function terms with related
+arguments are desired.  For example, a user might want all of the arguments
+corresponding to a particular mean motion resonance or all of the secular terms
+up to a given order in some planet pair's eccentricities.  The
+`disturbing_function` module provides methods to generate lists of disturbing
+function arguments (i.e., :math:`(\pmb{k},\pmb{\nu})` combinations) related to
+one another.
 
-The function :func:`df_arguments_dictionary<celmech.disturbing_function.df_arguments_dictionary>` 
-supplies a comprehensive list of all possible disturbing function cosine arguments appearing up
-to a given order, :math:`N_\mathrm{max}`, in planets' eccentricities and inclinations.
-The functions :func:`secular_terms_list<celmech.disturbing_function.list_secular_terms>` and
-:func:`list_resonance_terms<celmech.disturbing_function.list_resonance_terms>` can provide lists
-of :math:`(\pmb{k},\pmb{\nu})` pairs for secular or resonant disturbing function terms in a
-user-specified range of orders.
+The function :func:`~celmech.disturbing_function.df_arguments_dictionary`
+supplies a comprehensive list of all possible disturbing function cosine
+arguments appearing up to a given order, :math:`N_\mathrm{max}`, in planets'
+eccentricities and inclinations.  The functions
+:func:`~celmech.disturbing_function.list_secular_terms` and
+:func:`~celmech.disturbing_function.list_resonance_terms` can provide lists of
+:math:`(\pmb{k},\pmb{\nu})` pairs for secular or resonant disturbing function
+terms in a user-specified range of orders.
 
 API
 ---
