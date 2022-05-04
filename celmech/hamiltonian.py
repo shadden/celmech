@@ -458,19 +458,41 @@ class Hamiltonian(object):
                 jac = lambda t,y: self._jacobian_func(*y))
         self._integrator.set_integrator('vode',method='adams',rtol=1e-14)
 
-def reduce_hamiltonian(ham):
+def reduce_hamiltonian(ham,retain_explicit=[]):
+    r"""
+    Given a :class:`~celmech.hamiltonian.Hamiltonian` object, generate a new
+    :class:`~celmech.hamiltonian.Hamiltonian` object with fewer degrees of
+    freedom by determining which (if any) canonical variables do not appear
+    explicitly in the Hamiltonian. 
+
+    Arguments
+    ---------
+    ham : Hamiltonian
+        The original Hamiltonian to reduce.
+    retain_explicit: list
+        List of variables for which to retain explicit dependence on in the
+        transformed Hamiltonian. List entries should be either indices or
+        variable symbols.
+
+    Returns
+    -------
+    rham : Hamiltonian
+        The reduced Hamiltonian.
+    """
     state = ham.state
     new_params = ham.H_params.copy()
-    #pq_val_rule = ham.state.as_rule()
-    #new_pq_pairs= []
     untracked_q, untracked_p = [], []
     new_q, new_p = [], []
     new_qvals, new_pvals = [], []
-    qp_pairs = [(state.qp_vars[i], state.qp_vars[i+state.N_dof]) for i in range(state.N_dof)]
-    for qp_pair in qp_pairs:
+    qp_pairs = state.qp_pairs
+    for i,qp_pair in enumerate(qp_pairs):
         q,p = qp_pair
+        retain_explicitQ = (i in retain_explicit) or (q in retain_explicit) or\
+            (p in retain_explicit)
         pval,qval = state.qp[p],state.qp[q]
-        if q not in ham.H.free_symbols or p not in ham.H.free_symbols: # if q is cyclic, p is conserved and we ignore that dof
+        # if q is cyclic, p is conserved or vice versa and we ignore this dof 
+        dof_doesnt_appearQ = q not in ham.H.free_symbols or p not in ham.H.free_symbols
+        if dof_doesnt_appearQ and not retain_explicitQ:
             untracked_q.append(q)
             untracked_p.append(p)
             new_params[q] = qval
