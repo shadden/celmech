@@ -145,3 +145,5 @@ API
 .. autoclass:: celmech.hamiltonian.PhaseSpaceState
         :members:
         :special-members: __init__
+
+.. autofunction:: celmech.hamiltonian.reduce_hamiltonian
