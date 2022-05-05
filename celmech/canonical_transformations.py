@@ -529,7 +529,7 @@ class CanonicalTransformation():
         indices : array-list
             List of integer indices of the coordinate-momentum pairs to be
             transformed.
-        polar_symbol_pairs : list, optional
+        cartesian_symbol_pairs : list, optional
             List of symbols to use for the new cartesian-style variables.
             Default symbols are :math:`(y_i,x_i)` where the index i ranges
             over the number of variable pairs being transformed.
@@ -673,6 +673,10 @@ class CanonicalTransformation():
         Tmtrx : ndarray, shape (N,N)
             An invertible matrix determining the new canonical angle variables
             as linear combinations of the planets' orbital elements.
+        new_qp_pairs : list, optional
+            A list of the symbols to use for the newly-generated
+            coordinate-momentum pairs. If no list is supplied, the default
+            symbols :math:`(Q_i,P_i)` will be used.
         Returns
         -------
         .CanonicalTransformation
