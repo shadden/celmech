@@ -266,7 +266,8 @@ canonical perturbation theory is to construct a near-identity canonical
 transformation to new dynamical variables governed by a Hamiltonian that no
 longer possesses these rapidly oscillating terms.  Lie series transformations
 provide a particularly elegant means by which to construct such a
-transformation.
+transformation. If the following discussion seems overly abstract, it may be
+helpful to reference the concrete example presented :ref:`below<first order generating function>`.
 
 A Lie series transformation is defined by its generating function,
 :math:`\chi(q',p')`, a function of canconical variables.  The Lie
@@ -346,6 +347,8 @@ perturbation theory to first order in :math:`\epsilon`, then we only need to
 include a limited number of terms with :math:`|\mathbf{k}|_1 < k_\mathrm{max}
 \sim -\log\epsilon`.
 
+.. _first order generating function:
+
 The ``FirstOrderGeneratingFunction`` class
 ******************************************
 
@@ -370,17 +373,164 @@ overwrites the methods for adding disturbing function terms and adds some
 additional functionality.)
 
 
+An example system
+^^^^^^^^^^^^^^^^^
+
 As usual, the most straightforward way to understand how this class works is by
 way of example. Let's suppose we want to study the secular dynamics of a pair
-of planets near, but not in, a 3:2 MMR.
+of planets near, but not in, a 3:2 MMR. We begin by setting up a ``rebound``
+simulation:
 
+.. code:: python
 
+    sim = rebound.Simulation()
+    sim.add(m=1)
+    sim.add(m=1e-5,P = 1, e=0.04)
+    sim.add(m=1e-5,P = (3/2) * ( 1 + .03), e=0.02,pomega = np.pi/2,l=0)
+    sim.move_to_com()
 
-Choosing 
+We'll set up two corresponding :class:`~celmech.poincare.PoincareHamiltonian`
+simulations, one modeling just the effect of secular terms and one accounting
+for the effect of secular terms as well as the 3:2 MMR:
 
-.. math:: \pmb{\omega}\cdot \nabla_{\pmb q} {\chi_1} = H_{1,\mathrm{osc}}(\bar{\pmb{p}},\bar{\pmb{q}})
+.. code:: python
 
-eliminates oscliating terms to first order in :math:`\epsilon`.
+    pvars_sec, pvars_full = [Poincare.from_Simulation(sim) for _ in range(2)]
+    pham_sec = PoincareHamiltonian(pvars_sec)
+    pham_full = PoincareHamiltonian(pvars_full)
+    for pham in (pham_sec,pham_full):
+        pham.add_secular_terms(inclinations=False)
+    pham_full.add_MMR_terms(3,1)
+
+Performing integrations with the two models and comparing with :math:`N`-body,
+and plotting a comparison, we find the following eccentricity behaviour:
+
+.. image:: images/nbody_vs_sec_vs_res.png
+
+All three models show the same overall long-term eccentricity trends but the
+:math:`N`-body model shows some short-term oscillations that comparison with
+the :code:`pham_full` model reveals is mainly due to the effects of the 3:2
+MMR. 
+
+Incorporating Lie transformations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now we'll redo our integration with the secular model while using the Lie
+transformation methods and the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class to
+account for these oscillations. We'll still be integrating our purely secular
+equtions of motion but the application of the Lie series transformation will
+allow us to approximate the effect of the 3:2 terms using a perturbative
+approach.  We'll construct a first-order generating function
+that eliminates the oscillating terms
+
+.. code:: python
+
+   H_3to2 = pham_full.H - pham_sec.H
+   H_3to2
+
+.. math:: \begin{multline} -
+   \frac{C_{(3,-2,-1,0,0,0)}^{(0,0,0,0),(0,0)}(\alpha_{1,2}) G m_{1} m_{2}
+   \left(\frac{\eta_{1} \sin{\left(2 \lambda_{1} - 3 \lambda_{2}
+   \right)}}{\sqrt{\Lambda_{1,0}}} + \frac{\kappa_{1} \cos{\left(2 \lambda_{1}
+   - 3 \lambda_{2} \right)}}{\sqrt{\Lambda_{1,0}}}\right)}{a_{2,0}} \\-
+     \frac{C_{(3,-2,0,-1,0,0)}^{(0,0,0,0),(0,0)}(\alpha_{1,2}) G m_{1} m_{2}
+     \left(\frac{\eta_{2} \sin{\left(2 \lambda_{1} - 3 \lambda_{2}
+     \right)}}{\sqrt{\Lambda_{2,0}}} + \frac{\kappa_{2} \cos{\left(2
+     \lambda_{1} - 3 \lambda_{2}
+     \right)}}{\sqrt{\Lambda_{2,0}}}\right)}{a_{2,0}} \end{multline}
+
+We construct our desired transformation using:
+
+.. code:: python
+
+   from celmech.lie_transformations import FirstOrderGeneratingFunction
+   pchi = FirstOrderGeneratingFunction(pham_sec.state)
+   pchi.add_MMR_terms(3,1)
+   pchi.chi
+
+.. math:: \begin{multline} -
+   \frac{C_{(3,-2,-1,0,0,0)}^{(0,0,0,0),(0,0)}(\alpha_{1,2}) G m_{1} m_{2}
+   \left(\frac{\eta_{1} \cos{\left(2 \lambda_{1} - 3 \lambda_{2}
+   \right)}}{\sqrt{\Lambda_{1,0}}} - \frac{\kappa_{1} \sin{\left(2 \lambda_{1}
+   - 3 \lambda_{2} \right)}}{\sqrt{\Lambda_{1,0}}}\right)}{a_{2,0}
+     \left(\frac{3 G^{2} M_{2}^{2} \mu_{2}^{3}}{\Lambda_{2}^{3}} - \frac{2
+     G^{2} M_{1}^{2} \mu_{1}^{3}}{\Lambda_{1}^{3}}\right)} 
+     \\
+     -
+     \frac{C_{(3,-2,0,-1,0,0)}^{(0,0,0,0),(0,0)}(\alpha_{1,2}) G m_{1} m_{2}
+     \left(\frac{\eta_{2} \cos{\left(2 \lambda_{1} - 3 \lambda_{2}
+     \right)}}{\sqrt{\Lambda_{2,0}}} - \frac{\kappa_{2} \sin{\left(2
+     \lambda_{1} - 3 \lambda_{2}
+     \right)}}{\sqrt{\Lambda_{2,0}}}\right)}{a_{2,0} \left(\frac{3 G^{2}
+     M_{2}^{2} \mu_{2}^{3}}{\Lambda_{2}^{3}} - \frac{2 G^{2} M_{1}^{2}
+     \mu_{1}^{3}}{\Lambda_{1}^{3}}\right)}
+     \end{multline}
+
+This is precisely the generating function that eliminates the desired terms at
+first order. We can even confirm the equation :math:`[H_\mathrm{Kep},\chi] =
+-H_{3:2}`, where :math:`H_{3:2}` are the oscillating terms associated with the
+3:2 MMR, using ``sympy``:
+
+.. code:: python
+
+   Hkep = PoincareHamiltonian(Poincare.from_Simulation(sim))
+   sp.simplify(pchi.Lie_deriv(Hkep.H) + H_3to2)
+
+where the last line evaluates to 0. Now we do the integration:
+
+.. code:: python
+
+   N = 100
+   Tfin = 200
+   times = np.linspace(0,Tfin,N)
+   e_sec_mean,e_sec_osc = np.zeros((2,2,N))
+   for i,t in enumerate(times):
+    # convert initial osculating values to mean ones
+    pchi.osculating_to_mean()
+    pham_sec.integrate(t)
+    for j,p in enumerate(pham_sec.particles[1:]):
+        e_sec_mean[j,i] = pham_sec.particles[j+1].e
+
+    pchi.mean_to_osculating()
+    # convert mean back to
+    for j,p in enumerate(pham_sec.particles[1:]):
+        e_sec_osc[j,i] = pham_sec.particles[j+1].e
+
+The calls to
+:meth:`~celmech.lie_transformations.FirstOrderGeneratingFunction.osculating_to_mean`
+and
+:meth:`~celmech.lie_transformations.FirstOrderGeneratingFunction.mean_to_osculating`
+convert the values of of the canonical variables stored by ``pham_sec.state``
+back and forth between the "primed" and "unprimed" values related by
+:math:`(q',p') = \exp[\mathcal{L}_{\chi}](q,p)` so that :code:`e_sec_mean` will
+store "mean" values that evolve according to the Hamiltonian :code:`pham_sec.H`
+while :code:`e_sec_osc` includes oscillations due to the 3:2 MMR terms. These
+oscillations are computed analytically using the Lie transformation formalism.
+Comparing our solutions for the osculating and mean eccentricities to the
+results of our original integrations, we find
+
+.. image:: images/nbody_vs_lie.png
+
+Now the 'mean' eccentricity variables track the overall trend and we've
+eliminated the initial offset of these mean values by applying
+``osculating_to_mean`` before commencing the integration. The
+analytically-calculated correction from mean to osculating variables also match
+nicely with the direct integration of both the Hamiltonian, ``pham_full``, as
+well as direct :math:`N`-body. 
+
+The mean eccentricity trends of our simple secular model acutally begins to
+diverge somewhat from the integration of the fuller Hamiltonian model,
+suggesting a small frequency difference  in the secular frequencies between the
+two models. This small frequency difference arises from terms that are second
+order in mass. Normally such terms would be negligible, but they are amplified
+by a small denominator in this case because the system lies near the 3:2 MMR.
+Second-order in mass corrections and the effect of nearby MMRs are discussed in
+the Section :ref:`'Corrections to Secular Dynamics Near
+Resonance'<secular-corrections>`.
+
+Complete Elimination of 0th Order Terms
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To zeroth order in eccentricity, 
 

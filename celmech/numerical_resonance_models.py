@@ -1752,8 +1752,8 @@ class SpatialResonanceEquations():
         Mstar = self.mstar
         mpl1 = self.m1 
         mpl2 = self.m2 
-        orbels['lmbda1'] = orbels['phi'] + k * (1 + s) * psi + Omega
-        orbels['lmbda2'] = orbels['phi'] + k * s * psi + Omega
+        orbels['l1'] = orbels['phi'] + k * (1 + s) * psi + Omega
+        orbels['l2'] = orbels['phi'] + k * s * psi + Omega
         orbels['pomega1'] = orbels['phi'] + Omega - orbels['theta1']/k
         orbels['pomega2'] = orbels['phi'] + Omega - orbels['theta2']/k
         orbels['Omega1'] = np.pi/2 - Omega
@@ -1762,7 +1762,7 @@ class SpatialResonanceEquations():
             orbels['omega{}'.format(i)] = orbels['pomega{}'.format(i)] - orbels['Omega{}'.format(i)]
         sim.add(m=Mstar)
         for i,mpl in enumerate([mpl1,mpl2]):
-            elements = {key:orbels[key + str(i+1)] for key in ['a','e','inc','lmbda','omega','Omega']}
+            elements = {key:orbels[key + str(i+1)] for key in ['a','e','inc','l','omega','Omega']}
             add_canonical_heliocentric_elements_particle(mpl,elements,sim)
         sim.move_to_com()
         rebx = None
