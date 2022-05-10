@@ -24,7 +24,8 @@ autodoc_mock_imports = [
     "theano",
     "mpmath",
     "IPython",
-    "tqdm"
+    "tqdm",
+    "celmech.theano_ops"
     #,
 #    "numpy",
 #    "scipy"
