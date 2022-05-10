@@ -23,7 +23,8 @@ autodoc_mock_imports = [
     "reboundx",
     "theano",
     "mpmath",
-    "IPython"
+    "IPython",
+    "tqdm"
     #,
 #    "numpy",
 #    "scipy"
