@@ -833,7 +833,7 @@ class PlanarResonanceEquations():
             Whether dissipative terms are considered in the equations of
             motion. Default is False.
         tolerance : float, optional
-            Tolerance for root-finding such that solution satisfies |f(z)| < tolerance
+            Tolerance for root-finding such that solution satisfies :math:`|f(z)|` < tolerance
             Default value is 1E-9.
         max_iter : int, optional
             Maximum number of Newton's method iterations.
@@ -1044,8 +1044,8 @@ class PlanarResonanceEquations():
         Apply perturbation theory to transfrom from the phase space coordiantes of the
         averaged model to osculating phase space coordintates of the full phase space.
         Assumes that the transformation is being applied at the fixed point of the
-        averaged model. 
-        Details are described in the appendix of `Hadden & Payne (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....160..106H/abstract>`_
+        averaged model. Details are described in the appendix of 
+        `Hadden & Payne (2020) <https://ui.adsabs.harvard.edu/abs/2020AJ....160..106H/abstract>`_
 
         Arguemnts
         ---------
@@ -1054,15 +1054,13 @@ class PlanarResonanceEquations():
             Equilibrium points of the averaged model correspond to orbits that are
             periodic in Q in the full phase space.
         z : ndarray
-            Dynamical variables of the averaged model:
-
-                .. math::
-                    $y_1,y_2,x_1,x_2,{\cal D}$
+            Dynamical variables of the averaged model, math::`z =
+            (y_1,y_2,x_1,x_2,{\cal D})`
 
         N : int, optional
             Number of Q points to evaluate functions at when performing Fourier
-            transformation. Default is
-                N=256
+            transformation. Default is N=256
+
         Returns
         -------
         zosc : ndarray, (5,) or (M,5)
@@ -1127,7 +1125,7 @@ class PlanarResonanceEquations():
 
 
     def integrate_initial_conditions(self,dyvars0,times,dissipation=False):
-        """
+        r"""
         Integrate initial conditions and calculate dynamical
         variables and orbital elements at specified times.
 
@@ -1147,12 +1145,10 @@ class PlanarResonanceEquations():
         soln : dict
             Dictionary containing both the dynamical variables
             and the orbital elements of the integrated solution.
-            The dictionary keys are: 
-                - 'times': Times at which solutin is computed.
-                - 'dynamical_variables': ndarray of dynamical 
-                    at each of the times in 'times'.
-                - 'orbital_elements': dict containing arrays
-                    of the various orbital elements.
+            The dictionary keys are
+            - 'times': Times at which solutin is computed.
+            - 'dynamical_variables': ndarray of dynamical at each of the times in 'times'.
+            - 'orbital_elements': dict containing arrays of the various orbital elements.
         """
         if dissipation:
             f = lambda y,t: self.flow(y)
@@ -1495,8 +1491,9 @@ class SpatialResonanceEquations():
     def H_flow(self,z):
         r"""
         Calculate flow induced by the Hamiltonian
-        .. math:
-            \dot{z} = \Omega \cdot \nablda_{z}H(z)
+
+        .. math::
+            \dot{z} = \Omega \cdot \nabla_{z}H(z)
 
         Arguments
         ---------
@@ -1514,7 +1511,8 @@ class SpatialResonanceEquations():
     def H_flow_jac(self,z):
         r"""
         Calculate the Jacobian of the flow induced by the Hamiltonian
-        .. math:
+      
+        .. math::
              \Omega \cdot \Delta H(z)
 
         Arguments
@@ -1680,15 +1678,15 @@ class SpatialResonanceEquations():
             Equilibrium points of the averaged model correspond to orbits that are 
             periodic in Q in the full phase space.
         z : ndarray
-            Dynamical variables of the averaged model:
-                $\sigma_1,\sigma_2,I_1,I_2,AMD$
-        N : int, optional 
-            Number of Q points to evaluate functions at when performing Fourier 
-            transformation. Default is 
-                N=256
+            Dynamical variables of the averaged model, :math:`z =
+            (y_1,y_2,y_I,x_1,x_2,x_I,\mathcal{D})`
+        N : int, optional
+            Number of Q points to evaluate functions at when performing Fourier
+            transformation. Default is N=256
+
         Returns
         -------
-        zosc : ndarray, (5,) or (M,5) 
+        zosc : ndarray, (7,) or (M,7) 
             The osculating values of the dynamical varaibles for the
             input Q values. The dimension of the returned variables
             is set by the dimension of the input 'Q'. If Q is a 
