@@ -40,6 +40,9 @@ planets' gravitational interactions dictate that :math:`c_{\bf k}\ne 0` only if
 :math:`\sum_{l=1}^{6}k_l = 0` and :math:`k_5+k_6=2n` where :math:`n` is an
 integer.
 
+Expansion in orbital elements
+*****************************
+
 In classical disturbing function expansions, the cosine amplitudes
 :math:`c_{\pmb{k}}` are further expanded as Taylor series in powers of the
 planets' eccentricities :math:`e` and :math:`s = \sin(I_i/2)` as
@@ -54,6 +57,9 @@ planets' eccentricities :math:`e` and :math:`s = \sin(I_i/2)` as
 ``celmech`` offers the capability to compute the individual disturbing function
 coefficients through the function
 :func:`~celmech.disturbing_function.df_coefficient_Ctilde`.
+
+Expansion in canonical variables
+********************************
 
 Since ``celmech`` formulates equations of motion in terms of canonical
 variables rather than orbital elements, it is often more convenient to
@@ -73,18 +79,26 @@ formulate the Taylor series expansion of the disturbing function as
                 |Y_i|^{2\nu_1}
                 |Y_j|^{2\nu_2}
                 |X_i|^{2\nu_3}
-                |X_j|^{2\nu_4}
+                |X_j|^{2\nu_4},
 
-, where :math:`|X_i| = \sqrt{\frac{2}{\Lambda_i}}x_i` and :math:`|Y_i| =
-\sqrt{\frac{1}{2\Lambda_i}}y_i` and assuming :math:`k_3,k_4,k_5,k_6 \le 0` and
-bars denote complex conjugates.  If :math:`k_3>0` then one makes the
-replacement :math:`\bar{X_i}^{-k_3}\rightarrow {X_i}^{k_3}` and  a similar
-replacement is made if  :math:`k_4,k_5,` or :math:`k_6>0`.  Note that
-:math:`\hat{C}_{\bf k}^{(0,0,0,0)} = \tilde{C}_{\bf k}^{(0,0,0,0)}`. The
-relationship between the coefficients :math:`\hat{C}_{\bf k}^{\pmb{\nu}}` and
-:math:`\tilde{C}_{\bf k}^{\pmb{\nu}}` when :math:`\pmb{\nu}\ne0` is more
-complicated.
+where 
 
+.. math::
+        \begin{align}
+        X_i &=& \sqrt{\frac{2}{\Lambda_i}}(\kappa_i - \sqrt{-1}\eta_i)\approx e_ie^{\sqrt{-1}\varpi_i} + \mathcal{O}(e_i^3)\\
+        Y_i &=& \sqrt{\frac{1}{2\Lambda_i}}(\sigma_i - \sqrt{-1}\rho_i)\approx s_ie^{\sqrt{-1}\Omega_i}+ \mathcal{O}(s_ie_i^2)
+        \end{align}
+
+and bars denote complex conjugates. Writing the expansion above, we've assmed
+:math:`k_3,k_4,k_5,k_6 \le 0`. If :math:`k_3>0` then one makes the replacement
+:math:`\bar{X_i}^{-k_3}\rightarrow {X_i}^{k_3}` and a similar replacements are
+made if :math:`k_4,k_5,` or :math:`k_6>0`.  Note that :math:`\hat{C}_{\bf
+k}^{(0,0,0,0)} = \tilde{C}_{\bf k}^{(0,0,0,0)}`. The relationship between the
+coefficients :math:`\hat{C}_{\bf k}^{\pmb{\nu}}` and :math:`\tilde{C}_{\bf
+k}^{\pmb{\nu}}` when :math:`\pmb{\nu}\ne0` is more complicated.
+
+Complete expansion
+******************
 
 Often, the explicit dependence of the disturbing function on the variables
 :math:`\Lambda_i` is ignored. This allows the resulting equiations of motion to
@@ -121,16 +135,19 @@ The complete expansion of the interaction term between planets :math:`i` and
       \times \cos(k_1\lambda_j+k_2\lambda_i+k_3\varpi_i+k_4\varpi_j+k_5\Omega_i+k_6\Omega_j)~.
       \end{multline}
 
-Individual terms from this sum are added when constructing a Hamiltonian with
-the :class:`~celmech.poincare.PoincareHamiltonian` class.
+Individual coefficients, :math:`C_{\bf{k}}^{\pmb{\nu},\pmb{l}}`, can be
+obtained as dictionaries with the function
+:func:`~celmech.disturbing_function.df_coefficient_C`. This is the basic
+function that the various methods for adding terms to a
+:class:`~celmech.poincare.PoincareHamiltonian` are built upon.
 
 Calculating Coefficients
 ------------------------
 
 The functions :func:`df_coefficient_Ctilde()
 <celmech.disturbing_function.df_coefficient_Ctilde>` and
-:func:`df_coefficient_C()<celmech.disturbing_function.df_coefficient_C>` can be
-used to calculate the disturbing function coefficients :math:`\tilde{C}_{\bf
+:func:`df_coefficient_C()<celmech.disturbing_function.df_coefficient_C>`
+calculate the disturbing function coefficients :math:`\tilde{C}_{\bf
 k}^{\pmb{\nu}}` and :math:`{C}_{\bf k}^{\pmb{\nu},(l_1,l_2)}`, respectively.
 These functions return results as dictionaries representing sums of Laplace
 coefficients,
@@ -140,8 +157,36 @@ coefficients,
 
 and their derivatives with respect to :math:`\alpha`.  Specifically, the
 dictionary keys represent Laplace coefficients and values represent their
-coefficients.  These dictionaries can be evaluated at a specific semi-major
-axis ratio, :math:`\alpha`, using the function
+coefficients. For example, the disturbing function coefficient 
+       
+.. math:: 
+        \tilde{C}_{(5,-2,0,-1,-2,0)}^{(0,0,0,0)}(\alpha) = \frac{10}{4}\alpha
+   b_{3/2}^{(3)} + \frac{1}{4}\alpha^2\frac{d}{d\alpha}b_{3/2}^{(3)}
+
+is obtained with :func:`~celmech.disturbing_function.df_coefficient_Ctilde`
+using 
+
+.. code:: python3
+
+   k = (5,-2,0,-1,-2,0)
+   nu = (0,0,0,0)
+   Ccoeff = df_coefficient_Ctilde(*k,*nu)
+   print(Ccoeff)
+
+which dispays::
+        
+        {(1, (1.5, 3, 0)): 2.5, (2, (1.5, 3, 1)): 0.25, ('indirect', 1): 0} 
+
+The value of the disturbing function coefficient as a function of
+:math:`\alpha` is given by the sum of dictionary key-value pairs
+:math:`\{(p_i,(s_i,j_i,n_i)): A_i\}` and
+:math:`\{(\mathrm{'indirect'},p_\mathrm{ind}):A_\mathrm{ind}\}` according to 
+
+.. math::
+        \sum_{i}A_i \alpha^p\frac{d}{d\alpha}b^{(j)}_{s}(\alpha) + A_\mathrm{ind}\alpha^{-p_\mathrm{ind}/2}~.
+
+These dictionaries can be evaluated at a specific semi-major axis ratio,
+:math:`\alpha`, using the function
 :func:`~celmech.disturbing_function.evaluate_df_coefficient_dict`.  Note that
 individual Laplace coefficient values can also be evaluated using the
 :func:`~celmech.disturbing_function.laplace_b` function.
