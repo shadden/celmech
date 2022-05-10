@@ -738,13 +738,13 @@ def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = T
     k6 : int
         Coefficient of outer planet's longitude of ascending node in cosine argument
     nu1 : int
-        Select specific term where the exponent of s1 is |k5|+2*nu1
+        Select specific term where the exponent of :math:`s_i` is :math:`|k_5|+2\nu_1`
     nu2 : int
-        Select specific term where the exponent of s2 is |k6|+2*nu3
+        Select specific term where the exponent of :math:`s_j` is :math:`|k_6|+2\nu_2`
     nu3 : int
-        Select specific term where the exponent of e1 is |k3|+2*nu3
+        Select specific term where the exponent of :math:`e_i` is :math:`|k_3|+2\nu_3`
     nu4 : int
-        Select specific term where the exponent of e1 is |k4|+2*nu4
+        Select specific term where the exponent of :math:`e_j` is :math:`|k_4|+2\nu_4`
     include_indirect : booole, optional
         Whether to include the indirect contribution to the disturibing function
         coefficient.
@@ -879,13 +879,13 @@ def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirec
     k6 : int
         Coefficient of outer planet's longitude of ascending node in cosine argument
     nu1 : int
-        Select specific term where the exponent of Y1 is |k5|+2*nu1
+        Select specific term where the exponent of :math:`|Y_i|` is :math:`|k_5|+2\nu_1`
     nu2 : int
-        Select specific term where the exponent of Y2 is |k6|+2*nu3
+        Select specific term where the exponent of :math:`|Y_j|` is :math:`|k_6|+2\nu_2`
     nu3 : int
-        Select specific term where the exponent of X1 is |k3|+2*nu3
+        Select specific term where the exponent of :math:`|X_i|` is :math:`|k_3|+2\nu_3`
     nu4 : int
-        Select specific term where the exponent of X2 is |k4|+2*nu4 
+        Select specific term where the exponent of :math:`|X_j|` is :math:`|k_4|+2\nu_4`
     l1 : int, optional
         Select specifc term where exponent of 
         :math:`\delta_1 = (\Lambda_1 - \Lambda_{1,0})/\Lambda_{1,0})`
