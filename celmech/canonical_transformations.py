@@ -68,6 +68,8 @@ def _simplify_atans(exprn):
     return res
 
 def _termwise_trigsimp(exprn):
+    if not hasattr(exprn,'args'):
+        return exprn
     if len(exprn.args)==0:
         return exprn
     return exprn.func(*[trigsimp(a) for a in exprn.args])
@@ -675,8 +677,11 @@ class CanonicalTransformation():
             as linear combinations of the planets' orbital elements.
         new_qp_pairs : list, optional
             A list of the symbols to use for the newly-generated
-            coordinate-momentum pairs. If no list is supplied, the default
+            coordinate-momentum pairs. List entries should be given in the form
+            of 2-tuples containing a coordinate symbol followed by its
+            conjugate momentum variable. If no list is supplied, the default
             symbols :math:`(Q_i,P_i)` will be used.
+
         Returns
         -------
         .CanonicalTransformation
