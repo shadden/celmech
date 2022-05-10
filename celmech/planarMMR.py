@@ -7,9 +7,9 @@ from warnings import warn
 from scipy.optimize import lsq_linear
 from scipy.integrate import odeint
 
-from .utils import planar_els2xv,calc_Hint_components_planar
-from ..nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle
-from ..miscellaneous import getOmegaMatrix
+from .numerical_resonance_utils import planar_els2xv,calc_Hint_components_planar
+from .nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle
+from .miscellaneous import getOmegaMatrix
 
 def get_compiled_Hpert_full():
         # Planet masses: m1,m2
@@ -329,7 +329,7 @@ def get_compiled_theano_functions(N_QUAD_PTS):
         }
         compiled_func_dict=dict()
         for key,val in func_dict.items():
-            if key is 'timescales':
+            if key == 'timescales':
                 inputs = extra_ins
             else:
                 inputs = ins 

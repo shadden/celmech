@@ -9,9 +9,9 @@ from scipy.integrate import odeint
 import warnings
 from tqdm import tqdm
 
-from .utils import planar_els2xv,calc_Hint_components_spatial
-from ..nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle, align_simulation
-from ..miscellaneous import getOmegaMatrix
+from .numerical_resonance_utils import planar_els2xv,calc_Hint_components_spatial
+from .nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle, align_simulation
+from .miscellaneous import getOmegaMatrix
 # set to fast compile, for testing at least...
 
 
