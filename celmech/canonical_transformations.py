@@ -664,7 +664,7 @@ class CanonicalTransformation():
             \begin{pmatrix}
             \lambda_1 \\ \vdots \\ \lambda_N \\
             \gamma_1 \\ \vdots \\ \gamma_N \\
-            \Omega_1 \\ \vdots \\ \Omega_N
+            q_1 \\ \vdots \\ q_N
             \end{pmatrix}~.
 
         Arguments
