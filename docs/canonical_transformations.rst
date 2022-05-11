@@ -264,10 +264,13 @@ dynamics is negligible. In reality, these rapidly oscillating terms lead to
 rapid oscillations in the dynamical variables under study. The goal of
 canonical perturbation theory is to construct a near-identity canonical
 transformation to new dynamical variables governed by a Hamiltonian that no
-longer possesses these rapidly oscillating terms.  Lie series transformations
-provide a particularly elegant means by which to construct such a
-transformation. If the following discussion seems overly abstract, it may be
-helpful to reference the concrete example presented :ref:`below<first order generating function>`.
+longer possesses these rapidly oscillating terms. Often, we will refer to the
+original variables that show rapid oscillations as **osculating** variables and
+the transformed variables for which these oscillations have been eliminated as
+**mean** variables.  Lie series transformations provide a particularly elegant
+means by which to construct such a transformation. If the following discussion
+seems overly abstract, it may be helpful to reference the concrete example
+presented :ref:`below<first order generating function>`.
 
 A Lie series transformation is defined by its generating function,
 :math:`\chi(q',p')`, a function of canconical variables.  The Lie
@@ -353,28 +356,32 @@ The ``FirstOrderGeneratingFunction`` class
 ******************************************
 
 ``celmech`` provides the
-:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class that
-can be used to apply transformations between osculating coordiantes used by
-:math:`N`-body simulatoins and transformed variables appropriate for that
-Hamiltonian models used by ``celmech``.  These transformations will apply
-corrections at first order in planet-star mass ratio.
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` class for
+applying Lie series transformations between osculating variables like those
+integrated by via :math:`N`-body simulations, which include every harmonic in
+the interaction potential between planet pairs, and mean variables appropriate
+for Hamiltonian models built with the
+:class:`~celmech.poincare.PoincareHamiltonian` class which typically include
+only a small handful of harmonics from the interaction potential.  ``celmech``.
+The resulting transformations will apply corrections at first order in
+planet-star mass ratio.
 
 A :class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` instance
 provides a representation of a the generating function, :math:`\chi`, for a Lie
-series transformation. The user constructs builds up this function by
-specifying which terms from the disturbing function the transformation should
-be eliminated from the full Hamiltonian at first order in planet masses. The
-interface for adding disturbing function terms is very similar to the interface
-for adding terms to a :class:`~celmech.poincare.PoincareHamiltonian` object.
-(In fact, the
-:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` is a
-special sub-class of :class:`~celmech.poincare.PoincareHamiltonian` that simple
+series transformation. The user builds up this function by specifying which
+terms from the disturbing function the transformation should eliminate from
+the full Hamiltonian at first order in planet masses. The interface for adding
+disturbing function terms is very similar to the interface for adding terms to
+a :class:`~celmech.poincare.PoincareHamiltonian` object.  (In fact, the
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` is a special
+sub-class of :class:`~celmech.poincare.PoincareHamiltonian` that simple
 overwrites the methods for adding disturbing function terms and adds some
 additional functionality.)
 
+.. _lie_series_example:
 
-An example system
-^^^^^^^^^^^^^^^^^
+An example
+^^^^^^^^^^
 
 As usual, the most straightforward way to understand how this class works is by
 way of example. Let's suppose we want to study the secular dynamics of a pair
@@ -390,8 +397,9 @@ simulation:
     sim.move_to_com()
 
 We'll set up two corresponding :class:`~celmech.poincare.PoincareHamiltonian`
-simulations, one modeling just the effect of secular terms and one accounting
-for the effect of secular terms as well as the 3:2 MMR:
+simulations, one modeling just the effect of secular terms (``pham_sec``) and
+one accounting for the effect of secular terms as well as the 3:2 MMR
+(``pham_full``):
 
 .. code:: python
 
@@ -402,15 +410,15 @@ for the effect of secular terms as well as the 3:2 MMR:
         pham.add_secular_terms(inclinations=False)
     pham_full.add_MMR_terms(3,1)
 
-Performing integrations with the two models and comparing with :math:`N`-body,
-and plotting a comparison, we find the following eccentricity behaviour:
+Performing integrations with the two models and :math:`N`-body, and plotting a
+comparison, we observe the following eccentricity behaviour:
 
 .. image:: images/nbody_vs_sec_vs_res.png
 
 All three models show the same overall long-term eccentricity trends but the
 :math:`N`-body model shows some short-term oscillations that comparison with
 the :code:`pham_full` model reveals is mainly due to the effects of the 3:2
-MMR. 
+MMR. Next, we'll capture these oscillations using a Lie series transformation.
 
 Incorporating Lie transformations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -532,20 +540,60 @@ Resonance'<secular-corrections>`.
 Complete Elimination of 0th Order Terms
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To zeroth order in eccentricity, 
-
-.. math:: H_{1,\mathrm{osc}} = -\frac{Gm_1m_2}{a_2}\left(\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\lambda_2 - \lambda_1})} - \frac{1}{2}b^{(0)}_{1/2}(\alpha) - \frac{\cos\psi}{\sqrt{\alpha}}\right)
-
-Taking :math:`\chi_1 = \chi_1(\psi,\bar{\pmb{\Lambda}})` where :math:`\psi = \lambda_2-\lambda_1`,
+In the :ref:`example<lie_series_example>` presented above, we
+used a Lie series transformation to eliminate two disturbing
+function harmonics with frequency :math:`3n_2 - 2n_1` from the
+Hamiltonian by adding two corresponding terms to the generating
+function. When adding individual terms to the generating function
+in this fashion, we will typically in the number of terms we can
+practically eliminate from the transformed Hamiltonian.  However,
+it is possible with the addition of a single term to the
+generating function to eliminate *all* harmonics of the synodic
+frequency, :math:`n_\mathrm{syn} = n_1 - n_2`, to zeroth order in
+eccentricities and inclinations. For circular, planar orbits, the
+interaction Hamiltonian is
 
 .. math:: 
-        \frac{\partial \chi_1}{\partial\psi} = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}f(\psi,\alpha)
+        H_{\mathrm{int},0} = \frac{Gm_jm_i}{a_j}
+        \left(
+          P(\lambda_j - \lambda_i; \alpha_{ij})
+          -\frac{1}{\sqrt{\alpha}}\cos(\lambda_i-\lambda_j)
+        \right)
 
-with the solution 
+where 
 
-.. math:: \chi_1 = -\frac{Gm_1m_2}{a_2\omega_\mathrm{syn}}\left({\frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg| -\frac{4\alpha}{(1-\alpha)^2} \right)} - \frac{2\psi}{\pi} K(\alpha^2)- \frac{\sin\psi}{\sqrt{\alpha}}\right)
+.. math::
+        P(\psi;\alpha)=\frac{1}{\sqrt{1 + \alpha^2 - 2\alpha\cos(\psi)}}~.
 
-where :math:`K` and :math:`F` are complete and incomplete elliptic integrals of the first kind, respectively.
+The oscillating part of this interaction term can be eliminated at first order
+in planet masses  with the generating function
+
+.. math:: \chi_{0} =
+   -\frac{Gm_im_j}{a_jn_\mathrm{syn}}\left(-\frac{1}{\sqrt{\alpha_{ij}}}\sin({\lambda_i-\lambda_j})
+   + \int^{\lambda_i-\lambda_j}_{0}\left(P(\psi,\alpha_{ij}) -
+     \bar{P}(\alpha_{ij})\right) d\psi \right)~,
+        
+
+where :math:`\bar{P}(\alpha) =
+\frac{1}{2\pi}\int_{-\pi}^{\pi}P(\psi,\alpha)d\psi` is the mean value of
+:math:`P(\psi,\alpha)`. The integral over :math:`\psi` can be expressed in
+closed form using elliptic functions as
+
+.. math::
+   \int^{\psi}_{0}\left(P(\psi',\alpha) - \bar{P}(\alpha)\right) d\psi'
+    =
+    \frac{2}{1-\alpha}F\left(\frac{\psi}{2}\bigg|-\frac{4\alpha}{(1-\alpha)^2}\right)
+    -
+    \frac{2}{\pi}\mathbb{K}(\alpha^2)\psi
+
+where :math:`\mathbb{K}` and :math:`F` are complete and incomplete elliptic
+integrals of the first kind, respectively. The term, :math:`\chi_0` that
+eliminates all zeroth order harmonics from the interaction Hamiltonian can be
+added to the generating function represented by a
+:class:`~celmech.lie_transformations.FirstOrderGeneratingFunction` instance
+using the
+:meth:`~celmech.lie_transformations.FirstOrderGeneratingFunction.add_zeroth_order_term`
+method.
 
 API
 ---
