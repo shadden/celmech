@@ -9,7 +9,7 @@ Introduction
 ------------
 
 The Poincare module is used to represent planetary systems in terms of Poincare canonical variables.
-These canonical variables are related to the Delauney elliptic variable,
+These canonical variables are related to the Delauney elliptic variables,
 
 .. math::
         \begin{eqnarray}
@@ -48,7 +48,7 @@ The :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` class is
 A :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` instance is initialized 
 by passing the :class:`Poincare <celmech.poincare.Poincare>` instance whose dynamics will be governed by the resulting Hamiltonian.
 
-Upon intialization, a :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` consists only of the Keplerian components of the Hamiltonian, I.e., 
+Upon intialization, a :class:`PoincareHamiltonian <celmech.poincare.PoincareHamiltonian>` consists only of the Keplerian components of the Hamiltonian, i.e., 
 
 .. math::
         H =  -\sum_{i=1}^{N}\frac{G^2M_i^2\mu^3}{2\Lambda_i^2}
@@ -184,6 +184,9 @@ functions :func:`nbody_simulation_utilities.get_canonical_heliocentric_orbits <c
 to compute these 'canonical heliocentric' elements from 
 a REBOUND simulation along with 
 :func:`nbody_simulation_utilities.add_canonical_heliocentric_elements_particle <celmech.nbody_simulation_utilities.add_canonical_heliocentric_elements_particle>` to add particles to a REOBOUND simulation by specifying the particles orbit in terms of these elements.
+
+For an example demonstrating the use of these functions, see
+`CoordinatesConvertingToFromNbody.ipynb <https://github.com/shadden/celmech/blob/master/jupyter_examples/CoordinatesConvertingToFromNbody.ipynb>`_.
 
 API
 ---

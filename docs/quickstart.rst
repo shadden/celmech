@@ -124,8 +124,8 @@ and their conjugate coordinates are:
 .. math::
         \begin{align*}
         \lambda_i & \\
-        \eta_i &= -\kappa_i\tan\varpi_i \\
-        \rho_i &= -\sigma_i\tan\Omega_i 
+        \eta_i &= -\sqrt{2\Lambda_i(1-\sqrt{1-e_i^2})}\sin\varpi_i\\
+        \rho_i &= -\sqrt{2\Lambda_i\sqrt{1-e_i^2}(1-\cos I_i)}\sin\Omega_i
         \end{align*}
 
 
@@ -258,8 +258,10 @@ frequencies observed in the :math:`N`-body results quite successfully.
 Next steps
 ----------
 
-Check out the rest of the documentation for other features. There are also
-numerous `Jupyter notebook examples
+For a more detailed example (discussed in Sec. 2 of the paper) that incorporates additional corrections to better approximate the N-body evolution, see `AddingDisturbingFunctionTerms.ipynb <https://github.com/shadden/celmech/blob/master/jupyter_examples/AddingDisturbingFunctionTerms.ipynb>`_.
+
+You can also check out the rest of the documentation for many other features.
+Another good starting point for exploration are the numerous `Jupyter notebook examples
 <https://github.com/shadden/celmech/tree/master/jupyter_examples>`_ available
 on GitHub.
 

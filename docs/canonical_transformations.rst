@@ -13,8 +13,11 @@ A transformation of canonical variables :math:`T:({q},{p}) \rightarrow
         \end{align}
 
 is called a canonical transformation. Often the equations of motion encountered
-in celestial mechanics problems can be simplified by canonical coordinate
-trasformations.
+in celestial mechanics problems can be simplified by appropriately chosen 
+canonical coordinate trasformations.
+
+This documentation isn't an introduction to canonical transformations, though
+there are several standard references, e.g., `Goldstein's Classical Mechanics <https://www.amazon.com/Classical-Mechanics-3rd-Herbert-Goldstein/dp/0201657023/ref=asc_df_0201657023/?tag=hyprod-20&linkCode=df0&hvadid=312130957577&hvpos=&hvnetw=g&hvrand=11373300976445451730&hvpone=&hvptwo=&hvqmt=&hvdev=c&hvdvcmdl=&hvlocint=&hvlocphy=9003940&hvtargid=pla-570211389728&psc=1>`_.
 
 The ``CanonicalTransformation`` class
 -------------------------------------
@@ -33,7 +36,7 @@ and
 methods. Additionally, the canonical transformation can be applied to
 a :class:`~celmech.hamiltonian.Hamiltonian` instance in order to
 produce a new Hamiltonian object that has the new variables as
-canonical variables and with Hamiltonian appropriately transformed.
+canonical variables and with the Hamiltonian appropriately transformed.
 
 As an example, we'll apply a canonical transformation to simplify the
 toy Hamiltonian
@@ -181,8 +184,16 @@ Common transformations
 **********************
 
 The :class:`~celmech.canonical_transformations.CanonicalTransformation` class
-provides a number of convenient class methods for initializing frequently-used
-canonical transformations. These include:
+provides a number of convenient class methods for initializing frequently used
+canonical transformations.
+
+The best way to get a feeling for these convenience functions is to see them 
+applied to a real working problem:
+`CanonicalTransformations.ipynb <https://github.com/shadden/celmech/blob/master/jupyter_examples/CanonicalTransformations.ipynb>`_.
+A more advanced notebook using these functions is
+`ResonantChain.ipynb <https://github.com/shadden/celmech/blob/master/jupyter_examples/ResonantChain.ipynb>`_.
+
+The functions themselves include:
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.cartesian_to_polar`
   implements a transformation taking user-specified canonical variable pairs
@@ -204,7 +215,8 @@ canonical transformations. These include:
          \pmb{P} = (T^{-1})^\mathrm{T} \cdot \pmb{p}
     \end{eqnarray}
 
-  where :math:`T` is a user-specified invertible matrix.
+  where :math:`T` is a user-specified invertible matrix (useful for constructing new angles
+  from linear combinations of old angles).
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.from_poincare_angles_matrix`
   takes a :class:`~celmech.poincare.Poincare` instance as input, along with an
@@ -212,11 +224,13 @@ canonical transformations. These include:
   canonical coordinates are linear combinations of the planets' angular orbital
   elements given by :math:`\pmb{Q} = T\cdot (\lambda_1 ,...,
   \lambda_N,-\varpi_1,... ,-\varpi_N,-\Omega_1 ,..., -\Omega_N)`.
+  This is useful for constructing new angles from combinations of old angles when only
+  a small number of angle combinations appear in the Hamiltonian.
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.from_type2_generating_function`
   allows the user to specify a generating function
-  :math:`F_2(\pmb{q},\pmb{P})` producing a canonical transformation that
-  satisfies the equations
+  :math:`F_2(\pmb{q},\pmb{P})` (see, e.g., the Goldstein textbook reference above)
+  producing a canonical transformation that satisfies the equations
 
    .. math::
 
@@ -226,18 +240,21 @@ canonical transformations. These include:
          \end{eqnarray}
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.rescale_transformation`
-  allows users to simulaneously rescale the Hamiltonian and canonical variables. 
+  allows users to simulaneously rescale the Hamiltonian and canonical variables.
+  This is useful for choosing physical scale/units for the problem at hand.
 
 - :meth:`~celmech.canonical_transformations.CanonicalTransformation.Lambdas_to_delta_Lambdas`
   transforms the :math:`\Lambda_i` variables of a
   :class:`~celmech.poincare.Poincare` instance to new variables
-  :math:`\delta\Lambda_i=\Lambda_i - \Lambda_{i,0}` 
+  :math:`\delta\Lambda_i=\Lambda_i - \Lambda_{i,0}`.
+  Expanding around reference values of the $\Lambda_i$ is often useful since the $\Lambda_i$
+  are always nonzero, and the changes in their values are typically very small.
 
 Reducing Degrees of Freedom 
 ***************************
 
 If the transformed Hamiltonian :math:`H' = H \circ T^{-1}` is independent of
-one or more of the new canonical cooridnate variables, :math:`q'_i`, then the
+one or more of the new canonical coordinate variables, :math:`q'_i`, then the
 corresponding new momentum variable, :math:`p'_i` is a constant of motion.
 Finding transformations that elminate the dependence on one or more degrees of
 freedom allows one to consider a simpler, lower-dimensional Hamiltonian problem

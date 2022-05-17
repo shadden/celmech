@@ -7,7 +7,7 @@ Welcome
 =======
 
 ``celmech`` is a Python package containing a variety of numerical tools for celestial mechanics and dynamical astronomy.
-The packacge is designed to interface closely with the `REBOUND <https://rebound.readthedocs.io/en/latest/>`_ N-body integrator.
+The package is designed to interface closely with the `REBOUND <https://rebound.readthedocs.io/en/latest/>`_ N-body integrator.
 
 
 Getting Started!

@@ -89,7 +89,7 @@ where
         Y_i &=& \sqrt{\frac{1}{2\Lambda_i}}(\sigma_i - \sqrt{-1}\rho_i)\approx s_ie^{\sqrt{-1}\Omega_i}+ \mathcal{O}(s_ie_i^2)
         \end{align}
 
-and bars denote complex conjugates. Writing the expansion above, we've assmed
+and bars denote complex conjugates. Writing the expansion above, we've assumed
 :math:`k_3,k_4,k_5,k_6 \le 0`. If :math:`k_3>0` then one makes the replacement
 :math:`\bar{X_i}^{-k_3}\rightarrow {X_i}^{k_3}` and a similar replacements are
 made if :math:`k_4,k_5,` or :math:`k_6>0`.  Note that :math:`\hat{C}_{\bf
@@ -110,7 +110,7 @@ equations for :math:`\lambda_i` become :math:`\dot{\lambda_i} =
 \Lambda_i}H_\mathrm{Kep}`. We can construct a more accurate model while
 retaining the polynomial nature of the equations of motion by Taylor-expanding
 the disturbing function coefficients :math:`{C}_{\bf
-k}^{\pmb{\nu}}(\alpha_{i,j})` with respect to :ref:`Poincare <poincare_intro>`
+k}^{\pmb{\nu}}(\alpha_{i,j})` with respect to the :ref:`Poincare <poincare_intro>`
 momenta :math:`\Lambda_i` about some reference values :math:`\Lambda_{i,0}`.
 Defining :math:`\delta_i = (\Lambda_i-\Lambda_{i,0}) / \Lambda_{i,0}`, we write
 
