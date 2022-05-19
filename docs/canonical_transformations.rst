@@ -290,7 +290,7 @@ seems overly abstract, it may be helpful to reference the concrete example
 presented :ref:`below<first order generating function>`.
 
 A Lie series transformation is defined by its generating function,
-:math:`\chi(q',p')`, a function of canconical variables.  The Lie
+:math:`\chi(q',p')`, a function of canonical variables.  The Lie
 transformation, :math:`f\rightarrow f'` of a function :math:`f`, induced by a
 particular generating function :math:`\chi`, is defined as
 
@@ -310,7 +310,7 @@ Hamiltonian of the form :math:`H = H_0(p) + \epsilon H_1(q,p) +
         H'(q',p') = \exp[{\cal L}_\chi]H(q',p') = H'_0(p') + \epsilon^NH'_N(q',p')+....
 
 where, in the new, transformed variables, :math:`(q',p')`, the Hamiltonian is
-integrable if one igonres terms of order :math:`\epsilon^N` and smaller.  In
+integrable if one ignores terms of order :math:`\epsilon^N` and smaller.  In
 other words, :math:`p' = \exp[{\cal L}_{\chi(q,p)}]p` is a conserved quantity
 up to order :math:`\epsilon^{N-1}`.
 
@@ -360,7 +360,7 @@ and define our generating function as
        \chi(q',p') = \sum_{\mathbf{k}\notin \mathcal{K}_\mathrm{res}(D)} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}~.
 
 The sum above will generally include an inifinte number of :math:`k` vectors.
-However, the Fourier properties of smooth functions generally guaruntee that
+    However, the Fourier properties of smooth functions generally guarantee that
 :math:`A_\mathbf{k}(p')\sim \exp(-|\mathbf{k}|_{1})` where
 :math:`|\mathbf{k}|_{1}=\sum_i|k_i|`. If we're interested in constructing a
 perturbation theory to first order in :math:`\epsilon`, then we only need to
@@ -562,7 +562,7 @@ used a Lie series transformation to eliminate two disturbing
 function harmonics with frequency :math:`3n_2 - 2n_1` from the
 Hamiltonian by adding two corresponding terms to the generating
 function. When adding individual terms to the generating function
-in this fashion, we will typically in the number of terms we can
+in this fashion, we are typically limited in the number of terms we can
 practically eliminate from the transformed Hamiltonian.  However,
 it is possible with the addition of a single term to the
 generating function to eliminate *all* harmonics of the synodic
