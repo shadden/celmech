@@ -215,10 +215,22 @@ class Hamiltonian(object):
     @property
     def values(self):
         return self.state.values
-    
+    @values.setter
+    def values(self,vals):
+        self.state.values = values
+
     @property
     def full_values(self):
         return list(self.full_qp.values())
+    @full_values.setter
+    def full_values(self,vals):
+        assert len(vals) == self.full_N_dim
+        qpvars = self.qp_vars
+        for var,val in zip(self.full_qp_vars,vals):
+            if var in qpvars:
+                self.state.qp[var] = val
+            else:
+                self.H_params[var] = val
     ##############
     # symbolic Hamiltonian, flow, and Jacobian
     ##############
