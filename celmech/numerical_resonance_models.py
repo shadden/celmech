@@ -112,8 +112,6 @@ def _get_planar_compiled_Hpert_full():
             on_unused_input='ignore'
         )
         return Hpert_fn, gradHpert_fn
-        return Hpert_fn
-        
 
 def _get_planar_compiled_theano_functions(N_QUAD_PTS):
         # Planet masses: m1,m2
@@ -200,9 +198,9 @@ def _get_planar_compiled_theano_functions(N_QUAD_PTS):
                 a1,a2,l1,l2,h1,k1,h2,k2,Mstar1,Mstar2
         )
         eps = m1*m2/ (mu1 + mu2) / T.sqrt(mstar)
-        Hpert = (Hdir + Hind/mstar)
+        Hpert = eps * (Hdir + Hind/mstar)
         Hpert_av = Hpert.dot(quad_weights)
-        Htot = Hkep + eps * Hpert_av
+        Htot = Hkep + Hpert_av
 
         ######################
         # Dissipative dynamics
@@ -1113,8 +1111,13 @@ class PlanarResonanceEquations():
         dchi[3] = -1j * np.conjugate(dchi[1])
 
         # Get AMD correction
-        s = (self.j - self.k) / self.k
-        dAMD = np.array([self.H_pert_osc(q,z) for q in Qarr]) / omega_syn / (s+1/2)
+        j,k = self.j,self.k
+        L20 = self.beta2
+        L10 = self.beta1 * np.sqrt(self.alpha)
+        f = L10/L20
+        s = (j-k)/k
+        prefactor = (1+f) / (f*(1+s) + s) / k
+        dAMD = prefactor * np.array([self.H_pert_osc(q,z) for q in Qarr]) / omega_syn 
 
         dz = np.transpose(-1 * (S @ OmegaMtrx @ dchi).T)
         result = np.transpose(z + np.vstack((dz,dAMD)).T)
@@ -1122,7 +1125,6 @@ class PlanarResonanceEquations():
         if result.shape[1] == 1:
             return result.reshape(-1)
         return result
-
 
     def integrate_initial_conditions(self,dyvars0,times,dissipation=False):
         r"""
@@ -1281,9 +1283,9 @@ def _get_spatial_compiled_theano_functions(N_QUAD_PTS):
             a1,a2,l1,l2,h1,k1,h2,k2,p1,q1,p2,q2,Mstar1,Mstar2
     )
     eps = m1*m2/ (mu1 + mu2) / T.sqrt(mstar)
-    Hpert = (Hdir + Hind/mstar)
+    Hpert = eps * (Hdir + Hind/mstar)
     Hpert_av = Hpert.dot(quad_weights)
-    Htot = Hkep + eps * Hpert_av
+    Htot = Hkep + Hpert_av
 
     #####################################################
     # Set parameters for compiling functions with Theano
