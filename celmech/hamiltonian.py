@@ -421,7 +421,7 @@ class Hamiltonian(object):
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
         if self._needs_update:
-            self._update()
+            self._update(integrator_kwargs=integrator_kwargs)
         self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
@@ -431,7 +431,7 @@ class Hamiltonian(object):
         self.state.t = self.integrator.t
         self.state.values = self.integrator.y
 
-    def _update(self):
+    def _update(self, integrator_kwargs={}):
         self._needs_update=False # reset flag up top to avoid infinite recursion
         self._N_H = self._H # reset to Hamiltonian with all parameters unset
         # 
@@ -468,7 +468,11 @@ class Hamiltonian(object):
         self._integrator = ode(
                 lambda t,y: self._flow_func(*y),
                 jac = lambda t,y: self._jacobian_func(*y))
-        self._integrator.set_integrator('vode',method='adams',rtol=1e-14)
+        
+        if len(integrator_kwargs) == 0:
+            self._integrator.set_integrator('vode',method='adams',rtol=1e-14)
+        else:
+            self._integrator.set_integrator(**integrator_kwargs)
 
 def reduce_hamiltonian(ham,retain_explicit=[]):
     r"""
