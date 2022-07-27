@@ -368,7 +368,7 @@ class CanonicalTransformation():
     
     def _test_new_to_old_canonical(self):
         pb = lambda q,p: poisson_bracket(q,p,self.old_qp_vars,[]) / self.H_scale
-        bracket_results = [pb(self.new_to_old(qq),self.new_to_old(pp)).simplify() for qq,pp in self.new_qp_pairs]
+        bracket_results = [pb(self.N_new_to_old(qq),self.N_new_to_old(pp)).simplify() for qq,pp in self.new_qp_pairs]
         br_arr = [np.isclose(float(x.subs(self.params)),1,atol=1e-10) for x in bracket_results]
         return np.alltrue(br_arr)
 
