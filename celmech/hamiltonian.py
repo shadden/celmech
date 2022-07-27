@@ -418,10 +418,18 @@ class Hamiltonian(object):
             the scipy.ode 'vode' integrator with the 'adams'
             method by default. Valid keyword options can be found 
             `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
+            Note that 'name' may also be passed as a kwarg to use an integrator
+            other than 'vode'.
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
         if self._needs_update:
             self._update()
+        if integrator_kwargs:
+            # Set default values for integrator.
+            integrator_kwargs.setdefault('name','vode')
+            integrator_kwargs.setdefault('method','adams')
+            integrator_kwargs.setdefault('rtol',1e-14)
+            self._integrator.set_integrator(**integrator_kwargs)
         self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
