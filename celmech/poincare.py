@@ -1,6 +1,9 @@
 import numpy as np
 from IPython.display import Math
-from collections import MutableMapping
+try:
+    from collections.abc import MutableMapping
+except:
+    from collections import MutableMapping
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix, series
 from .hamiltonian import Hamiltonian,PhaseSpaceState
 from .miscellaneous import poisson_bracket
