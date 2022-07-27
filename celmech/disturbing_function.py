@@ -33,8 +33,8 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
     term += C
     e1exp = abs(k3) + 2*nu3
     e2exp = abs(k4) + 2*nu4
-    i1exp = abs(k5) + 2*nu1
-    i2exp = abs(k6) + 2*nu2
+    s1exp = abs(k5) + 2*nu1
+    s2exp = abs(k6) + 2*nu2
     if l1==1:
         term+=r"\left(\frac{{\delta a_{0}}}{{a_{{{0},0}}}}\right)".format(indexIn)
     if l2==1:
@@ -49,16 +49,16 @@ def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
             term += r"e_{0}".format(indexOut)
         else:
             term += r"e_{0}^{1}".format(indexOut, e2exp)
-    if i1exp > 0:
-        if i1exp == 1:
-            term += r"i_{0}".format(indexIn)
+    if s1exp > 0:
+        if s1exp == 1:
+            term += r"s_{0}".format(indexIn)
         else:
-            term += r"i_{0}^{1}".format(indexIn, i1exp)
-    if i2exp > 0:
-        if i2exp == 1:
-            term += r"i_{0}".format(indexOut)
+            term += r"s_{0}^{1}".format(indexIn, s1exp)
+    if s2exp > 0:
+        if s2exp == 1:
+            term += r"s_{0}".format(indexOut)
         else:
-            term += r"i_{0}^{1}".format(indexOut, i2exp)
+            term += r"s_{0}^{1}".format(indexOut, s2exp)
     arg = r""
     if k1 == 0 and k2 == 0 and k3 == 0 and k4 == 0 and k5==0 and k6 == 0:
         pass # don't write cosine
