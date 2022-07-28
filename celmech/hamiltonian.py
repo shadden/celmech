@@ -401,8 +401,28 @@ class Hamiltonian(object):
             sympy expression for the resulting derivative.
         """
         return poisson_bracket(exprn,self.N_H,self.qp_vars,[])
+    def set_integrator(self,name,**integrator_params):
+        """
+        Set the integrator and corresponding integration parameters. This
+        method provides a wrapper to the 
+        :meth:`scipy.integrate.ode.set_integrator` method.
 
-    def integrate(self, time, integrator_kwargs={}):
+        See `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.set_integrator.html#scipy.integrate.ode.set_integrator>`_ for additional details.
+
+        Arguments
+        ---------
+        name : str
+            Name of the integrator.
+        integrator_params :
+            Additional parameters for the integrator.
+        """
+        if self._needs_update:
+            self._update()
+        # Override scipy's default relative tolerance 
+        integrator_params.setdefault('rtol',1e-14)
+        self._integrator.set_integrator(name,**integrator_params)
+
+    def integrate(self, time):
         """
         Evolve Hamiltonian system from current state
         to input time by integrating the equations of 
@@ -412,24 +432,10 @@ class Hamiltonian(object):
         ---------
         time : float
             Time to advance Hamiltonian system to.
-        integrator_kwargs : dict,optional
-            A dictionary of integrator keyword arguments
-            to pass to the integrator. ``celmech`` uses
-            the scipy.ode 'vode' integrator with the 'adams'
-            method by default. Valid keyword options can be found 
-            `here <https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.ode.html>`_.
-            Note that 'name' may also be passed as a kwarg to use an integrator
-            other than 'vode'.
         """
         # Sync the integrator time and values with what's in self.state in case user has changed it
         if self._needs_update:
             self._update()
-        if integrator_kwargs:
-            # Set default values for integrator.
-            integrator_kwargs.setdefault('name','vode')
-            integrator_kwargs.setdefault('method','adams')
-            integrator_kwargs.setdefault('rtol',1e-14)
-            self._integrator.set_integrator(**integrator_kwargs)
         self.integrator.set_initial_value(y=self.state.values, t=self.state.t)
         try:
             self.integrator.integrate(time)
