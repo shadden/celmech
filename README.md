@@ -5,3 +5,5 @@ Celmech is a collection of analytical and semianalytical tools for celestial mec
 Documentation can be found at https://celmech.readthedocs.io/en/latest/.
 
 [![Binder](http://mybinder.org/badge.svg)](https://beta.mybinder.org/v2/gh/shadden/celmech/master)
+
+[![DOI](https://zenodo.org/badge/85832048.svg)](https://zenodo.org/badge/latestdoi/85832048)
