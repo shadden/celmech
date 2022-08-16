@@ -1,0 +1,27 @@
+{
+    "description": "<p>Celmech v1.0.2</p>", 
+    "license": "GPL3", 
+    "title": "shadden/celmech: v1.0.2", 
+    "version": "v1.0.2", 
+    "upload_type": "software", 
+    "publication_date": "2022-08-11", 
+    "creators": [
+        {
+            "name": "Sam Hadden",
+            "name": "Dan Tamayo"
+        }
+    ], 
+    "access_right": "open", 
+    "related_identifiers": [
+        {
+            "scheme": "url", 
+            "identifier": "https://github.com/shadden/celmech/tree/v1.0.2", 
+            "relation": "isSupplementTo"
+        }, 
+        {
+            "scheme": "doi", 
+            "identifier": "10.5281/zenodo.6984409", 
+            "relation": "isVersionOf"
+        }
+    ]
+}
