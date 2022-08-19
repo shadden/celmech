@@ -1,0 +1,4 @@
+include README.rst
+include LICENSE
+recursive-include src *.h
+recursive-include src *.c
