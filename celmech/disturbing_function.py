@@ -306,7 +306,7 @@ def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True
 
 def laplace_b(s,j,n,alpha):
     r"""
-    Calculates :math:`n`th derivative with respect to :math:`\alpha` of Laplace coefficient :math:`b_s^j(\alpha)`.
+    Calculates :math:`n`-th derivative with respect to :math:`\alpha` of Laplace coefficient :math:`b_s^j(\alpha)`.
     Uses recursion and scipy special functions. 
 
     Arguments
