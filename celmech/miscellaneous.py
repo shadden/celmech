@@ -596,3 +596,125 @@ def truncated_expansion(exprn,order_rules,max_order):
     sexprn = series(exprn.subs(rule),eps,0,max_order+1)
     result = sexprn.removeO().subs({eps:1})
     return result
+
+################################################
+########### Levin Method Integration ###########
+################################################
+
+from scipy.linalg import solve as linsolve
+def _chebyshev_gauss_lobatto_points(n,a,b):
+    """Get Gauss-Lobatto quadrature points for Chebyshev polynomials"""
+    return 0.5 * (a+b) + 0.5 * (a-b) * np.cos(np.pi*np.arange(n)/(n-1))
+def _chebyshev_Dmatrix(n):
+    """Chebyshev derivative matrix for pseudo-spectral method"""
+    x = np.cos(np.pi*np.arange(n)/(n-1))
+    c = lambda j: 2 if j==0 or j==n-1 else 1
+    Dkj = lambda k,j: (c(k)/c(j))*(-1)**(k+j+1) / (x[k]-x[j]) if k!=j else 0
+    Dmtrx = np.array([[Dkj(k,j) for j in range(n)]for k in range(n)])
+    Dmtrx -= np.diag(np.sum(Dmtrx,axis=1))
+    return Dmtrx
+def levin_method_integrate(fvec_fn,wvec_fn,Amtrx_fns,a,b,N=32):
+    r"""Evlauate integrals of the form
+
+    .. math::
+        I(a,b) = \int_{a}^{b} \vec{f}(x)\cdot\vec{w}(x) dx
+
+    where the functions :math:`\vec{w}(x)` satisfy a linear differential
+    equation of the form :math:`\frac{d}{dx}\vec{w}(x) = A(x) \cdot
+    \vec{w}(x)`. Evaluation is done using `Levin's method`_.
+
+
+    .. _Levin's method: https://www.sciencedirect.com/science/article/pii/0377042794001189
+
+    Parameters
+    ----------
+    fvec_fn : function
+        A function that returns the vector :math:`\vec{f}(x)`.
+    wvec_fn : function
+        A function that returns the vector :math:`\vec{w}(x)`.
+    Amtrx_fns : list of functions
+        A list of functions giving the entries of matrix :math:`A(x)` appearing
+        in the differential equation obeyed by :math:`\vec{w}(x)`. Input should
+        use nested lists to match the structure of the matrix.
+    a : float
+        Lower integration limit
+    b : float
+        Upper integration limit
+    N : int
+        Number of quadrature points to use
+
+    Returns
+    -------
+    float
+    """
+    chebD = _chebyshev_Dmatrix(N)
+    wa = wvec_fn(a)
+    wb = wvec_fn(b)
+    f = 0.5 * (b-a)
+    xj = _chebyshev_gauss_lobatto_points(N,a,b)
+    zeroN = np.zeros((N,N))
+    M = len(wa)
+    D = np.block([[chebD if j==i else zeroN for j in range(M)] for i in range(M)])    
+    A_tr_mtrx = np.block([[np.diag(Amtrx_fns[i][j](xj)) for i in range(M)] for j in range(M)])
+    Fsoln = linsolve(D + f*A_tr_mtrx,f*np.reshape(fvec_fn(xj),-1))
+    Fa,Fb = Fsoln[::N],Fsoln[N-1::N]
+    ans=Fb@wb - Fa@wa
+    return ans
+def levin_method_integrate_adaptive(fvec_fn,wvec_fn,Amtrx_fns,a,b,N0=32,Nmax=128,rtol = 1.49e-08,atol = 1.49e-08 ):
+    r"""Evlauate integrals of the form
+
+    .. math::
+        I(a,b) = \int_{a}^{b} \vec{f}(x)\cdot\vec{w}(x) dx
+
+    where the functions :math:`\vec{w}(x)` satisfy a linear differential
+    equation of the form :math:`\frac{d}{dx}\vec{w}(x) = A(x) \cdot
+    \vec{w}(x)`. Evaluation is done using `Levin's method`_.
+
+    Method is applied adaptively with increasing number of quadrature points
+    until the estimated error, :math:`\delta` satisfies :math:`\delta <
+    \epsilon_\mathrm{rel}|I(a,b)| + \epsilon_\mathrm{abs}`.
+
+    .. _Levin's method: https://www.sciencedirect.com/science/article/pii/0377042794001189
+
+    Parameters
+    ----------
+    fvec_fn : function
+        A function that returns the vector :math:`\vec{f}(x)`.
+    wvec_fn : function
+        A function that returns the vector :math:`\vec{w}(x)`.
+    Amtrx_fns : list of functions
+        A list of functions giving the entries of matrix :math:`A(x)` appearing
+        in the differential equation obeyed by :math:`\vec{w}(x)`. Input should
+        use nested lists to match the structure of the matrix.
+    a : float
+        Lower integration limit
+    b : float
+        Upper integration limit
+    N0 : int
+        Initial number of Gauss-Lobatto quadrature points to use.
+    Nmax : int
+        Maximum number of quadrature points to use.
+    rtol : float
+        Relative tolerance
+    atol : float
+        Absolute tolerance
+
+    Returns
+    -------
+    float
+    """
+    delta = np.inf
+    ans_old = np.inf
+    N=N0
+    while N<=Nmax:
+        ans = levin_method_integrate(fvec_fn,wvec_fn,Amtrx_fns,a,b,N)
+        delta = np.abs(ans-ans_old)
+        ans_old = ans
+        N*=2
+        if delta < rtol * np.abs(ans) + atol:
+            break
+    else:
+        msg="Exceeded maximum number of quadruature points without converging.\n"
+        msg+="N={}, delta = {}, target = {}".format(N,delta,rtol * np.abs(ans) + atol)
+        warnings.warn(msg)
+    return ans
