@@ -239,8 +239,14 @@ class EncounterMap():
 
     Parameters
     ----------
-    K : float
-        Map non-linearity parameter.
+    m : float
+        Planet-star mass ratio
+    y : float
+        The eccentricity divided by the orbit-crossing eccentricity.
+    J : float
+        Center the map on the :math:`J`::math:`J-1` MMR. For integer J, the map
+        is centered on a first order MMR. For rational :math:`J=p/q`, the map is
+        centered on a :math:`q`th order MMR
     mod_theta : bool, optional
         If True, the :math:`\theta` coordinate
         is taken modulo :math:`2\pi`.
@@ -613,3 +619,222 @@ def solve_manifold_f_and_g(xunst,mapobj,Nmax,unstable=True):
         farr[n] = (Bsum-PsiPerp)/denom
         garr[n] = TU_01 * farr[n] + PsiU
     return R, farr, garr
+
+############################################### 
+############# Comet Map Utilities ############# 
+############################################### 
+from .miscellaneous import levin_method_integrate_adaptive
+from .disturbing_function import laplace_b
+from scipy.special import eval_chebyt,eval_chebyu
+def _comet_map_coeff_ck(tau,k,q):
+    alpha = 1/q
+    op_tausq = 1+tau*tau
+    om_tausq = 2-op_tausq
+    T = eval_chebyt(k,om_tausq/op_tausq)
+    lb = laplace_b(0.5,k,0,alpha/op_tausq)
+    if k==1:
+        lb -=alpha/op_tausq
+    return np.sqrt(2 * q) * lb * T
+def _comet_map_coeff_sk(tau,k,q):
+    alpha = 1/q
+    op_tausq = 1+tau*tau
+    om_tausq = 2-op_tausq
+    U = eval_chebyu(k-1,om_tausq/op_tausq) * (2*tau/op_tausq)
+    lb = laplace_b(0.5,k,0,alpha/op_tausq)
+    if k==1:
+        lb -=alpha/op_tausq
+    return np.sqrt(2 * q) * lb * U
+def _comet_map_get_osc_root(k,q,N,phase_offset = 0):
+    p=np.zeros(4)
+    p[0] = np.sqrt(2*q*q*q) * k / 3
+    p[2] = 3 * p[0]
+    p[3] = -2 * np.pi * N - phase_offset
+    root = np.real(np.roots(p)[-1])
+    return root
+
+def _comet_map_get_levin_integration_funcs(k,q):
+    sk = _comet_map_coeff_sk
+    ck = _comet_map_coeff_ck
+    fvec_fn = lambda x: [np.vectorize(sk)(x,k,q),np.vectorize(ck)(x,k,q)]
+    g = lambda x: np.sqrt(2*q*q*q) * k * (1 + x*x)
+    zerofn = np.vectorize(lambda x: 0)
+    Amtrx_fns = [[ zerofn, np.vectorize(g)],[np.vectorize(lambda x: -1*g(x)),zerofn]]
+    wvec_fn = lambda x: [np.sin(k*np.sqrt(2*q*q*q)*(x+x*x*x/3)),np.cos(k*np.sqrt(2*q*q*q)*(x+x*x*x/3))]
+    return fvec_fn,wvec_fn,Amtrx_fns
+
+def comet_map_ck(k,q,atol=1.49e-8,Nmax=10,**kwargs):
+    max_intervals = kwargs.get('max_intervals',10)
+    max_quad_pts = kwargs.get('max_quad_pts',128)
+    interval_size =kwargs.get(
+        'interval_size',
+        _comet_map_get_osc_root(k,q,5,np.pi/4)
+    )
+    fvec_fn,wvec_fn,Amtrx_fns = _comet_map_get_levin_integration_funcs(k,q)
+    i=0
+    tot = 0
+    while i<=max_intervals:
+        last = levin_method_integrate_adaptive(
+            fvec_fn,wvec_fn,Amtrx_fns,
+            i*interval_size,(i+1)*interval_size,
+            Nmax=max_quad_pts,
+            rtol=0,atol=atol
+        )
+        tot += last
+        i+=1
+        if np.abs(last)<atol:
+            break
+    else:
+        warn("Exceeded maximum number of iteractions")
+    return 2*tot
+
+class CometMap():
+    r"""
+    A class representing the comet map. The map depends on the pericenter
+    distance to perturber semi-major axis ratio, :math:`q/a_p`, the
+    comet-perturber semi-major axis ratio, :math:`a/a_p`, and the
+    perturber-star mass ratio, :math:`mu`. The map is defined by the equations 
+
+    .. math::
+        \begin{align}
+        x' &= x + \epsilon f(\theta; q/a_p) \\
+        \theta' &= \theta + 2\pi\left(N + x'\right)
+        \end{align}
+
+    By default, the map is defined on the cylinder with
+    the :math:`\theta` coordinate taken mod :math:`2\pi`.
+    The parameter `mod_p=True` can be set to take the 
+    :math:`p` coordinate modulo :math:`2\pi` as well.
+
+    Parameters
+    ----------
+    m : float
+        Planet-star mass ratio.
+    q : float
+        Pericenter distance of comet, measured in units of the perturber
+        semi-major axis.
+    N : int
+        Center the map on an an  :math:`N:1` MMR.
+    kmax : int
+        Maximum order of Fourier amplitude to compute.
+    mod_theta : bool, optional
+        If True, the :math:`\theta` coordinate
+        is taken modulo :math:`2\pi`.
+        Default is `True`
+    mod_p : bool, optional
+        If True, the :math:`p` coordinate
+        is taken modulo :math:`2\pi`.
+        Default is `False`.
+    """
+    def __init__(self,m,N,q,kmax=32,mod=True):
+        self.m = m
+        self.N = N
+        assert type(N)==int, "Only integer N allowed"
+        self._kmax = kmax
+        self._q = q
+        self._update_amplitudes()
+        self.mod = mod
+    @property
+    def mod(self):
+        return self._mod
+
+    @mod.setter
+    def mod(self,val):
+        self._mod = val
+        if val:
+            self._modfn = lambda x: np.mod(x,2*np.pi)
+        else:
+            self._modfn = lambda x: x
+    @property
+    def kmax(self):
+        return self._kmax
+    @kmax.setter
+    def kmax(self,val):
+        self._kmax = val
+        self._update_amplitudes()
+    @property
+    def a0(self):
+        N = self.N
+        return N**(2/3)
+
+    @a0.setter
+    def a0(self,val):
+        self.N = a0**(1.5)
+
+    @property
+    def eps(self):
+        a0 = self.a0
+        m = self.m
+        return 4 * m * a0**(2.5) / 3
+    def _update_amplitudes(self,atol=1.49e-8):
+        q = self._q
+        kmax = self._kmax
+        self.amps = np.array([ 
+            k*comet_map_ck(k,q,atol=atol) for k in range(1,kmax+1)
+        ])
+    def f(self,theta):
+        sin_ktheta = np.array([np.sin(k*theta) for k in range(1,self.kmax+1)])
+        return self.amps @ sin_ktheta
+    def dfdtheta_n(self,theta,n):
+        trig = np.array([k**(n) * np.sin(k*theta + 0.5 * n * np.pi) for k in range(1,self.kmax+1)])
+        return self.amps @ trig
+    def __call__(self,X):
+        theta,x = X
+        eps = self.eps
+        x1 = x + eps * self.f(theta)
+        theta1 = theta + 2 * np.pi * x1
+        theta1 = self._modfn(theta1)
+        return np.array([theta1,x1])
+    def jac(self,X):
+        theta,x = X
+        dx1_dx = 1
+        dx1_dtheta = self.eps * self.dfdtheta_n(theta,1)
+        dtheta1_dx =2*np.pi * dx1_dx
+        dtheta1_dtheta = 1 + 2 * np.pi * dx1_dtheta
+        return np.array([[dtheta1_dtheta,dtheta1_dx],[dx1_dtheta,dx1_dx]])
+    def inv(self,X):
+        theta1,x1 = X
+        eps = self.eps
+        theta = theta1 - 2 * np.pi * x1 
+        x = x1 - eps * self.f(theta)
+        return (theta,x)
+
+    def partial_derivs(self,x0,Nmax):
+        """
+        Get the partial derivatives of the map up 
+        to order `Nmax` evaluated at point `x0`.
+        """
+        theta,x = x0
+        T = np.zeros((2,Nmax+1,Nmax+1))
+        eps = self.eps
+        T[:,0,0] = self.__call__(x0)
+        T[0][0,1] = +2 * np.pi
+        T[1][0,1] = 1
+        n=1
+        eps_fn = eps * self.dfdtheta_n(theta,n)
+        T[0][1,0] = 1 + 2 * np.pi * eps_fn
+        T[1][1,0] = eps_fn
+        for n in range(2,Nmax+1):
+            eps_fn = eps * self.dfdtheta_n(theta,n)
+            T[0][n,0] = +2 * np.pi * eps_fn
+            T[1][n,0] = eps_fn
+        return T
+
+    def inv_partial_derivs(self,x0,Nmax):
+        """
+        Get the partial derivatives of the map up 
+        to order `Nmax` evaluated at point `x0`.
+        """
+        theta1,x1 = x0
+        T = np.zeros((2,Nmax+1,Nmax+1))
+        eps = self.eps
+        T[:,0,0] = self.inv(x0)
+        T[0][1,0] = 1
+        T[0][0,1] = -2 * np.pi
+        theta,x = T[:,0,0]
+        for n in range(1,Nmax+1):
+            eps_fn = eps * self.dfdtheta_n(theta,n)
+            for l in range(n+1):
+                T[1][l,n-l] = -1 * (-2*np.pi)**(n-l) * eps_fn
+        T[1][0,1] += 1
+        return T
+
