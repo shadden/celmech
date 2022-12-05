@@ -521,7 +521,8 @@ def evaluate_Psi(Psi_dict,Tprimes_arr,farr):
         tot+= Tprime_ij * sub_tot
     return tot
 
-def func_from_series(coeffs,x):
+from scipy.interpolate import pade as pade_approx
+def func_from_series(coeffs,x,pade=False):
     """
     Given a set of Taylor series coefficients, (c_0,....,c_N), evalute
     the sum
@@ -532,7 +533,7 @@ def func_from_series(coeffs,x):
     Arguments
     ---------
     coeffs : numpy array
-        Values of Taylor series coeffieciens
+        Values of Taylor series coefficients
     x : float
         Argument of function
 
@@ -540,11 +541,15 @@ def func_from_series(coeffs,x):
     -------
     float
     """
-    return coeffs @ np.array([x**n/np.math.factorial(n) for n in range(coeffs.shape[0])])
+    if not pade:
+        return coeffs @ np.array([x**n/np.math.factorial(n) for n in range(coeffs.shape[0])])
+    else:
+        p,q = pade_approx(coeffs,len(coeffs)//2)
+        return p(x)/q(x)
 
-def manifold_approx(u,n,farr,garr):
-    f = lambda x: func_from_series(farr[:n+1],x)
-    g = lambda x: func_from_series(garr[:n+1],x)
+def manifold_approx(u,n,farr,garr,pade=False):
+    f = lambda x: func_from_series(farr[:n+1],x,pade)
+    g = lambda x: func_from_series(garr[:n+1],x,pade)
     p0 = np.array([u,f(u)])
     p1 = np.array([g(u),f(g(u))])
     return p0,p1
@@ -733,6 +738,14 @@ class CometMap():
         self._q = q
         self._update_amplitudes()
         self.mod = mod
+    @property 
+    def q(self):
+        return self._q
+    @q.setter
+    def q(self,val):
+        self._q = val
+        self._update_amplitudes()
+
     @property
     def mod(self):
         return self._mod
