@@ -132,10 +132,10 @@ class LaplaceLagrangeSystem(Poincare):
             ])
     @property 
     def Neccentricity_matrix(self):
-        return np.array(self.eccentricity_matrix.subs(self.params)).astype(np.float64)
+        return np.array(self.eccentricity_matrix.xreplace(self.params)).astype(np.float64)
     @property 
     def Ninclination_matrix(self):
-        return np.array(self.inclination_matrix.subs(self.params)).astype(np.float64)
+        return np.array(self.inclination_matrix.xreplace(self.params)).astype(np.float64)
     @property
     def Tsec(self):
         Omega_e = np.max( np.abs(self.eccentricity_eigenvalues()) )
@@ -1210,7 +1210,7 @@ class SecularSystemSimulation():
             cvars = H.gens
             transformed_vars = np.concatenate((Te.dot(u),TI.dot(v),Te.dot(ubar),TI.dot(vbar)))
             rule={a:b for a,b in zip(cvars,transformed_vars)}
-            H = H.as_expr().subs(rule)
+            H = H.as_expr().xreplace(rule)
             H += De.dot(u).dot(ubar) + DI.dot(v).dot(vbar)
             H = H.as_poly(u+v+ubar+vbar)
         return H
