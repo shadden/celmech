@@ -777,7 +777,8 @@ class CometMap():
     def eps(self):
         a0 = self.a0
         m = self.m
-        return 4 * m * a0**(2.5) / 3
+        return 3*a0**(2.5) * m
+
     def _update_amplitudes(self,atol=1.49e-8):
         q = self._q
         kmax = self._kmax
