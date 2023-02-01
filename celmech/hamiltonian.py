@@ -449,17 +449,8 @@ class Hamiltonian(object):
         self._needs_update=False # reset flag up top to avoid infinite recursion
         self._N_H = self._H # reset to Hamiltonian with all parameters unset
         # 
-        # Update raw numerical constants first then update functions
-        # Less hacky way to do this?
-        function_keyval_pairs = []
-        for key, val in self._H_params.items(): 
-            if isinstance(val,float):
-                self._N_H = self._N_H.subs(key, val)
-            else:
-                function_keyval_pairs.append((key,val)) 
-        for keyval in function_keyval_pairs:
-            self._N_H = self._N_H.subs(keyval[0],keyval[1])
-
+        # Change subs to xreplace here, Dec 7 2022
+        self._N_H = self._N_H.xreplace(self._H_params)
         qp_vars = self.qp_vars
         flow = []
         Nflow = []
