@@ -287,7 +287,9 @@ def compute_AMD(sim):
         The value of the systems angular momentum 
         deficit.
     """
-
+    # copy sim and move to center of mass
+    sim = sim.copy()
+    sim.move_to_com()
     pstar = sim.particles[0]
     Mstar = pstar.m
     Ltot = pstar.m * np.cross(pstar.xyz,pstar.vxyz)
