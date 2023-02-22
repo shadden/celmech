@@ -603,7 +603,17 @@ def truncated_expansion(exprn,order_rules,max_order):
 ########### Levin Method Integration ###########
 ################################################
 
-from scipy.linalg import solve as linsolve
+from scipy.linalg import lu_factor, lu_solve
+def linsolve(A,y):
+    """
+    Solve linear system of equations
+    
+    .. math::
+        A \cdot x = y
+    
+    for y.
+    """
+    return lu_solve(lu_factor(A),y)
 def _chebyshev_gauss_lobatto_points(n,a,b):
     """Get Gauss-Lobatto quadrature points for Chebyshev polynomials"""
     return 0.5 * (a+b) + 0.5 * (a-b) * np.cos(np.pi*np.arange(n)/(n-1))
