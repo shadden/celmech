@@ -701,8 +701,8 @@ class CometMap():
 
     .. math::
         \begin{align}
-        x' &= x + \epsilon f(\theta; q/a_p) \\
-        \theta' &= \theta + 2\pi\left(N + x'\right)
+        w' &= w + \epsilon f(\theta; q/a_p) \\
+        \theta' &= \theta + 2\pi\left(N + w'\right)
         \end{align}
 
     By default, the map is defined on the cylinder with
@@ -768,11 +768,12 @@ class CometMap():
     def a0(self):
         N = self.N
         return N**(2/3)
-
     @a0.setter
     def a0(self,val):
         self.N = a0**(1.5)
-
+    @property
+    def x0(self):
+        return 1/self.a0
     @property
     def eps(self):
         a0 = self.a0
@@ -798,6 +799,35 @@ class CometMap():
         theta1 = theta + 2 * np.pi * x1
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
+
+    def full_map(self,pt):
+        r"""
+        Use version of map, defined as
+        .. math::
+            \begin{align}
+                x' &=& x - 2\mu \pd{F_\beta(\theta)}{\theta} 
+                \\
+                \theta' &=& \theta + \frac{2\pi}{x'^{3/2}}~.
+            \end{eqnarray}
+
+        where :math:`x` represents the test particle's inverse semi-major axis.
+
+        Arguments
+        ---------
+        pt : array-like 
+            The point :math:`(\theta,x)` to map
+        
+        Returns
+        -------
+        pt1 : array
+            Resulting point :math:`(\theta',x')`
+        """
+        theta,x = pt
+        x1 = x - 2 * self.m * self.f(theta)
+        theta1 = theta + 2 * np.pi / x1**(1.5)
+        theta1 = self._modfn(theta1)
+        return np.array([theta1,x1])
+    
     def jac(self,X):
         theta,x = X
         dx1_dx = 1
