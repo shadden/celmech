@@ -1,5 +1,6 @@
 import numpy as np
 from .miscellaneous import sk,Dsk
+from sympy import totient
 
 class StandardMap():
     r"""
@@ -799,7 +800,7 @@ class CometMap():
         theta1 = theta + 2 * np.pi * x1
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
-
+    
     def full_map(self,pt):
         r"""
         Use version of map, defined as
@@ -881,4 +882,33 @@ class CometMap():
                 T[1][l,n-l] = -1 * (-2*np.pi)**(n-l) * eps_fn
         T[1][0,1] += 1
         return T
+    
+    def get_eps_crit(self,tau=1):
+        r"""
+        Calculate the critical :math:`\epsilon` parameter at which the onset of chaos is predicted based on the resonant optical depth.
 
+        Arguments
+        ---------
+        tau : float, optional
+            Sets the resonant optical depth for the onset of chaos.
+            The default value is 1.
+        
+        Returns
+        -------
+        float : 
+            Critical value of epsilon.
+        """
+        tot = 0
+        first_order_half_width_sq = 0
+        for k_minus_one,amp in enumerate(self.amps):
+            k=k_minus_one+1
+            ck = amp/k
+            if k>1:
+                half_width = np.sqrt(2 * ck / np.pi)
+                tot+=2*totient(k)*half_width
+            if k%2:
+                # odd orders contribute to first-order 
+                # width at pi
+                first_order_half_width_sq += 4 * (0.5/np.pi) * ck
+        tot += np.sqrt(first_order_half_width_sq)
+        return 1/tot/tot
