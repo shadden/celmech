@@ -912,3 +912,20 @@ class CometMap():
                 first_order_half_width_sq += 4 * (0.5/np.pi) * ck
         tot += np.sqrt(first_order_half_width_sq)
         return 1/tot/tot
+    
+    def D_QL(self):
+        r"""
+        Compute the quasi-linear estimate for the local
+        diffusion coefficient given by 
+
+        .. math::
+            D_mathrm{QL} = \frac{1}{2}\epsilon^2\sum_{k}k^2C_{k}(\beta)^2
+
+        Returns
+        -------
+        D_QL : float
+        """
+        eps = self.eps
+        amps = self.amps
+        amps_sq = amps @ amps
+        return 0.5 * eps * eps * amps_sq
