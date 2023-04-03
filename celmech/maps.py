@@ -1,5 +1,6 @@
 import numpy as np
 from .miscellaneous import sk,Dsk
+from sympy import totient
 
 class StandardMap():
     r"""
@@ -701,8 +702,8 @@ class CometMap():
 
     .. math::
         \begin{align}
-        x' &= x + \epsilon f(\theta; q/a_p) \\
-        \theta' &= \theta + 2\pi\left(N + x'\right)
+        w' &= w + \epsilon f(\theta; q/a_p) \\
+        \theta' &= \theta + 2\pi\left(N + w'\right)
         \end{align}
 
     By default, the map is defined on the cylinder with
@@ -768,11 +769,12 @@ class CometMap():
     def a0(self):
         N = self.N
         return N**(2/3)
-
     @a0.setter
     def a0(self,val):
         self.N = a0**(1.5)
-
+    @property
+    def x0(self):
+        return 1/self.a0
     @property
     def eps(self):
         a0 = self.a0
@@ -798,6 +800,35 @@ class CometMap():
         theta1 = theta + 2 * np.pi * x1
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
+    
+    def full_map(self,pt):
+        r"""
+        Use version of map, defined as
+        .. math::
+            \begin{align}
+                x' &=& x - 2\mu \pd{F_\beta(\theta)}{\theta} 
+                \\
+                \theta' &=& \theta + \frac{2\pi}{x'^{3/2}}~.
+            \end{eqnarray}
+
+        where :math:`x` represents the test particle's inverse semi-major axis.
+
+        Arguments
+        ---------
+        pt : array-like 
+            The point :math:`(\theta,x)` to map
+        
+        Returns
+        -------
+        pt1 : array
+            Resulting point :math:`(\theta',x')`
+        """
+        theta,x = pt
+        x1 = x - 2 * self.m * self.f(theta)
+        theta1 = theta + 2 * np.pi / x1**(1.5)
+        theta1 = self._modfn(theta1)
+        return np.array([theta1,x1])
+    
     def jac(self,X):
         theta,x = X
         dx1_dx = 1
@@ -851,4 +882,50 @@ class CometMap():
                 T[1][l,n-l] = -1 * (-2*np.pi)**(n-l) * eps_fn
         T[1][0,1] += 1
         return T
+    
+    def get_eps_crit(self,tau=1):
+        r"""
+        Calculate the critical :math:`\epsilon` parameter at which the onset of chaos is predicted based on the resonant optical depth.
 
+        Arguments
+        ---------
+        tau : float, optional
+            Sets the resonant optical depth for the onset of chaos.
+            The default value is 1.
+        
+        Returns
+        -------
+        float : 
+            Critical value of epsilon.
+        """
+        tot = 0
+        first_order_half_width_sq = 0
+        for k_minus_one,amp in enumerate(self.amps):
+            k=k_minus_one+1
+            ck = amp/k
+            if k>1:
+                half_width = np.sqrt(2 * ck / np.pi)
+                tot+=2*totient(k)*half_width
+            if k%2:
+                # odd orders contribute to first-order 
+                # width at pi
+                first_order_half_width_sq += 4 * (0.5/np.pi) * ck
+        tot += 2*np.sqrt(first_order_half_width_sq)
+        return 1/tot/tot
+    
+    def D_QL(self):
+        r"""
+        Compute the quasi-linear estimate for the local
+        diffusion coefficient given by 
+
+        .. math::
+            D_mathrm{QL} = \frac{1}{2}\epsilon^2\sum_{k}k^2C_{k}(\beta)^2
+
+        Returns
+        -------
+        D_QL : float
+        """
+        eps = self.eps
+        amps = self.amps
+        amps_sq = amps @ amps
+        return 0.5 * eps * eps * amps_sq
