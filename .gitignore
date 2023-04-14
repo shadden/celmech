@@ -10,3 +10,13 @@ dist/
 build/
 old_notebooks/
 install-record.txt
+*.html
+*.js
+*.png
+*.doctree
+*.txt
+*.css
+*.sa
+*.pickle
+*-Copy*.ipynb
+Untitled*.ipynb
