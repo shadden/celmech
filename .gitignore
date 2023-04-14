@@ -20,3 +20,8 @@ install-record.txt
 *.pickle
 *-Copy*.ipynb
 Untitled*.ipynb
+.DS_Store
+PyPI_HOWTO.rst
+TODO.rst
+celmech/test/test_PlanarMMR.py
+src/moid_v4_fun.f
