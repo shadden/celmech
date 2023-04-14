@@ -803,6 +803,38 @@ class CometMap():
         theta1 = self._modfn(theta1)
         return np.array([theta1,x1])
     
+    def with_variational(self,X,dX):
+        r"""
+        Apply the map along with the tangent map to point plus variationals.
+        In particular, 
+
+        .. math::
+            \begin{align}
+            (\theta', w') &=& T(\theta, w) 
+            \\
+            (\delta \theta',\delta  w') &=& DT(\theta, w) \cdot (\delta \theta,\delta  w) 
+        
+        where :math:`T` is the usual map and :math:`DT` is the Jacobian of the map.
+
+        Parameters
+        ----------
+        X : array-like
+            The point :math:`X = (\theta,w)`
+        dX : array-like
+            The variational vector :math:`(\delta\theta,\delta w)`
+        
+        Returns
+        -------
+        X' : array-like
+            The new point
+        dX' : array-lke
+            The new variationl vector
+        """
+        jac = self.jac(X)
+        X1 = self.__call__(X)
+        dX1 = jac @ dX
+        return X1,dX1
+
     def full_map(self,pt):
         r"""
         Use version of map, defined as
