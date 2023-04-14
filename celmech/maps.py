@@ -631,6 +631,8 @@ def solve_manifold_f_and_g(xunst,mapobj,Nmax,unstable=True):
 ############################################### 
 from .miscellaneous import levin_method_integrate_adaptive
 from .disturbing_function import laplace_b
+from warnings import warn
+
 from scipy.special import eval_chebyt,eval_chebyu
 def _comet_map_coeff_ck(tau,k,q):
     alpha = 1/q
@@ -883,7 +885,7 @@ class CometMap():
         T[1][0,1] += 1
         return T
     
-    def get_eps_crit(self,tau=1):
+    def get_eps_crit(self,tau=1,kmax=None):
         r"""
         Calculate the critical :math:`\epsilon` parameter at which the onset of chaos is predicted based on the resonant optical depth.
 
@@ -898,18 +900,20 @@ class CometMap():
         float : 
             Critical value of epsilon.
         """
+        if kmax is None:
+            kmax = self.kmax
         tot = 0
+
         first_order_half_width_sq = 0
         for k_minus_one,amp in enumerate(self.amps):
             k=k_minus_one+1
             ck = amp/k
-            if k>1:
+            if k>1 and k<=kmax:
                 half_width = np.sqrt(2 * ck / np.pi)
                 tot+=2*totient(k)*half_width
             if k%2:
-                # odd orders contribute to first-order 
-                # width at pi
-                first_order_half_width_sq += 4 * (0.5/np.pi) * ck
+                # odd orders contribute to first-order width at pi
+                first_order_half_width_sq += (2/np.pi) * ck
         tot += 2*np.sqrt(first_order_half_width_sq)
         return 1/tot/tot
     
