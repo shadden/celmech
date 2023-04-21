@@ -82,6 +82,63 @@ class StandardMap():
         x1 = np.array([theta1,p1])
         x1 = self._modfn(x1)
         return x1
+    
+    def with_variational(self,X,dX):
+        r"""
+        Apply the map along with the tangent map to point plus variationals.
+        In particular, 
+
+        .. math::
+            \begin{align}
+            (\theta', w') &=& T(\theta, w) 
+            \\
+            (\delta \theta',\delta  w') &=& DT(\theta, w) \cdot (\delta \theta,\delta  w) 
+        
+        where :math:`T` is the usual map and :math:`DT` is the Jacobian of the map.
+
+        Parameters
+        ----------
+        X : array-like
+            The point :math:`X = (\theta,w)`
+        dX : array-like
+            The variational vector :math:`(\delta\theta,\delta w)`
+        
+        Returns
+        -------
+        X' : array-like
+            The new point
+        dX' : array-lke
+            The new variationl vector
+        """
+        jac = self.jac(X)
+        X1 = self.__call__(X)
+        dX1 = jac @ dX
+        return X1,dX1
+
+    def action(self,pt):
+        r"""
+        Evaluate The action zero-form,
+
+        .. math::
+        \lambda(\theta,w) = 2\pi\left(\frac{w'^2}{2}- \frac{\epsilon}{2\pi}  F_\beta(\theta)\right)~,
+
+        where :math:`w' = w - \epsilon \partial_\theta F_\beta(\theta)`. The action zero-form satisfies
+        :math:`T^*(w d\theta) - w d\theta = d\lambda` where :math:`T^*` is the pullback of the map.
+
+        Parameters
+        ----------
+        pt : array-like
+            the point :math:`(\theta,w)` at which to evlauate the action.
+
+        Returns
+        -------
+        float
+            The value of the action zero-form, :math:`\lambda(\theta,w)`
+        """
+        theta,p = pt
+        K = self.K
+        p1 = p + K * np.sin(theta)
+        return 0.5 * p1 * p1 - K * np.cos(theta)
 
     def inv(self,x):
         r"""
@@ -216,6 +273,19 @@ class StandardMap():
             [Kcos,1]
         ])
         return jac
+    def symmetry_lines(self):
+        """
+        Return the symmetry lines of the map.
+
+        Returns
+        -------
+        tuple
+            Tuple containing three functions that parameterize the symmetry lines of the map.
+        """
+        sline1 = lambda x: np.array((0,x))
+        sline2 = lambda x: np.array((np.pi,x))
+        sline3 = lambda x: np.array((0.5 * x,x))
+        return (sline1,sline2,sline3)
 
 class EncounterMap():
     r"""
@@ -582,6 +652,11 @@ def solve_manifold_f_and_g(xunst,mapobj,Nmax,unstable=True):
     -------
     R : ndarray, shape (2,2)
         Rotation matrix
+    f_arr : ndarray, shame (Nmax,)
+        Coefficients of taylor expansion for :math:`f`
+    g_arr : ndarray, shame (Nmax,)
+        Coefficients of taylor expansion for :math:`g`
+
     """
     # Array of partial derivatives up to order Nmax
     if unstable:
@@ -790,18 +865,73 @@ class CometMap():
             k*comet_map_ck(k,q,atol=atol) for k in range(1,kmax+1)
         ])
     def f(self,theta):
+        r"""
+        The kick function of the map, :math:`-\partial_\theta F_\beta(\theta)`.
+
+        Parameters
+        ----------
+        theta : float
+            Angle varaible at which to evaluate the kick function
+
+        Returns
+        -------
+        float
+            Value of the kick function
+        """
         sin_ktheta = np.array([np.sin(k*theta) for k in range(1,self.kmax+1)])
         return self.amps @ sin_ktheta
+    def F(self, theta):
+        r"""
+        The `potential function', :math:`F_\beta(\theta)` from which the map's kick function is derived.
+
+        Parameters
+        ----------
+        theta : float
+            Angle varaible at which to evaluate the potential function
+
+        Returns
+        -------
+        float
+            Value of the potential function
+        """
+        return np.sum([amp * np.cos((k_minus_1 + 1)*theta) / (k_minus_1 + 1) for k_minus_1,amp in enumerate(self.amps)])
     def dfdtheta_n(self,theta,n):
         trig = np.array([k**(n) * np.sin(k*theta + 0.5 * n * np.pi) for k in range(1,self.kmax+1)])
         return self.amps @ trig
+    
     def __call__(self,X):
-        theta,x = X
+        theta,w = X
         eps = self.eps
-        x1 = x + eps * self.f(theta)
-        theta1 = theta + 2 * np.pi * x1
+        w1 = w + eps * self.f(theta)
+        theta1 = theta + 2 * np.pi * w1
         theta1 = self._modfn(theta1)
-        return np.array([theta1,x1])
+        return np.array([theta1,w1])
+    
+    def action(self,pt):
+        r"""
+        Evaluate The action zero-form,
+
+        .. math::
+        \lambda(\theta,w) = 2\pi\left(\frac{w'^2}{2}- \frac{\epsilon}{2\pi}  F_\beta(\theta)\right)~,
+
+        where :math:`w' = w - \epsilon \partial_\theta F_\beta(\theta)`. The action zero-form satisfies
+        :math:`T^*(w d\theta) - w d\theta = d\lambda` where :math:`T^*` is the pullback of the map.
+
+        Parameters
+        ----------
+        pt : array-like
+            the point :math:`(\theta,w)` at which to evlauate the action.
+
+        Returns
+        -------
+        float
+            The value of the action zero-form, :math:`\lambda(\theta,w)`
+        """
+        theta,w = pt
+        eps = self.eps
+        w1 = w + eps * self.f(theta)
+        Fval = self.F(theta)
+        return np.pi * w1 * w1 - eps * Fval
     
     def with_variational(self,X,dX):
         r"""
@@ -965,3 +1095,16 @@ class CometMap():
         amps = self.amps
         amps_sq = amps @ amps
         return 0.5 * eps * eps * amps_sq
+    def symmetry_lines(self):
+        """
+        Return the symmetry lines of the map.
+
+        Returns
+        -------
+        tuple
+            Tuple containing three functions that parameterize the symmetry lines of the map.
+        """
+        sline1 = lambda x: np.array((0,x))
+        sline2 = lambda x: np.array((np.pi,x))
+        sline3 = lambda x: np.array((np.pi * x,x))
+        return (sline1,sline2,sline3)
