@@ -25,3 +25,13 @@ PyPI_HOWTO.rst
 TODO.rst
 celmech/test/test_PlanarMMR.py
 src/moid_v4_fun.f
+celmech/test/DisturbingFunctionTest.ipynb
+docs/_build/
+docs/nbody_simulation_utilities.rst
+jupyter_examples/AndoyerResonanceCapture.ipynb
+jupyter_examples/scratchpad.ipynb
+src/poincare.c
+src/poisson_series.h
+src/test
+src/test.c
+
