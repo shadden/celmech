@@ -1077,7 +1077,7 @@ class CometMap():
                 # odd orders contribute to first-order width at pi
                 first_order_half_width_sq += (2/np.pi) * ck
         tot += 2*np.sqrt(first_order_half_width_sq)
-        return 1/tot/tot
+        return tau*tau/tot/tot
     
     def D_QL(self):
         r"""
