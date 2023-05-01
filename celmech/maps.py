@@ -770,6 +770,72 @@ def comet_map_ck(k,q,atol=1.49e-8,Nmax=10,**kwargs):
         warn("Exceeded maximum number of iteractions")
     return 2*tot
 
+def _asymptotic_rfunc(beta : float):
+    omega = 1/np.sqrt(0.5 * beta*beta*beta)
+    asin_arg = 1 - 27 / 8 / omega
+    sin = np.sin(np.arcsin(asin_arg)/3)
+    return np.sqrt(omega) * (2/3 - 4 * sin /3)
+def _comet_map_lambda_constant(beta : float):
+    R = _asymptotic_rfunc(beta)
+    R2 = R*R
+    R3 = R2*R
+    R4 = R3*R
+    omega = 1/np.sqrt(0.5 * beta*beta*beta)
+    val  = 2 * omega / 3
+    val += -R2
+    val += R3/3 / np.sqrt(omega)
+    val += 0.5 * np.log(R4 * beta / 2)
+    return val
+def _comet_map_A_constant(beta : float):
+    R = _asymptotic_rfunc(beta)
+    rt_beta3 = np.sqrt(beta*beta*beta)
+    num = 2 * (4 - 2**(3/4)*R*np.sqrt(rt_beta3)) * beta**0.25 * R*R
+    denom  = 2 + 2*R*R - 2**(3/4)*R*R*R*np.sqrt(rt_beta3)
+    denom *= 4*np.sqrt(2)*R*R + R*R*R*R * rt_beta3 - 2 * np.sqrt(beta) - 2**(9/4) * R*R*R * np.sqrt(rt_beta3)
+    denom = np.sqrt(denom)
+    return num/denom
+
+def comet_map_ck_asymptotic(k : int, beta : float):
+    return _comet_map_A_constant(beta) * np.exp(- k * _comet_map_lambda_constant(beta)) / k
+
+def _comet_map_get_ck_arrays(q : float, rtol: float, atol: float, kmax : int):
+    beta = 1/q
+    
+    lmbda = _comet_map_lambda_constant(beta)
+    A = _comet_map_A_constant(beta)
+    ck_asym_arr = A * np.exp(-lmbda * np.arange(1,kmax+1)) / np.arange(1,kmax+1)
+    ck_arr = np.zeros(kmax)
+
+    k = 0
+    rel_err = np.inf
+    while rel_err > rtol:
+        k += 1
+        # exceeded kmax?
+        if k > kmax:
+            k-=1
+            warn("Failed to meet relative error tolerance {} for k<{} ".format(rtol,kmax))
+            break
+
+        ck_arr[k-1] = comet_map_ck(k ,q,atol=atol)
+        new_err = np.abs(ck_asym_arr[k-1]/ck_arr[k-1] - 1)
+
+        # error is decreasing?
+        if new_err < rel_err:
+            rel_err = new_err
+        else:
+            # remove bad amps
+            msg = "Error increased before meeting relative error tolerance {}.".format(rtol)
+            msg += "Consider decreasing absolute accuracy parameter, atol={}".format(atol)
+            warn(msg)
+            k -= 1
+            break
+
+    ck_arr = np.array(ck_arr)
+    ck_asym_arr = np.array(ck_asym_arr)
+
+    return k, ck_arr[:k], ck_asym_arr[:k], new_err
+
+
 class CometMap():
     r"""
     A class representing the comet map. The map depends on the pericenter
@@ -808,14 +874,35 @@ class CometMap():
         is taken modulo :math:`2\pi`.
         Default is `False`.
     """
-    def __init__(self,m,N,q,kmax=32,mod=True):
+    def __init__(self,m,N,q, kmax=32, rtol = 0.05, atol =1.49e-8, mod=True):
         self.m = m
         self.N = N
         assert type(N)==int, "Only integer N allowed"
         self._kmax = kmax
+        self._rtol = rtol
+        self.atol=atol
         self._q = q
         self._update_amplitudes()
         self.mod = mod
+    def __repr__(self):
+        return '<{0}.{1} object at {2}, m={3}, q={4}, N={5}, kmax={6}>'.format(self.__module__,type(self).__name__,self.m,self.q,self.N,self.kmax)
+    def status(self):
+        """
+        Print a summary of the current status of the map.
+
+        Returns
+        -------
+        None
+        """
+        s = ""
+        s+= "---------------------------------\n"
+        s+= "celmech CometMap object"
+        s+= "Pericenter distance:\t{}\n".format(self.q)
+        s+= "Planet mass:\t{}\n".format(self.m)
+        s+= "N:1 Resonance:\t{}:{}\n".format(self.N,self.N-1)
+        s+= "Epsilon parameter:\t{}\n".format(self.eps)
+        s+= "mod 1:\t{}\n".format(self.mod)
+        print(s)
     @property 
     def q(self):
         return self._q
@@ -842,6 +929,16 @@ class CometMap():
     def kmax(self,val):
         self._kmax = val
         self._update_amplitudes()
+
+    @property 
+    def rtol(self):
+        return self._rtol
+
+    @rtol.setter
+    def rtol(self,val):
+        self._rtol = val
+        self._update_amplitudes()
+    
     @property
     def a0(self):
         N = self.N
@@ -858,12 +955,46 @@ class CometMap():
         m = self.m
         return 3*a0**(2.5) * m
 
-    def _update_amplitudes(self,atol=1.49e-8):
+    def _update_amplitudes(self):
         q = self._q
+        beta = 1/q
+        self.lambda_const = _comet_map_lambda_constant(beta)
+        self.cosh_lambda = np.cosh(self.lambda_const)
+        self.A_const =_comet_map_A_constant(beta)
         kmax = self._kmax
-        self.amps = np.array([ 
-            k*comet_map_ck(k,q,atol=atol) for k in range(1,kmax+1)
-        ])
+        kmax, ck, ck_asym, rtol = _comet_map_get_ck_arrays(q,self.rtol,self.atol,kmax)
+        self._kmax = kmax
+        self._rtol = rtol
+        self.ck = ck
+        self.delta_ck = ck - ck_asym
+        self.amps = np.arange(1,kmax+1) * self.ck
+        self.delta_amps = np.arange(1,kmax+1) * self.delta_ck
+    def f_asym(self,theta):
+        r"""
+        The asymptotic kick function,
+
+        .. math::
+            -\frac{A(\beta)}{2}\frac{\sin\theta}{\cos\theta - \cosh \lambda(\beta)}
+
+
+        Parameters
+        ----------
+        theta : float
+            Angle parameter
+
+        Returns
+        -------
+        float
+            value of the kick function
+        """
+        return -0.5 * self.A_const * np.sin(theta) / (np.cos(theta) - self.cosh_lambda)
+    def delta_f(self,theta):
+        """
+        Difference between the kick fucntion and its asymptotic value.
+        """
+        sin_ktheta = np.array([np.sin(k*theta) for k in range(1,self.kmax+1)])
+        return self.delta_amps @ sin_ktheta
+    
     def f(self,theta):
         r"""
         The kick function of the map, :math:`-\partial_\theta F_\beta(\theta)`.
@@ -878,8 +1009,8 @@ class CometMap():
         float
             Value of the kick function
         """
-        sin_ktheta = np.array([np.sin(k*theta) for k in range(1,self.kmax+1)])
-        return self.amps @ sin_ktheta
+        return self.f_asym(theta) + self.delta_f(theta)
+    
     def F(self, theta):
         r"""
         The `potential function', :math:`F_\beta(\theta)` from which the map's kick function is derived.
