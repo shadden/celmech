@@ -808,6 +808,7 @@ def _comet_map_get_ck_arrays(q : float, rtol: float, atol: float, kmax : int):
 
     k = 0
     rel_err = np.inf
+    new_err = np.inf
     while rel_err > rtol:
         k += 1
         # exceeded kmax?
@@ -833,7 +834,7 @@ def _comet_map_get_ck_arrays(q : float, rtol: float, atol: float, kmax : int):
     ck_arr = np.array(ck_arr)
     ck_asym_arr = np.array(ck_asym_arr)
 
-    return k, ck_arr[:k], ck_asym_arr[:k], new_err
+    return k, ck_arr[:k], ck_asym_arr[:k], rel_err
 
 
 class CometMap():
@@ -874,18 +875,26 @@ class CometMap():
         is taken modulo :math:`2\pi`.
         Default is `False`.
     """
-    def __init__(self,m,N,q, kmax=32, rtol = 0.05, atol =1.49e-8, mod=True):
+    def __init__(self,m,N,q, max_kmax=32, rtol = 0.05, atol =1.49e-8, mod=True):
         self.m = m
         self.N = N
         assert type(N)==int, "Only integer N allowed"
-        self._kmax = kmax
+        self._max_kmax = max_kmax
         self._rtol = rtol
-        self.atol=atol
+        self.atol = atol
         self._q = q
         self._update_amplitudes()
         self.mod = mod
     def __repr__(self):
-        return '<{0}.{1} object at {2}, m={3}, q={4}, N={5}, kmax={6}>'.format(self.__module__,type(self).__name__,self.m,self.q,self.N,self.kmax)
+        return '<{0}.{1} object at {2}, m={3}, q={4}, N={5}, kmax={6}>'.format(
+            self.__module__, #0
+            type(self).__name__, #1
+            hex(id(self)), #2
+            self.m, #3
+            self.q, #4
+            self.N, #5
+            self.kmax #6
+            )
     def status(self):
         """
         Print a summary of the current status of the map.
@@ -896,7 +905,7 @@ class CometMap():
         """
         s = ""
         s+= "---------------------------------\n"
-        s+= "celmech CometMap object"
+        s+= "celmech CometMap object\n"
         s+= "Pericenter distance:\t{}\n".format(self.q)
         s+= "Planet mass:\t{}\n".format(self.m)
         s+= "N:1 Resonance:\t{}:{}\n".format(self.N,self.N-1)
@@ -925,10 +934,16 @@ class CometMap():
     @property
     def kmax(self):
         return self._kmax
-    @kmax.setter
-    def kmax(self,val):
-        self._kmax = val
-        self._update_amplitudes()
+    
+    @property
+    def max_kmax(self):
+        return self._max_kmax
+    
+    @max_kmax.setter
+    def max_kmax(self,val : int):
+        self._max_kmax = val
+        if self._rtol_actual > self.rtol:
+            self._update_amplitudes()
 
     @property 
     def rtol(self):
@@ -937,15 +952,16 @@ class CometMap():
     @rtol.setter
     def rtol(self,val):
         self._rtol = val
-        self._update_amplitudes()
-    
+        if val  < self._rtol_actual:
+            if self.kmax < self.max_kmax:
+                self._update_amplitudes()
+            else:
+                warn("Cannot meet target tolerance unless max_kmax={0} is increased.".format(self.max_kmax))
     @property
     def a0(self):
         N = self.N
         return N**(2/3)
-    @a0.setter
-    def a0(self,val):
-        self.N = a0**(1.5)
+    
     @property
     def x0(self):
         return 1/self.a0
@@ -961,10 +977,10 @@ class CometMap():
         self.lambda_const = _comet_map_lambda_constant(beta)
         self.cosh_lambda = np.cosh(self.lambda_const)
         self.A_const =_comet_map_A_constant(beta)
-        kmax = self._kmax
-        kmax, ck, ck_asym, rtol = _comet_map_get_ck_arrays(q,self.rtol,self.atol,kmax)
+        max_kmax = self.max_kmax
+        kmax, ck, ck_asym, rtol = _comet_map_get_ck_arrays(q,self.rtol,self.atol,max_kmax)
+        self._rtol_actual = rtol
         self._kmax = kmax
-        self._rtol = rtol
         self.ck = ck
         self.delta_ck = ck - ck_asym
         self.amps = np.arange(1,kmax+1) * self.ck
