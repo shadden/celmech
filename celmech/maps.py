@@ -1230,11 +1230,14 @@ class CometMap():
         first_order_half_width_sq = 0    
         for k_minus_1,ck in enumerate(self.ck):
             k = k_minus_1+1
+            if k>kmax:
+                break
             if k>1:
                 half_width = np.sqrt(2 * ck / np.pi)
                 tot += 2*totient(k)*half_width
             if k%2:
                 first_order_half_width_sq += (2/np.pi) * ck
+            
         tot += 2*np.sqrt(first_order_half_width_sq)
         if add_remainder:
             remainder_approx  = 2*np.sqrt(kmax+0.5) * np.exp(-0.5 * (kmax+0.5) * lmbda) / lmbda  
