@@ -1206,6 +1206,12 @@ class CometMap():
             Sets the resonant optical depth for the onset of chaos.
             The default value is 1.
         
+        kmax : int, optional
+            The maximum k value of terms to include in the optical depth
+            calculation. By default, the critical :math:`\epsilon` is 
+            calculated by including all k values, using the asympototic
+            form of resonance widths for large k to estimate a correction.
+
         Returns
         -------
         float : 
