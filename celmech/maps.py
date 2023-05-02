@@ -1,6 +1,7 @@
 import numpy as np
 from .miscellaneous import sk,Dsk
 from sympy import totient
+from scipy.special import erfc
 
 class StandardMap():
     r"""
@@ -1193,7 +1194,8 @@ class CometMap():
                 T[1][l,n-l] = -1 * (-2*np.pi)**(n-l) * eps_fn
         T[1][0,1] += 1
         return T
-    
+
+
     def get_eps_crit(self,tau=1,kmax=None):
         r"""
         Calculate the critical :math:`\epsilon` parameter at which the onset of chaos is predicted based on the resonant optical depth.
@@ -1211,19 +1213,34 @@ class CometMap():
         """
         if kmax is None:
             kmax = self.kmax
-        tot = 0
+            add_remainder = True
+        else:
+            add_remainder = False
 
-        first_order_half_width_sq = 0
-        for k_minus_one,amp in enumerate(self.amps):
-            k=k_minus_one+1
-            ck = amp/k
-            if k>1 and k<=kmax:
+        lmbda = self.lambda_const
+        A = self.A_const
+        kmax = self.kmax
+        tot = 0
+        first_order_half_width_sq = 0    
+        for k_minus_1,ck in enumerate(self.ck):
+            k = k_minus_1+1
+            if k>1:
                 half_width = np.sqrt(2 * ck / np.pi)
-                tot+=2*totient(k)*half_width
+                tot += 2*totient(k)*half_width
             if k%2:
-                # odd orders contribute to first-order width at pi
                 first_order_half_width_sq += (2/np.pi) * ck
         tot += 2*np.sqrt(first_order_half_width_sq)
+        if add_remainder:
+            remainder_approx  = 2*np.sqrt(kmax+0.5) * np.exp(-0.5 * (kmax+0.5) * lmbda) / lmbda  
+            remainder_approx += np.sqrt(2*np.pi)*erfc(np.sqrt(0.5 * (kmax+0.5) * lmbda)) / lmbda**1.5
+            remainder_approx  *=  12 * np.sqrt(2 * A / np.pi**5 )
+        else:
+            remainder_approx = 0
+        for k in np.arange(self.kmax+1,kmax+1):
+            ck = A * np.exp(-lmbda * k) / k
+            half_width = np.sqrt(2 * ck / np.pi)
+            tot = 2 * totient(k) * half_width
+        tot = tot+remainder_approx
         return tau*tau/tot/tot
     
     def D_QL(self):
