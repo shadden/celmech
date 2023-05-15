@@ -1041,7 +1041,37 @@ class CometMap():
         float
             Value of the potential function
         """
-        return np.sum([amp * np.cos((k_minus_1 + 1)*theta) / (k_minus_1 + 1) for k_minus_1,amp in enumerate(self.amps)])
+        return self.F_asym(theta) + self.delta_F(theta)
+    
+    def F_asym(self,theta):
+        r"""
+        The asymptotic kick potential,
+
+        .. math::
+            -\frac{1}{2} A \ln (2 (\cosh (\lambda )-\cos (\theta )))
+
+
+        Parameters
+        ----------
+        theta : float
+            Angle parameter
+
+        Returns
+        -------
+        float
+            value of the kick potential
+        """        
+        A = self.A_const
+        cosh_lambda = self.cosh_lambda
+        return -0.5 * A * np.log(2 *(cosh_lambda - np.cos(theta)))
+    
+    def delta_F(self,theta):
+        """
+        Difference between the kick potential and its asymptotic value.
+        """
+        cos_ktheta = np.array([np.cos(k*theta) for k in range(1,self.kmax+1)])
+        return self.delta_ck @ cos_ktheta
+
     def dfdtheta_n(self,theta,n):
         trig = np.array([k**(n) * np.sin(k*theta + 0.5 * n * np.pi) for k in range(1,self.kmax+1)])
         return self.amps @ trig
