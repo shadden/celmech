@@ -975,9 +975,15 @@ class CometMap():
     def _update_amplitudes(self):
         q = self._q
         beta = 1/q
-        self.lambda_const = _comet_map_lambda_constant(beta)
+        if q<=9/8:
+            warn("Asymptotic formulas only valid for q>9/8. Corrections will be ignored.")
+            self.lambda_const = np.inf
+            self.A_const = 0
+        else:
+            self.lambda_const = _comet_map_lambda_constant(beta)
+            self.A_const =_comet_map_A_constant(beta)
+
         self.cosh_lambda = np.cosh(self.lambda_const)
-        self.A_const =_comet_map_A_constant(beta)
         max_kmax = self.max_kmax
         kmax, ck, ck_asym, rtol = _comet_map_get_ck_arrays(q,self.rtol,self.atol,max_kmax)
         self._rtol_actual = rtol
@@ -1255,17 +1261,15 @@ class CometMap():
 
         lmbda = self.lambda_const
         A = self.A_const
-        tot = 0
-        first_order_half_width_sq = 0    
+        F0 = self.F(0)
+        Fpi = self.F(np.pi)
+        # full width of first-order MMR
+        tot = 2 * np.sqrt((F0 - Fpi)/np.pi)
         for k_minus_1,ck in enumerate(self.ck):
             k = k_minus_1+1
             if k>1 and k<=kmax:
                 half_width = np.sqrt(2 * ck / np.pi)
                 tot += 2*totient(k)*half_width
-            if k%2:
-                first_order_half_width_sq += (2/np.pi) * ck
-            
-        tot += 2*np.sqrt(first_order_half_width_sq)
         if add_remainder:
             remainder_approx  = 2*np.sqrt(kmax+0.5) * np.exp(-0.5 * (kmax+0.5) * lmbda) / lmbda  
             remainder_approx += np.sqrt(2*np.pi)*erfc(np.sqrt(0.5 * (kmax+0.5) * lmbda)) / lmbda**1.5
