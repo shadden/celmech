@@ -395,7 +395,7 @@ def AMD_stability_coefficients(sim,overlap=False):
 ######################################################
 ######################## FMFT ########################
 ######################################################
-p2d = np.ctypeslib.ndpointer(dtype = np.float,ndim = 2,flags = 'C')
+p2d = np.ctypeslib.ndpointer(dtype = np.float64,ndim = 2,flags = 'C')
 _fmft = clibcelmech.fmft_wrapper
 _fmft.argtypes =[p2d, c_int, c_double, c_double, c_int, p2d, c_long]
 _fmft.restype = c_int

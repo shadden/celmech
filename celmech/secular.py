@@ -73,7 +73,7 @@ class LaplaceLagrangeSystem(Poincare):
             self.params.update({m:particle.m,mu:particle.mu,M:particle.M,Lambda:particle.Lambda})
         self.ecc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
         self.inc_entries  = {(j,i):S(0) for i in xrange(1,self.N) for j in xrange(1,i+1)}
-        self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float).eps
+        self.tol = np.min([p.m for p in self.particles[1:]]) * np.finfo(np.float64).eps
         ps = self.particles[1:]
         self.eta0_vec = np.array([p.eta for p in ps])
         self.kappa0_vec = np.array([p.kappa for p in ps]) 

@@ -1,6 +1,6 @@
 import numpy as np
 from sympy import symbols, S, cos
-from celmech.hamiltonian import Hamiltonian
+from celmech.hamiltonian import Hamiltonian, PhaseSpaceState
 from celmech.poincare import PoincareParticle, Poincare
 from celmech.disturbing_function import get_fg_coefficients
 from celmech.transformations import ActionAngleToXY, XYToActionAngle, pol_to_cart, cart_to_pol
@@ -299,7 +299,7 @@ class Andoyer(object):
         p['K0'] = (j-k)*p['mu2']*p['sLambda20'] + j*p['mu1']*p['sLambda10']
         p['eta'] = float(j-k)/(3*j)*p['mu1']*p['mu2']*p['sLambda10']*p['sLambda20']/p['K0']
         
-        f,g = get_fg_coeffs(j,k)
+        f,g = get_fg_coefficients(j,k)
         p['f'], p['g'] = f,g
         norm = np.sqrt((j-k)/3./j)*np.sqrt((f**2*p['mu2']*p['sLambda20'] + g**2*p['mu1']*p['sLambda10'])/p['K0']) # np.sqrt(ff**2 + gg**2)
         p['Zfac'] = (f**2 + g**2)/norm**2
@@ -506,15 +506,17 @@ class Andoyer(object):
 class AndoyerHamiltonian(Hamiltonian):
     def __init__(self, andvars):
         X, Y, Phi, phi, B, theta, k = symbols('X, Y, Phi, phi, B, theta, k')
-        pqpairs = [(X, Y), (B, theta)]
+        state = PhaseSpaceState([X, Y], [andvars.X, andvars.Y])
+        #pqpairs = [(X, Y), (B, theta)]
         p = andvars.params
-        Hparams = {k:p['k']}
+        Hparams = {k:p['k'], B:andvars.B}
 
         H = -((X**2 + Y**2) - S(2)*B)**2 - (X**2 + Y**2)**((k-S(1))/S(2))*X # + n0*tau*dK*(1-1.5*eta*Phi0*dK/K0)
-        
-        super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
-        self.Hpolar = -4*(Phi-B)**2 - (2*Phi)**(k/S(2))*cos(phi)
-
+       
+        super(AndoyerHamiltonian, self).__init__(H, Hparams, state)
+        #super(AndoyerHamiltonian, self).__init__(H, pqpairs, Hparams, andvars)  
+        #self.Hpolar = -4*(Phi-B)**2 - (2*Phi)**(k/S(2))*cos(phi)
+"""
     def state_to_list(self, state):
         return [state.X, state.Y, state.B, -state.theta] # - because B is conjugate to -theta
 
@@ -527,3 +529,4 @@ class AndoyerHamiltonian(Hamiltonian):
 
         theta1dot = p['n0']*p['tau']*(1.-3.*p['Phi0']*state.dKprime)
         state.theta1 = theta1dot*self.integrator.t
+"""
