@@ -421,9 +421,9 @@ class Andoyer(object):
         
         sGamma1, gamma1, sGamma2, gamma2 = self.Zs_to_sGammas(self.Z, self.phiZ, self.Zcom, self.phiZcom)
         
-        pvars = Poincare(p['G'])
-        pvars.add(m=p['m1'], sLambda=sLambda1, l=self.lambda1, sGamma=sGamma1, gamma=gamma1, Mstar=p['Mstar'], sQ=0, q=0)
-        pvars.add(m=p['m2'], sLambda=sLambda2, l=self.lambda2, sGamma=sGamma2, gamma=gamma2, Mstar=p['Mstar'], sQ=0, q=0)
+        p1 = PoincareParticle(m=p['m1'], sLambda=sLambda1, l=self.lambda1, sGamma=sGamma1, gamma=gamma1, Mstar=p['Mstar'], sQ=0, q=0)
+        p2 = PoincareParticle(m=p['m2'], sLambda=sLambda2, l=self.lambda2, sGamma=sGamma2, gamma=gamma2, Mstar=p['Mstar'], sQ=0, q=0)
+        pvars = Poincare(p['G'], [p1,p2])
 
         return pvars
 
