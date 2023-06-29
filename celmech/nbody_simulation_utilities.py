@@ -88,7 +88,7 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
     for i,sim in enumerate(sa):
         sim_results['time'][i] = sim.t
         orbits = get_orbits(sim)
-        sim_results['Energy'][i] = sim.calculate_energy()
+        sim_results['Energy'][i] = sim.energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P
             sim_results['e'][j,i] = orbit.e
@@ -129,7 +129,7 @@ def _get_reboundx_simarchive_integration_results(sa,coordinates):
         sim,extra = sim_extra
         sim_results['time'][i] = sim.t
         orbits = get_orbits(sim)
-        sim_results['Energy'][i] = sim.calculate_energy()
+        sim_results['Energy'][i] = sim.energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P
             sim_results['e'][j,i] = orbit.e
@@ -328,7 +328,7 @@ def reb_add_from_elements(m,elements,sim,coordinates='canonical heliocentric'):
         p.z -= m/Mtot*z
 
 def _compute_transformation_angles(sim):
-    Gtot_vec = sim.calculate_angular_momentum()
+    Gtot_vec = sim.angular_momentum()
     Gtot_vec = np.array(Gtot_vec)
     Gtot = np.sqrt(Gtot_vec @ Gtot_vec)
     Ghat = Gtot_vec / Gtot
