@@ -25,3 +25,11 @@ PyPI_HOWTO.rst
 TODO.rst
 celmech/test/test_PlanarMMR.py
 src/moid_v4_fun.f
+src/test.c
+.gitignore
+jupyter_examples/scratchpad.ipynb
+docs/_build/html/.buildinfo
+docs/_build/html/objects.inv
+docs/_build/html/_static/ajax-loader.gif
+docs/_build/html/.nojekyll
+celmech/test/DisturbingFunctionTest.ipynb
