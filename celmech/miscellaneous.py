@@ -159,10 +159,16 @@ def _Dsk_integral_fixed_quad(k,y,Nquad):
     return (2/np.pi) * integrand @ weights
 
 def getOmegaMatrix(n):
-    """
-    Get the 2n x 2n skew-symmetric block matrix:
-          [0 , I_n]
-          [-I_n, 0 ]
+    r"""
+    Get the 2n x 2n skew-symmetric block matrix
+
+    .. math::
+        \begin{pmatrix}
+           0 & I_n \\
+          -I_n & 0 
+        \end{pmatrix},
+
+    where :math:`I_n` is the :math:`n \times n` identity matrix,
     that appears in Hamilton's equations.
 
     Arguments
