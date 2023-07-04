@@ -12,8 +12,7 @@ def set_time_step(sim,dtfactor):
     
     Generally, the time step of `WHFAST` should be set to 
     :math:`\lesssim\tau_p/20` in order to obtain reliable
-    results (see :ref:`Wisdom 2015
-    <https://ui.adsabs.harvard.edu/abs/2015AJ....150..127W/abstract>`)
+    results (see `Wisdom 2015 <https://ui.adsabs.harvard.edu/abs/2015AJ....150..127W/abstract>`_)
     """
     ps=sim.particles[1:sim.N_real]
     tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
