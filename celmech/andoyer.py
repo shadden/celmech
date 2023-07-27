@@ -361,6 +361,19 @@ class Andoyer(object):
         andvars.Y = np.sqrt(2.*Phi)*np.sin(phi)
 
         return andvars
+    
+    @classmethod
+    def from_dP_eq(cls, j, k, dP, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
+        """If we rewrite, many of these functions need to calculate self.params first to evaluate initialization values. Write that as separate function
+        and have __init__ and these functions call it. These functions then evaluate initialization values and instantiate andvars once
+        dKPRIME will be wrong here when we set a1, since we need to know Phi and B values in order to calculate dP and dKprime to match."""
+        if k != 1:
+            raise
+        andvars = cls(j, k, 0., 0., a10=a10, G=G, m1=m1, m2=m2, Mstar=Mstar, Zcom=Zcom, phiZcom=phiZcom, dKprime=dKprime, theta=theta, theta1=theta1)
+        andvars.X = -andvars.params['Phi0']/8./dP
+        andvars.Y = 0
+        andvars.Phiprime = (4*andvars.X**3 + 1)/(3*andvars.X)
+        return andvars
    
     @classmethod
     def from_dPstar(cls, j, k, dP, phi, dPstar, a10=1., G=1., m1=1.e-5, m2=1.e-5, Mstar=1., Zcom=0., phiZcom=0., dKprime=0., theta=0, theta1=0.):
