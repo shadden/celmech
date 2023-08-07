@@ -35,7 +35,7 @@ class PSTerm():
 
 class PoissonSeries():
     def __init__(self,N,M,**kwargs):
-       r"""
+        r"""
         A class representing a Poisson series in :math:`N` complex canonically
         conjugate variables and :math:`M` angle-action pairs. Individual terms
         have form 
