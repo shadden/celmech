@@ -26,12 +26,20 @@ class PSTerm():
         self.kbar = np.array(kbar,dtype=int)
         self.p=np.array(p,dtype=int)
         self.q=np.array(q,dtype=int)
+         
+
     def __call__(self,x,P,Q):
         xbar = np.conj(x)
         k,kbar,p,q = self.k,self.kbar,self.p,self.q
         C = self.C
         val=C * np.prod(x**k) * np.prod(xbar**kbar) * np.prod(P**p) * np.exp(1j * q@Q)
         return val
+    # define scalar multiply
+    def __mul__(self,val):
+        # Scalar multiplication
+        return PSTerm(val * self.C,self.k,self.kbar,self.p,self.q)
+    # scalar multiply is commutative
+    __rmul__ = __mul__
 
 class PoissonSeries():
     def __init__(self,N,M,**kwargs):
@@ -86,7 +94,12 @@ class PoissonSeries():
         else:
             self.pvar_symbols=()
             self.thetavar_symbols = ()
-    
+        # save symbol kwargs as dictionary
+        self._symbol_kwargs = {
+            "cvar_symbols":self.cvar_symbols,
+            "thetavar_symbols":self.thetavar_symbols,
+            "pvar_symbols":self.pvar_symbols
+            }
     def _key_to_PSTerm(self,key):
         C = self[key]
         arr=np.array(key)
@@ -139,27 +152,28 @@ class PoissonSeries():
     def __add__(self,ps):
         # Addition between Poisson series objects
         if type(ps)==PoissonSeries:
-            new = PoissonSeries(self.N,self.M)
+            new = PoissonSeries(self.N,self.M,**self._symbol_kwargs)
             new._terms_dict = self._terms_dict.copy()
             for key,val in ps._terms_dict.items():
                 new._terms_dict[key] += val
             return new
         else:
             raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(PoissonSeries,type(ps)))
-    def __mul__(self,val):
-        # Scalar multiplication
-        new = PoissonSeries(self.N,self.M)
-        for key,coeff in self._terms_dict.items():
-            new[key] = val * coeff
-        return new
     
+    # define scalar multiply term-wise
+    def __mul__(self,val):
+        return PoissonSeries.from_PSTerms([term * val for term in self.terms],**self._symbol_kwargs)
+        # Scalar multiplication
+    # scalar multiplication is commutative
+    __rmul__ = __mul__
+
     def Lie_deriv(self,ps):
         """
         Compute the Lie derivative of a Poisson series expression
         with respect to this Poisson series.
         """
         if type(ps)==PoissonSeries:
-            return bracket(ps,self)
+            return bracket(ps,self,**self._symbol_kwargs)
         else:
             raise TypeError("unsupported type for Lie_deriv: '{}'".format(type(ps)))
 
@@ -195,13 +209,13 @@ class PoissonSeries():
             tot += val * np.prod(P**p) * np.prod(x**k) * np.prod(xbar**kbar) * np.exp(1j*q@Q)
         return tot
   
-def bracket(PSeries1,Pseries2):
+def bracket(PSeries1,Pseries2,**kwargs):
     N,M = PSeries1.N,PSeries1.M
     
     assert Pseries2.N==N and Pseries2.M==M, \
     "Dimensions of poisson series {} and {} do not match!".format(PSeries1,Pseries2)
 
-    result = PoissonSeries(N,M)
+    result = PoissonSeries(N,M,**kwargs)
     for term1 in PSeries1.terms:
         k = term1.k
         kbar = term1.kbar
@@ -304,3 +318,186 @@ def expLinv(f,chi,lmax=None):
     for key,val in chi.items():
         nchi[key] = val * (-1.)
     return expL(f,nchi,lmax)
+
+def k_nu_l_to_PSindices(Npl,i,j,k_vec,nu_vec,l_vec):
+    r"""
+    Convert the multi-indicies :math:`k,\nu,l` used in the disturbing
+    function expansion to the appropriate Poisson series indices.
+
+    Parameters
+    ----------
+    Npl : int
+        Total number of planets being represented in Poisson series.
+    i : int
+        Index of inner planet
+    j : int
+        Index of outer planet
+    k_vec : ndarray
+        1D array of integers determining the disturbing function cosine argument.
+    nu_vec : ndarray
+        1D array of integers specifying powers of action-like variables.
+    l_vec : ndarray
+        1D array of integers specifying powers of :math:`\delta\Lambda`
+
+    Returns
+    -------
+    tuple 
+        Arrays k, kbar, p, q appearing in PSTerm.
+    """
+    N = 2 * Npl # number of complex K values  
+    M = Npl
+    nuvec = np.array(nu_vec)
+    kvec  = np.array(k_vec)
+    lvec = np.array(l_vec)
+    
+    k = nuvec + (kvec * (kvec>0))[2:]
+    kbar = nuvec - (kvec * (kvec<0))[2:]
+    p = lvec
+    q = np.array((kvec[1],kvec[0]))
+
+    k_all = np.zeros(N,dtype = int)
+    kbar_all = np.zeros(N,dtype = int)
+
+    q_all = np.zeros(M,dtype = int)
+    p_all = np.zeros(M,dtype = int)
+    
+    c_msk = np.array((i,j,Npl + i, Npl + j)) - 1
+    r_msk = np.array((i,j)) - 1 
+    
+    k_all[c_msk] = k
+    kbar_all[c_msk] = kbar
+    p_all[r_msk] = p
+    q_all[r_msk] = q
+    return k_all,kbar_all,p_all,q_all
+
+from .poincare import _get_a0_symbol
+from .disturbing_function import df_coefficient_C, evaluate_df_coefficient_dict
+
+def DFTerm_as_PSterms(pham,i,j,kvec,nuvec,lvec):
+    """
+    Generate Poisson series terms representing a specific disturbing function
+    term between a pair of planets.
+
+    Parameters
+    ----------
+    pham : :class:`celmech.poincare.PoincareHamiltonian`
+        The Hamiltonian class containing the pair of particles of interest.
+    i : int
+        index of the inner planet
+    j : int
+        index of the outer planet
+    kvec : ndarray
+        1D array specifying cosine argument in the DF
+    nuvec : ndarray
+        1D array specifying Taylor expansion DF term of cosine coefficient.
+    lvec : ndarray
+        1D array specifcying Taylor expansion term in powers of delta-Lambda.
+
+    Returns
+    -------
+    list
+        A list of PSTerm objects.
+    """
+    k,kbar,p,q = k_nu_l_to_PSindices(pham.N-1,i,j,kvec,nuvec,lvec)
+    G = pham.state.G
+    mi = pham.particles[i].m
+    mj = pham.particles[j].m
+    
+    aj0 = pham.H_params[_get_a0_symbol(j)]
+    Lambda_i0 = pham.H_params[pham.Lambda0s[i]]
+    Lambda_j0 = pham.H_params[pham.Lambda0s[j]]
+    alpha_ij = pham.H_params[sp.symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))]    
+    dfcoeff = df_coefficient_C(*kvec,*nuvec,*lvec)    
+    Cval = evaluate_df_coefficient_dict(dfcoeff,alpha_ij)
+    
+    n1 = np.abs(kvec[2]) + np.abs(kvec[4]) + 2 * (nuvec[0] + nuvec[2])
+    n2 = np.abs(kvec[3]) + np.abs(kvec[5]) + 2 * (nuvec[1] + nuvec[3])
+    m = np.abs(kvec[4]) + np.abs(kvec[5]) + 2 * (nuvec[0] + nuvec[1])
+    pwr = 0.5 * (n1 + n2) - m - 1
+    prefactor = -G * mi * mj * 2**pwr / aj0
+    prefactor *= Lambda_i0**(-0.5 * n1)
+    prefactor *= Lambda_j0**(-0.5 * n2)  
+    return [PSTerm(prefactor * Cval,k,kbar,p,q),PSTerm(prefactor * Cval,kbar,k,p,-1*q)]
+
+
+def Perturbation_PSTerm_to_GeneratingFunction_PSTerms(ps_term,omega_vec,domega_vec):
+    r"""
+    Given a :class:`.PSTerm` object representing a perturbing term in a Hamiltonian,
+    create a list of :class:`.PSTerm`s that, when included in a Lie generating function,
+    cancel to the perturbing term to leading order, assuming the unperturbed Hamiltonian
+    has the form
+
+    .. math:
+        H_0 = \sum_{i} \omega_i \delta P_i + \frac{1}{2}\frac{d\omega_i}{d P_i} \delta P_i^2
+
+    as in the case of the Keplerian Hamiltonian.
+
+    Parameters
+    ----------
+    ps_term : PSTerm
+        Represents a term in the perturbing Hamiltonian
+    omega_vec : ndarray
+        1D array of frequency values
+    domega_vec : ndarray
+        1D array of the derivative of the i-th frequency w.r.t. the i-th
+        momentum.
+
+    Returns
+    -------
+    list
+        List of PSTerm object that together comprise the generating function
+        that cancels perturbation term to leading order.
+    """
+    omega_res = ps_term.q @ omega_vec
+    terms = [(- 1j/ omega_res) * ps_term]
+    k = ps_term.k
+    kbar = ps_term.kbar
+    p = ps_term.p
+    q = ps_term.q
+    M = len(q)
+    
+    C = ps_term.C
+    pre = (1j * C) / omega_res**2
+    for i,qi in enumerate(ps_term.q):
+        oi = np.zeros(M,dtype=int)
+        oi[i] = 1
+        if qi!=0:
+            Cnew = qi * pre * domega_vec[i]
+            term = PSTerm(Cnew,k,kbar,p + oi,q)
+            terms.append(term)
+    return terms
+
+def PoissonSeries_to_GeneratingFunctionSeries(ps_series,omega_vec,domega_vec):
+    new_terms = []
+    for term in ps_series.terms:
+        new_terms+=Perturbation_PSTerm_to_GeneratingFunction_PSTerms(term,omega_vec,domega_vec)
+    return PoissonSeries.from_PSTerms(new_terms,**ps_series._symbol_kwargs)
+from .miscellaneous import get_symbol
+
+def get_N_planet_poisson_series_symbols(Npl):
+    """
+    Create dictionary assigning the symbols used by a 
+    :class:`.PoissonSeries` the standard symbols used in the 
+    N-planet problem.
+
+    Parameters
+    ----------
+    Npl : int
+        Number of planets
+
+    Returns
+    -------
+    dict
+        symbol assignments
+    """
+    cvar_symbols = list(sp.symbols(f"x(1:{Npl+1}),y(1:{Npl+1})")) 
+    cvar_symbols += [get_symbol(r"\bar{x}",subscript=i) for i in range(1,Npl+1)] 
+    cvar_symbols += [get_symbol(r"\bar{y}",subscript=i) for i in range(1,Npl+1)] 
+    pvar_symbols = [get_symbol("\delta\Lambda",i,real=True) for i in range(1,Npl+1)]
+    thetavar_symbols = sp.symbols(f"lambda(1:{Npl+1})",real=True)
+    symbol_kwargs = {
+        'cvar_symbols':cvar_symbols,
+        'pvar_symbols':pvar_symbols,
+        'thetavar_symbols':thetavar_symbols
+    }
+    return symbol_kwargs
