@@ -349,9 +349,10 @@ def k_nu_l_to_PSindices(Npl,i,j,k_vec,nu_vec,l_vec):
     nuvec = np.array(nu_vec)
     kvec  = np.array(k_vec)
     lvec = np.array(l_vec)
+    nu_indx=np.array((2,3,0,1))
     
-    k = nuvec + (kvec * (kvec>0))[2:]
-    kbar = nuvec - (kvec * (kvec<0))[2:]
+    k = nuvec[nu_indx] + (kvec * (kvec>0))[2:]
+    kbar = nuvec[nu_indx] - (kvec * (kvec<0))[2:]
     p = lvec
     q = np.array((kvec[1],kvec[0]))
 
