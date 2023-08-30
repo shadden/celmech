@@ -207,6 +207,7 @@ def k_nu_depend_on_eccentricities(k,nu):
     _,_,nu3,nu4 = nu
     arr=np.array([k3,k4,nu3,nu4])
     return np.any(arr!=0)
+
 def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
     Generate the list of disturbing function terms for a
