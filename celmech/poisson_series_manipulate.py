@@ -162,6 +162,8 @@ class PoissonSeries():
     
     # define scalar multiply term-wise
     def __mul__(self,val):
+        if len(self.terms)==0:
+            return self
         return PoissonSeries.from_PSTerms([term * val for term in self.terms],**self._symbol_kwargs)
         # Scalar multiplication
     # scalar multiplication is commutative
