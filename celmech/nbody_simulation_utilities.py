@@ -12,8 +12,7 @@ def set_time_step(sim,dtfactor):
     
     Generally, the time step of `WHFAST` should be set to 
     :math:`\lesssim\tau_p/20` in order to obtain reliable
-    results (see :ref:`Wisdom 2015
-    <https://ui.adsabs.harvard.edu/abs/2015AJ....150..127W/abstract>`)
+    results (see `Wisdom 2015 <https://ui.adsabs.harvard.edu/abs/2015AJ....150..127W/abstract>`_)
     """
     ps=sim.particles[1:sim.N_real]
     tperi=np.min([p.P * (1-p.e)**1.5 / np.sqrt(1+p.e) for p in ps])
@@ -88,7 +87,7 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
     for i,sim in enumerate(sa):
         sim_results['time'][i] = sim.t
         orbits = get_orbits(sim)
-        sim_results['Energy'][i] = sim.calculate_energy()
+        sim_results['Energy'][i] = sim.energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P
             sim_results['e'][j,i] = orbit.e
@@ -129,7 +128,7 @@ def _get_reboundx_simarchive_integration_results(sa,coordinates):
         sim,extra = sim_extra
         sim_results['time'][i] = sim.t
         orbits = get_orbits(sim)
-        sim_results['Energy'][i] = sim.calculate_energy()
+        sim_results['Energy'][i] = sim.energy()
         for j,orbit in enumerate(orbits):
             sim_results['P'][j,i] = orbit.P
             sim_results['e'][j,i] = orbit.e
@@ -328,7 +327,7 @@ def reb_add_from_elements(m,elements,sim,coordinates='canonical heliocentric'):
         p.z -= m/Mtot*z
 
 def _compute_transformation_angles(sim):
-    Gtot_vec = sim.calculate_angular_momentum()
+    Gtot_vec = sim.angular_momentum()
     Gtot_vec = np.array(Gtot_vec)
     Gtot = np.sqrt(Gtot_vec @ Gtot_vec)
     Ghat = Gtot_vec / Gtot

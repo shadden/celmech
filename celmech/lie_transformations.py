@@ -2,7 +2,7 @@ import numpy as np
 from .poincare import PoincareHamiltonian
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig,diff,Matrix
 from sympy import lambdify as sym_lambdify
-from sympy.functions import elliptic_f,elliptic_k
+from sympy.functions import elliptic_f,elliptic_k, elliptic_e
 from sympy.core import pi
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
 from .disturbing_function import df_coefficient_C,evaluate_df_coefficient_dict,get_df_coefficient_symbol
@@ -10,6 +10,48 @@ from .disturbing_function import  list_resonance_terms, _nucombos, _lcombos
 from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
 from .hamiltonian import _my_elliptic_e, _lambdify_kwargs
 import warnings
+
+def _zeroth_order_term_Q_and_dQ(alpha,psi):
+    r"""
+    Get expressions for the function
+
+    .. math::
+        Q(\alpha,\psi) = -\frac{\sin\psi}{\sqrt{\alpha}} + \int_{0}^\psi (1+\alpha^2-2\alpha\cos\psi)^{-1/2}
+    
+    along with its derivative with respect to alpha.
+
+    Parameters
+    ----------
+    alpha : sympy.symbol
+        symbol representing semi-major axis ratio.
+    psi : sp.symbol
+        symbol representing synodic angle
+
+    Returns
+    -------
+    tuple
+        Expressions (Q,dQ)
+    """
+    ksq = - 4 * alpha/(1-alpha)/(1-alpha)
+    alpha_sq = alpha*alpha
+    K = elliptic_k(alpha_sq)
+    E = elliptic_e(alpha_sq)
+    ell_F = elliptic_f(psi/2,ksq)
+    ell_E = elliptic_e(psi/2,ksq)
+    Q = 2 * ell_F /  (1-alpha) - 2 * K * psi / pi
+    dksq = ksq/alpha + 2 * ksq / (1-alpha)
+
+    # dQ = 2 * ell_F / (1-alpha) / (1-alpha)
+    # dell_F =  (ell_E + (ksq-1)*ell_F - ksq * cos(psi/2)*sin(psi/2) / sqrt(1-ksq*sin(psi/2)**2))/2/ksq/(1-ksq)
+    # dQ+= 2 * dell_F * dksq / (1-alpha)
+    # dK = (E - (1-alpha_sq)*K)/alpha/(1-alpha_sq)
+    # dQ += -2 * dK  * psi / pi
+    dQ = -(2/pi)*psi*E/(alpha-alpha**3)
+    dQ+= ell_E / (alpha+alpha*alpha)
+    dQ+= ell_F/(alpha)/(-1+alpha)
+    dQ+=2*psi*K/pi/alpha
+    dQ+=-2*sin(psi)/(-1+alpha*alpha)/sqrt(1+alpha*alpha-2*alpha*cos(psi))
+    return Q,dQ
 
 class FirstOrderGeneratingFunction(PoincareHamiltonian):
     """
@@ -171,20 +213,22 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         """
         G = symbols('G')
         mIn,muIn,MIn,LambdaIn,lambdaIn = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexIn)) 
-        mOut,muOut,MOut,LambdaOut,lambdaOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexOut)) 
-        aOut_inv = G*MOut*muOut*muOut / LambdaOut / LambdaOut  
+        mOut,muOut,MOut,LambdaOut,lambdaOut = symbols('m{0},mu{0},M{0},Lambda{0},lambda{0}'.format(indexOut))
+        Lambda0In,Lambda0Out = _get_Lambda0_symbol(indexIn),_get_Lambda0_symbol(indexOut)
+        alpha = symbols(r"\alpha_{{{0}\,{1}}}".format(indexIn,indexOut))
+        alpha_val = self.H_params[alpha]
+        aOut0 = _get_a0_symbol(indexOut)
+        deltaIn = (LambdaIn - Lambda0In) / Lambda0In
+        deltaOut = (LambdaOut - Lambda0Out) / Lambda0Out
+
+        aOut_inv = 1/aOut0
         prefactor = -G * mIn * mOut * aOut_inv
         psi = lambdaOut - lambdaIn
-        aIn = (LambdaIn/muIn)**2 / G / MIn
-        aOut = (LambdaOut/muOut)**2 / G / MOut
-        alpha = aIn/aOut
         omega_syn = self.kvec_to_omega((1,-1,0,0,0,0),indexIn,indexOut)
-        m = alpha*alpha
-        om_alpha = 1-alpha
-        om_alpha_sq = om_alpha * om_alpha
-        F = elliptic_f(psi/2,-4 * alpha / om_alpha_sq) / om_alpha
-        psi_integral = 2 * F - 2 * psi * elliptic_k(m) / pi - sin(psi) / sqrt(alpha)
-        term = prefactor * psi_integral / omega_syn
+        Q, dQ = _zeroth_order_term_Q_and_dQ(alpha,psi)
+        f = Q - sin(psi) / sqrt(alpha)
+        df = dQ + sin(psi) / sqrt(alpha) / alpha / 2
+        term = prefactor * (f + 2 * alpha * df * deltaIn + deltaOut * (- 2 * alpha * df - 2 * f)) / omega_syn
         self.H += term
 
     def get_mean_motion(self,index):
