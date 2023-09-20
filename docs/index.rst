@@ -21,6 +21,7 @@ You may also want to check out the `Git repository <https://github.com/shadden/c
 .. toctree::
     :numbered:
     :hidden:
+    :maxdepth: 2
 
     quickstart
     poincare
