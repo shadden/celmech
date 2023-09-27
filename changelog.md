@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.2.0
+* Updated the calculation of cosine amplitudes in the celmech.maps.CometMap class
+
 ### Version 1.1.0
 * Addition of celmech.maps submodule plus lots of other minor improvements
 
