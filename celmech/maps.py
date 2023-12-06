@@ -865,16 +865,17 @@ class CometMap():
         semi-major axis.
     N : int
         Center the map on an an  :math:`N:1` MMR.
-    kmax : int
-        Maximum order of Fourier amplitude to compute.
-    mod_theta : bool, optional
+    max_kmax : int
+        Maximum order of Fourier amplitude to include before resorting to asymptotic
+        approximation of Fourier amplitudes.
+    rtol : float
+        Relative tolerance to achieve in calculation of Fourier amplitudes before resorting to asymptotic formula
+    atol : float
+        Absolute tolerance to achieve in calculation of Fourier amplitudes before resorting to asymptotic formula.
+    mod : bool, optional
         If True, the :math:`\theta` coordinate
         is taken modulo :math:`2\pi`.
         Default is `True`
-    mod_p : bool, optional
-        If True, the :math:`p` coordinate
-        is taken modulo :math:`2\pi`.
-        Default is `False`.
     """
     def __init__(self,m,N,q, max_kmax=32, rtol = 0.05, atol =1.49e-8, mod=True):
         self.m = m
