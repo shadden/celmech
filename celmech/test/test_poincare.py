@@ -41,8 +41,8 @@ class TestPoincare(unittest.TestCase):
 
     def compare_simulations_orb(self, sim1, sim2, delta=1.e-15):
         self.assertAlmostEqual(sim1.particles[0].m, sim2.particles[0].m, delta=delta)
-        orbs1 = sim1.calculate_orbits()
-        orbs2 = sim2.calculate_orbits()
+        orbs1 = sim1.orbits()
+        orbs2 = sim2.orbits()
         for i in range(sim1.N-1):
             self.assertAlmostEqual(sim1.particles[i+1].m, sim2.particles[i+1].m, delta=delta, msg="mass")
             o1 = orbs1[i]
@@ -180,7 +180,7 @@ def averaging_error(Nseed):
     sim = packed_sim(Nseed)
     ps = sim.particles
 
-    o = sim.calculate_orbits(jacobi_masses=True)
+    o = sim.orbits(jacobi_masses=True)
     a10 = o[0].a
     a20 = o[1].a
     a30 = o[2].a
@@ -197,7 +197,7 @@ def averaging_error(Nseed):
 
     for i,t in enumerate(times):
         # Store N-body data
-        o = sim.calculate_orbits(jacobi_masses=True)
+        o = sim.orbits(jacobi_masses=True)
         Nsma[0,i]=o[0].a
         Nsma[1,i]=o[1].a
         Nsma[2,i]=o[2].a

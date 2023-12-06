@@ -108,7 +108,7 @@ class PlanarPoincare(object):
         mjac, Mjac = masses_to_jacobi(masses)
         pvars = PlanarPoincare(sim.G)
         ps = sim.particles
-        o = sim.calculate_orbits(jacobi_masses=True)
+        o = sim.orbits(jacobi_masses=True)
         for i in range(1,sim.N-sim.N_var):
             M = Mjac[i]
             m = mjac[i]
