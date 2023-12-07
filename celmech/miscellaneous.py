@@ -338,8 +338,8 @@ def AMD_stable_Q(sim):
     for i in range(len(ps)-1):
         pIn = ps[i]
         pOut = ps[i+1]
-        orbIn = pIn.calculate_orbit(pstar)
-        orbOut = pOut.calculate_orbit(pstar)
+        orbIn = pIn.orbit(pstar)
+        orbOut = pOut.orbit(pstar)
         alpha = orbIn.a / orbOut.a
         gamma = pIn.m / pOut.m
         LmbdaOut = pOut.m * np.sqrt(orbOut.a)
@@ -386,8 +386,8 @@ def AMD_stability_coefficients(sim,overlap=False):
     for i in range(len(ps)-1):
         pIn = ps[i]
         pOut = ps[i+1]
-        orbIn = pIn.calculate_orbit(pstar)
-        orbOut = pOut.calculate_orbit(pstar)
+        orbIn = pIn.orbit(pstar)
+        orbOut = pOut.orbit(pstar)
         alpha = orbIn.a / orbOut.a
         gamma = pIn.m / pOut.m
         LmbdaOut = pOut.m * np.sqrt(orbOut.a)

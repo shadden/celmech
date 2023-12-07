@@ -11,7 +11,7 @@ from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delt
 from .disturbing_function import list_resonance_terms, list_secular_terms, _nucombos, _lcombos
 from .disturbing_function import k_nu_depend_on_eccentricities, k_nu_depend_on_inclinations
 from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol,evaluate_df_coefficient_delta_expansion
-from .nbody_simulation_utilities import reb_add_poincare_particle, reb_calculate_orbits
+from .nbody_simulation_utilities import reb_add_poincare_particle, reb_orbits
 from itertools import combinations
 import rebound
 import warnings
@@ -482,7 +482,7 @@ class Poincare(PhaseSpaceState):
         sim.move_to_com()
         particles = []
         #pvars = Poincare(G=sim.G, coordinates=coordinates,t=sim.t)
-        o = reb_calculate_orbits(sim, coordinates=coordinates)
+        o = reb_orbits(sim, coordinates=coordinates)
         for i in range(1,sim.N_real):
             orb = o[i-1]
             if orb.a <= 0. or orb.e >= 1.:

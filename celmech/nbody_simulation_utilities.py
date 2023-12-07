@@ -61,11 +61,11 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
 
 def _get_rebound_simarchive_integration_results(sa,coordinates):
     if coordinates == 'jacobi':
-        get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
+        get_orbits = lambda sim: sim.orbits(jacobi_masses=True)
     elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
     elif coordinates == 'barycentric':
-        get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
+        get_orbits = lambda sim: sim.orbits(sim.calculate_com())
     else: 
         raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
     N = len(sa)
@@ -101,11 +101,11 @@ def _get_rebound_simarchive_integration_results(sa,coordinates):
 
 def _get_reboundx_simarchive_integration_results(sa,coordinates):
     if coordinates == 'jacobi':
-        get_orbits = lambda sim: sim.calculate_orbits(jacobi_masses=True)
+        get_orbits = lambda sim: sim.orbits(jacobi_masses=True)
     elif coordinates == 'heliocentric':
         get_orbits = get_canonical_heliocentric_orbits
     elif coordinates == 'barycentric':
-        get_orbits = lambda sim: sim.calculate_orbits(sim.calculate_com())
+        get_orbits = lambda sim: sim.orbits(sim.calculate_com())
     else: 
        raise ValueError("'Coordinates must be one of 'jacobi','heliocentric', or 'barycentric'")
     N = len(sa)
@@ -159,9 +159,9 @@ def get_canonical_heliocentric_orbits(sim):
         Orbits of particles in canonical heliocentric
         coordinates.
     """
-    return reb_calculate_orbits(sim, coordinates="canonical heliocentric")
+    return reb_orbits(sim, coordinates="canonical heliocentric")
 
-def reb_calculate_orbits(sim, coordinates="canonical heliocentric"):
+def reb_orbits(sim, coordinates="canonical heliocentric"):
     """
     Compute orbital elements in passed canonical coordinates
 
@@ -226,7 +226,7 @@ def reb_calculate_orbits(sim, coordinates="canonical heliocentric"):
             vy = v_for_orbit[1],
             vz = v_for_orbit[2]
         )
-        orbit = fictitious_particle.calculate_orbit(primary=fictitious_star,G = sim.G)
+        orbit = fictitious_particle.orbit(primary=fictitious_star,G = sim.G)
         orbits.append(orbit)
     return orbits
 
