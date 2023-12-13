@@ -302,6 +302,11 @@ class Andoyer(object):
         f,g = get_fg_coefficients(j,k)
         p['f'], p['g'] = f,g
         norm = np.sqrt((j-k)/3./j)*np.sqrt((f**2*p['mu2']*p['sLambda20'] + g**2*p['mu1']*p['sLambda10'])/p['K0']) # np.sqrt(ff**2 + gg**2)
+        L0 = p['mu1']*p['sLambda10'] + (j-k)/j*p['mu2']*p['sLambda20']
+        ff = f*np.sqrt(p['mu2']*p['sLambda20']/L0)
+        gg = g*np.sqrt(p['mu1']*p['sLambda10']/L0)
+        norm= np.sqrt(ff**2 + gg**2)
+        #print(norm, norm2)
         p['Zfac'] = (f**2 + g**2)/norm**2
         p['C'] = -1./j*np.sqrt(g**2/(f**2 + g**2))*np.sqrt(float(j-k)/3./j)
 
