@@ -945,6 +945,8 @@ class PoincareHamiltonian(Hamiltonian):
             full_exprn = series(eps_exprn,eps,0,max_e_order+1).removeO().subs({eps:1})
         if particles == 'all':
             pids = range(1,self.N)
+        else:
+            pids = particles
         for pid in pids:
             p = self.particles[pid]
             m,mu,M,kappa,eta = symbols('m{0},mu{0},M{0},kappa{0},eta{0}'.format(pid)) 
