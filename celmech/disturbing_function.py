@@ -119,7 +119,7 @@ def _delta(*args):
     Return 0 if all arguments are 0, otherwise return 1.
     """
     intarr  = np.array([args],dtype=np.int64)
-    if np.alltrue(intarr == 0):
+    if np.all(intarr == 0):
         return 0
     else:
         return 1
@@ -683,7 +683,7 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
     nlim1 = int(np.ceil(max(h,(h + abs(k)) / 2)))
     nlim2 = i
     hplusk_mod2 = (h+k) % 2
-    delta = 1 - np.alltrue(np.array([h,k,v1-v2,v4-v3]) == 0)
+    delta = 1 - np.all(np.array([h,k,v1-v2,v4-v3]) == 0)
     inc_total= 0
     for n in getrange(nlim1,nlim2,1):
         mlim1 = max(n-i,p-n+h,p-k-n+hplusk_mod2)
@@ -776,14 +776,14 @@ def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = T
                 )
         return dict(total)
     kvec = np.array([k1,k2,k3,k4,k5,k6])
-    if np.alltrue(kvec==0):
+    if np.all(kvec==0):
         for i in getrange(0,nu1+nu2,1):
             for p in getrange(i%2,i,2):
                 for u in getrange(0,2*nu3+2*nu4):
                     cf = FX(0,0,i,p,u,0,0,0,0,nu1,nu2,nu3,nu4) * (1 + (p != 0))
                     if not np.isclose(cf,0):
                         total[(i+u,(i+1/2,abs(p),u))]+=cf
-    elif np.alltrue(kvec[2:]==0):
+    elif np.all(kvec[2:]==0):
         j = abs(k1)
         for i in getrange(0,nu1+nu2,1):
             for p in getrange(i%2,i,2):
@@ -914,7 +914,7 @@ def df_coefficient_C(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1=0,l2=0,include_indirec
     """
     Chat = defaultdict(float)
     msg = "Integer arguments nu_i and l_i must be non-negative."
-    assert np.alltrue(np.array([nu1,nu2,nu3,nu4,l1,l2])>=0), msg
+    assert np.all(np.array([nu1,nu2,nu3,nu4,l1,l2])>=0), msg
     for n3 in range(nu3+1):
         for n4 in range(nu4+1):
             term_dict = df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,n3,n4,include_indirect_terms)
@@ -1229,7 +1229,7 @@ def _consolidate_dictionary_terms(d):
         elif k[3] !=0:
            k *= np.sign(k[3]) 
         else: 
-            assert np.alltrue(k==0) and not np.alltrue(np.array(z)==0), "Suspected bad k,z={},{} pair in term dictionary!".format(k,z)
+            assert np.all(k==0) and not np.all(np.array(z)==0), "Suspected bad k,z={},{} pair in term dictionary!".format(k,z)
         dnew[(tuple(k),z)] += val
     return dict(dnew)
 
