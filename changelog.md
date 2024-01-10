@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.3.2
+* Fixes critical bug that causes Laplace coefficients to erroneously evaluate to zero in recent versions of scipy
+
 ### Version 1.3.0
 * Modifications for compatability with rebound version 4
 
