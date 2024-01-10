@@ -10,6 +10,10 @@ from scipy.special import poch,factorial2,binom,factorial,gamma,hyp2f1
 from collections import defaultdict
 import warnings
 
+def _fact2(n):
+    """Replacement for scipy's factorial2 with desired behavior for n==-1"""
+    return 1 if n==-1 else factorial2(n)
+        
 def get_df_term_latex(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,l1,l2,indexIn,indexOut):
     r"""
     Get the latex expression for the disturbing function coefficient
@@ -655,15 +659,15 @@ def KaulaF(n,q,p,j):
     float
     """
     if q==0 and 2 * p == n:
-        return (-1)**(j+n) * binom(n,j) * binom(n+j,j) * factorial2(n-1) / factorial2(n)
+        return (-1)**(j+n) * binom(n,j) * binom(n+j,j) * _fact2(n-1) / _fact2(n)
     if n - 2*p - q < 0: 
         if n-q<0: return 0
         return (-1)**(n-q) * factorial(n+q) * KaulaF(n,-q,n-p,j) / factorial(n-q)
-    numerator =  (-1)**j * factorial2(2*n-2*p-1)     
+    numerator =  (-1)**j * _fact2(2*n-2*p-1)     
     numerator *= binom(n/2+p+q/2,j) 
     numerator *= threeFtwo([-j,-2*p,-n-q],[1+n-2*p-q,-(n/2)-p-q/2]) 
     if p<0: return 0.
-    denom =  factorial(n -2 * p - q) * factorial2(2 * p)
+    denom =  factorial(n -2 * p - q) * _fact2(2 * p)
     return numerator / denom 
 
 def KK(i,n,m):
@@ -692,6 +696,8 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
             term = (-1)**abs(k+m+n-p) * KK(i,n,m)
             term *= KaulaF(n,-k-m+p,(-h + m + n - p)//2,z1)
             term *= KaulaF(n, k+m-p,(-h - m + n + p)//2,z2)
+            KF1 = KaulaF(n,-k-m+p,(-h + m + n - p)//2,z1)
+            KF2 = KaulaF(n, k+m-p,(-h - m + n + p)//2,z2)
             inc_total += term
     
     ecc_total = 0
@@ -700,7 +706,7 @@ def FX(h,k,i,p,u,v1,v2,v3,v4,z1,z2,z3,z4):
         term *= HansenCoefficient_term(i+t,v1,v2,z3)
         term *= HansenCoefficient_term(-1-i-t,v3,v4,z4)
         ecc_total += term
-        
+
     return (1 + delta) * inc_total * ecc_total
 
     
