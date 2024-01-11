@@ -32,7 +32,7 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
 
     Arguments
     ---------
-    sa : rebound.SimulationArchive or str
+    sa : rebound.Simulationarchive or str
      The simulation archive to read or the file name of the simulation
      archive file. Can also be a reboundx simulation archive.
     coordinates : str
@@ -51,11 +51,11 @@ def get_simarchive_integration_results(sa,coordinates='jacobi'):
         snapshot of the simulation archive.
     """
     if type(sa) == str:
-        sa = rb.SimulationArchive(sa)
+        sa = rb.Simulationarchive(sa)
 
-    if type(sa) == rb.simulationarchive.SimulationArchive:
+    if type(sa) == rb.simulationarchive.Simulationarchive:
         return _get_rebound_simarchive_integration_results(sa,coordinates)
-    elif type(sa) == rbx.simulationarchive.SimulationArchive:
+    elif type(sa) == rbx.simulationarchive.Simulationarchive:
         return _get_reboundx_simarchive_integration_results(sa,coordinates)
     raise TypeError("{} is not a rebound or reboundx simulation archive!".format(sa))
 
@@ -385,7 +385,7 @@ def calculate_mutual_inclinations(s):
 
     Arguments
     ---------
-    s : rebound.Simulation or rebound.SimulationArchive
+    s : rebound.Simulation or rebound.Simulationarchive
 
     Returns
     -------
