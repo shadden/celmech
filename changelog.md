@@ -2,6 +2,15 @@
 
 ## Version 1.x
 
+### Version 1.3.3
+* Fixes N-body simulation utilities module for compatability with rebound 4 simulation archives.
+
+### Version 1.3.2
+* Fixes critical bug that causes Laplace coefficients to erroneously evaluate to zero in recent versions of scipy
+
+### Version 1.3.0
+* Modifications for compatability with rebound version 4
+
 ### Version 1.2.0
 * Updated the calculation of cosine amplitudes in the celmech.maps.CometMap class
 

@@ -17,7 +17,7 @@ try:
     ghash = subprocess.check_output(["git", "rev-parse", "HEAD"]).decode("ascii")
     ghash_arg = "-DCELMECHGITHASH="+ghash.strip()
 except:
-    ghash_arg = "-DCELMECHGITHASH=a9cf948cbd18d09feec51a3660892e506c700a19" #GITHASHAUTOUPDATE
+    ghash_arg = "-DCELMECHGITHASH=b40b27929bb87f97ef05c07120cbb579a05c8248" #GITHASHAUTOUPDATE
 
 extra_link_args=[]
 if sys.platform == 'darwin':
@@ -42,14 +42,14 @@ libcelmechmodule = Extension('libcelmech',
                     )
 
 if not os.getenv('READTHEDOCS'):
-    packages = ['theano', 'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=3.1.0', 'rebound>=3.5.11', 'mpmath>=1.0.0']
+    packages = ['theano', 'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=3.1.0', 'rebound>=4.0.1', 'mpmath>=1.0.0']
     try:
         install_requires += packages
     except:
         install_requires = packages
 
 setup(name='celmech',
-    version='1.2.0',
+    version='1.3.3',
     description='Open source tools for celestial mechanics',
     url='http://github.com/shadden/celmech',
     author='Dan Tamayo, Sam Hadden',
@@ -78,7 +78,7 @@ setup(name='celmech',
     ],
     keywords='astronomy astrophysics celestial-mechanics orbits orbital-mechanics',
     packages=['celmech'],
-    install_requires=['theano', 'mpmath>=1.0.0', 'sympy>=1.1.1', 'rebound>=3.5.11', 'reboundx>=3.1.0', 'numpy', 'scipy>=1.2.0'],
+    install_requires=['theano', 'mpmath>=1.0.0', 'sympy>=1.1.1', 'rebound>=4.0.1', 'reboundx>=3.1.0', 'numpy', 'scipy>=1.2.0'],
     test_suite="celmech.test",
     ext_modules = [libcelmechmodule],
     zip_safe=False)
