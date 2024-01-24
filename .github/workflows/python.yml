@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest wheel setuptools numpy matplotlib 
+          pip install pytest wheel setuptools numpy matplotlib IPython
           pip install -e . -v 
       - name: Output package contents
         run: pip show celmech -vf
