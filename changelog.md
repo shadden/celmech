@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.4.0
+* Phases out defunct `theano` dependencies in numerical resonance models. Automatic differentiation now uses `pytensor` and `exoplanet-core` packages. 
+
 ### Version 1.3.3
 * Fixes N-body simulation utilities module for compatability with rebound 4 simulation archives.
 
