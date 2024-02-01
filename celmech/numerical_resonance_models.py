@@ -9,7 +9,6 @@ from warnings import warn
 from scipy.optimize import lsq_linear
 from scipy.integrate import odeint
 import warnings
-from tqdm import tqdm
 
 from .numerical_resonance_utils import planar_els2xv,calc_Hint_components_spatial,calc_Hint_components_planar
 from .nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle, align_simulation
@@ -1369,20 +1368,19 @@ def _get_spatial_compiled_theano_functions(N_QUAD_PTS):
      'actions':actions_dict
     }
     compiled_func_dict=dict()
-    with tqdm(func_dict.items()) as t:
-        for key,val in t:
-            t.set_description("Compiling '{}'".format(key))
-            if key == 'timescales':
-                inputs = extra_ins
-            else:
-                inputs = ins 
-            cf = pytensor.function(
-                inputs=inputs,
-                outputs=val,
-                givens=givens,
-                on_unused_input='ignore'
-            )
-            compiled_func_dict[key]=cf
+    for key,val in func_dict.items():
+        print("Compiling '{}'".format(key))
+        if key == 'timescales':
+            inputs = extra_ins
+        else:
+            inputs = ins 
+        cf = pytensor.function(
+            inputs=inputs,
+            outputs=val,
+            givens=givens,
+            on_unused_input='ignore'
+        )
+        compiled_func_dict[key]=cf
     return compiled_func_dict
 
 
