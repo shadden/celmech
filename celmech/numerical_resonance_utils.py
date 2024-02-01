@@ -1,11 +1,12 @@
-import theano.tensor as T
-from celmech.theano_ops.kepler import KeplerOp
+#import theano.tensor as T
+#from celmech.theano_ops.kepler import KeplerOp
+import  pytensor.tensor as T
+from exoplanet_core.pymc import ops
 def planar_els2xv(a,lmbda,h,k,GMstar):
-    ko = KeplerOp()
     e_sq = h*h+k*k
     e = T.sqrt(e_sq)
     # ko(MeanAnomaly,eccentricity) = sin_TrueAnomly, cos_TrueAnomaly
-    sin_f,cos_f =  ko( lmbda - T.arctan2(h,k), e + T.zeros_like(lmbda))
+    sin_f,cos_f =  ops.kepler( lmbda - T.arctan2(h,k), e + T.zeros_like(lmbda))
     cos_theta = cos_f * (k/e) - sin_f * (h/e)
     sin_theta = sin_f * (k/e) + cos_f * (h/e)
     n = T.sqrt(GMstar) * a**(-3/2)
