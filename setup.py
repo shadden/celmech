@@ -42,7 +42,7 @@ libcelmechmodule = Extension('libcelmech',
                     )
 
 if not os.getenv('READTHEDOCS'):
-    packages = ['exoplanet-core==0.3.0rc2','pytensor>=2.18' ,'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=3.1.0', 'rebound>=4.0.1', 'mpmath>=1.0.0']
+    packages = ['exoplanet-core==0.3.0rc2','pytensor>=2.18' ,'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=4.0.0', 'rebound>=4.0.1', 'mpmath>=1.0.0']
     try:
         install_requires += packages
     except:
@@ -78,7 +78,7 @@ setup(name='celmech',
     ],
     keywords='astronomy astrophysics celestial-mechanics orbits orbital-mechanics',
     packages=['celmech'],
-    install_requires=['exoplanet-core==0.3.0rc2','pytensor>=2.18', 'mpmath>=1.0.0', 'sympy>=1.1.1', 'rebound>=4.0.1', 'reboundx>=3.1.0', 'numpy', 'scipy>=1.2.0'],
+    install_requires=['exoplanet-core==0.3.0rc2','pytensor>=2.18', 'mpmath>=1.0.0', 'sympy>=1.1.1', 'rebound>=4.0.1', 'reboundx>=4.0.0', 'numpy', 'scipy>=1.2.0'],
     test_suite="celmech.test",
     ext_modules = [libcelmechmodule],
     zip_safe=False)
