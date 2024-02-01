@@ -211,6 +211,7 @@ def k_nu_depend_on_eccentricities(k,nu):
     _,_,nu3,nu4 = nu
     arr=np.array([k3,k4,nu3,nu4])
     return np.any(arr!=0)
+
 def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,inclinations=True):
     """
     Generate the list of disturbing function terms for a
@@ -241,10 +242,14 @@ def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,i
         Each entry in the list is of the form
         (k_vec, nu_vec) (see PoincareHamiltonian.add_cosine_term in poincare.py)
     """
+
     if not min_order:
         min_order = q
     if not max_order:
         max_order = q
+    if q==0:
+        sec_terms = list_secular_terms(min_order,max_order,eccentricities=eccentricities,inclinations=inclinations)
+        return [ ((p,-p,*k[2:]),nu) for k,nu in sec_terms ]
     args_dict = df_arguments_dictionary(max_order)
     args = []
     for N in range(min_order,max_order+1):
@@ -263,7 +268,7 @@ def list_resonance_terms(p,q,min_order=None,max_order=None,eccentricities=True,i
                             continue
                         args.append((k_vec,nu_vec))
     return args
-
+        
 def list_secular_terms(min_order,max_order,eccentricities=True,inclinations=True):
     """
     Generate the list of secular disturbing function terms 

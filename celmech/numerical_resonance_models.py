@@ -1,13 +1,14 @@
 import rebound as rb
 import reboundx
 import numpy as np
-import theano
-import theano.tensor as T
+# import theano
+# import theano.tensor as T
+import pytensor.tensor as T
+import pytensor
 from warnings import warn
 from scipy.optimize import lsq_linear
 from scipy.integrate import odeint
 import warnings
-from tqdm import tqdm
 
 from .numerical_resonance_utils import planar_els2xv,calc_Hint_components_spatial,calc_Hint_components_planar
 from .nbody_simulation_utilities import get_canonical_heliocentric_orbits, add_canonical_heliocentric_elements_particle, align_simulation
@@ -98,14 +99,14 @@ def _get_planar_compiled_Hpert_full():
         gradHpert = T.grad(Hpert,wrt=dyvars)
         ################################
         # Scalars
-        Hpert_fn = theano.function(
+        Hpert_fn = pytensor.function(
             inputs=ins,
             outputs=Hpert,
             givens=None,
             on_unused_input='ignore'
         )
         # Gradients
-        gradHpert_fn = theano.function(
+        gradHpert_fn = pytensor.function(
             inputs=ins,
             outputs=gradHpert,
             givens=None,
@@ -264,9 +265,9 @@ def _get_planar_compiled_theano_functions(N_QUAD_PTS):
         gradHpert = T.grad(Hpert_av,wrt=dyvars)
         gradHkep = T.grad(Hkep,wrt=dyvars)
 
-        hessHtot = theano.gradient.hessian(Htot,wrt=dyvars)
-        hessHpert = theano.gradient.hessian(Hpert_av,wrt=dyvars)
-        hessHkep = theano.gradient.hessian(Hkep,wrt=dyvars)
+        hessHtot = pytensor.gradient.hessian(Htot,wrt=dyvars)
+        hessHpert = pytensor.gradient.hessian(Hpert_av,wrt=dyvars)
+        hessHkep = pytensor.gradient.hessian(Hkep,wrt=dyvars)
 
         Jtens = T.as_tensor(np.pad(getOmegaMatrix(Ndof),(0,Nconst),'constant'))
         H_flow_vec = Jtens.dot(gradHtot)
@@ -278,8 +279,8 @@ def _get_planar_compiled_theano_functions(N_QUAD_PTS):
         Hkep_flow_jac = Jtens.dot(hessHkep)
         
         # Dissipative flow
-        dis_flow_vec = T.stack(y1dot_dis,y2dot_dis,x1dot_dis,x2dot_dis,amddot_dis)
-        dis_flow_jac = theano.gradient.jacobian(dis_flow_vec,dyvars)
+        dis_flow_vec = T.stack((y1dot_dis,y2dot_dis,x1dot_dis,x2dot_dis,amddot_dis))
+        dis_flow_jac = pytensor.gradient.jacobian(dis_flow_vec,dyvars)
 
         # Extras
         sigma1 = T.arctan2(y1,x1)
@@ -336,7 +337,7 @@ def _get_planar_compiled_theano_functions(N_QUAD_PTS):
                 inputs = extra_ins
             else:
                 inputs = ins 
-            cf = theano.function(
+            cf = pytensor.function(
                 inputs=inputs,
                 outputs=val,
                 givens=givens,
@@ -1333,9 +1334,9 @@ def _get_spatial_compiled_theano_functions(N_QUAD_PTS):
     gradHpert = T.grad(Hpert_av,wrt=dyvars)
     gradHkep = T.grad(Hkep,wrt=dyvars)
 
-    hessHtot = theano.gradient.hessian(Htot,wrt=dyvars)
-    hessHpert = theano.gradient.hessian(Hpert_av,wrt=dyvars)
-    hessHkep = theano.gradient.hessian(Hkep,wrt=dyvars)
+    hessHtot = pytensor.gradient.hessian(Htot,wrt=dyvars)
+    hessHpert = pytensor.gradient.hessian(Hpert_av,wrt=dyvars)
+    hessHkep = pytensor.gradient.hessian(Hkep,wrt=dyvars)
 
     Jtens = T.as_tensor(np.pad(getOmegaMatrix(Ndof),(0,Nconst),'constant'))
     H_flow_vec = Jtens.dot(gradHtot)
@@ -1367,20 +1368,19 @@ def _get_spatial_compiled_theano_functions(N_QUAD_PTS):
      'actions':actions_dict
     }
     compiled_func_dict=dict()
-    with tqdm(func_dict.items()) as t:
-        for key,val in t:
-            t.set_description("Compiling '{}'".format(key))
-            if key == 'timescales':
-                inputs = extra_ins
-            else:
-                inputs = ins 
-            cf = theano.function(
-                inputs=inputs,
-                outputs=val,
-                givens=givens,
-                on_unused_input='ignore'
-            )
-            compiled_func_dict[key]=cf
+    for key,val in func_dict.items():
+        print("Compiling '{}'".format(key))
+        if key == 'timescales':
+            inputs = extra_ins
+        else:
+            inputs = ins 
+        cf = pytensor.function(
+            inputs=inputs,
+            outputs=val,
+            givens=givens,
+            on_unused_input='ignore'
+        )
+        compiled_func_dict[key]=cf
     return compiled_func_dict
 
 

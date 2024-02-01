@@ -4,14 +4,14 @@ from __future__ import division, print_function
 
 __all__ = ["KeplerOp"]
 
-import theano
-from theano import gof
-import theano.tensor as tt
+import aesara
+from aesara.graph import op
+import aesara.tensor as tt
 
 from ..build_utils import get_cache_version, get_compile_args, get_header_dirs
 
 
-class KeplerOp(gof.COp):
+class KeplerOp(op.ExternalCOp):
     __props__ = ()
     func_file = "./kepler.cc"
     func_name = "APPLY_SPECIFIC(kepler)"
@@ -58,11 +58,11 @@ class KeplerOp(gof.COp):
         dfdM = (1 + ecosf) ** 2 / ome2 ** 1.5
         dfde = (2 + ecosf) * sinf / ome2
 
-        if not isinstance(gradients[0].type, theano.gradient.DisconnectedType):
+        if not isinstance(gradients[0].type, aesara.gradient.DisconnectedType):
             bM += gradients[0] * cosf * dfdM
             be += gradients[0] * cosf * dfde
 
-        if not isinstance(gradients[1].type, theano.gradient.DisconnectedType):
+        if not isinstance(gradients[1].type, aesara.gradient.DisconnectedType):
             bM -= gradients[1] * sinf * dfdM
             be -= gradients[1] * sinf * dfde
 

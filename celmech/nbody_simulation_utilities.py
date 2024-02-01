@@ -159,9 +159,9 @@ def get_canonical_heliocentric_orbits(sim):
         Orbits of particles in canonical heliocentric
         coordinates.
     """
-    return reb_calculate_orbits(sim, coordinates="canonical heliocentric")
+    return reb_orbits(sim, coordinates="canonical heliocentric")
 
-def reb_calculate_orbits(sim, coordinates="canonical heliocentric"):
+def reb_orbits(sim, coordinates="canonical heliocentric"):
     """
     Compute orbital elements in passed canonical coordinates
 
