@@ -302,7 +302,7 @@ def expL(f,chi,lmax=None):
     for l in range(k1min,lmax+1):
         Phi[0,l] += f[l]
         E[l] += Phi[0,l]
-        nmax = (l-2) // (kmin-2)
+        nmax = (l-k1min) // (kmin-2)
         lmin_n = k1min
         for n in range(1,nmax+1):
             kmax = l+2-lmin_n
