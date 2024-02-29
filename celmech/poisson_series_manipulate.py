@@ -159,9 +159,14 @@ class PoissonSeries():
             return new
         else:
             raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(PoissonSeries,type(ps)))
-    
+    #define multiplication by another poisson series
+    def _Pseries_multiply(self,pseries):
+        terms=[PSTerm(t1.C * t2.C, t1.k + t2.k, t1.kbar + t2.kbar,t1.p + t2.p,t1.q + t2.q) for t1 in self.terms for t2 in pseries.terms]
+        return PoissonSeries.from_PSTerms(terms)
     # define scalar multiply term-wise
     def __mul__(self,val):
+        if type(val)==type(self):
+            return self._Pseries_multiply(val)
         if len(self.terms)==0:
             return self
         return PoissonSeries.from_PSTerms([term * val for term in self.terms],**self._symbol_kwargs)
