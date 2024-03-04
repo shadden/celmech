@@ -174,6 +174,11 @@ class PoissonSeries():
     # scalar multiplication is commutative
     __rmul__ = __mul__
 
+    @property
+    def conj(self):
+        cterms = [PSTerm(np.conj(t.C),t.kbar,t.k,t.p,-1*t.q) for t in self.terms]
+        return PoissonSeries.from_PSTerms(cterms)
+        
     def Lie_deriv(self,ps):
         """
         Compute the Lie derivative of a Poisson series expression
