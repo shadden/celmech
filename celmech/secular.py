@@ -13,7 +13,7 @@ from celmech.disturbing_function import list_secular_terms
 from celmech.disturbing_function import df_coefficient_C, _add_dicts,_consolidate_dictionary_terms
 from celmech.disturbing_function import terms_list_to_HamiltonianCoefficients_dict
 from celmech.disturbing_function import resonant_secular_contribution_dictionary
-from celmech.poisson_series import DFTermSeries
+from celmech.c_poisson_series import DFTermSeries
 
 
 

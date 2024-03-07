@@ -434,7 +434,7 @@ class SecondOrderInclinationResonanceOperator(LinearInclinationResonancOperator)
         super(SecondOrderInclinationResonanceOperator,self).__init__(initial_state,indexIn,indexOut,res_vec,Amtrx,dt)
 
 
-from .poisson_series import DFTermSeries
+from .c_poisson_series import DFTermSeries
 from scipy.optimize import root
 from .disturbing_function import ResonanceTermsList, SecularTermsList
 
