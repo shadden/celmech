@@ -222,6 +222,21 @@ class PoissonSeries():
         return tot
   
 def bracket(PSeries1,Pseries2,**kwargs):
+    """
+    Compute the Poisson bracket of a pair of Poisson series
+
+    Parameters
+    ----------
+    PSeries1 : PoissonSeries
+        First Poisson series
+    Pseries2 : PoissonSeries
+        Second Poisson series
+
+    Returns
+    -------
+    PoissonSeries
+        Poisson series representing the Poisson bracket of the input series.
+    """
     N,M = PSeries1.N,PSeries1.M
     
     assert Pseries2.N==N and Pseries2.M==M, \
@@ -284,45 +299,117 @@ def Psi_to_chi_and_Hav(omega_vec,Psi,kres):
     hav=PoissonSeries.from_PSTerms(Hav_terms,N,0)
     return chi,hav
 
-def do_perturbation_theory(omega_vec,H,lmax):
+def birkhoff_normalize(omega_vec,H,lmax):
+    """
+    Given an input frequency vector and Hamiltonian, carry out the Birkhoff
+    normalization procedure up to maximum specified order.
+
+    Parameters
+    ----------
+    omega_vec : 1-d array
+        Frequency of 
+    H : dict
+        Dictionary containing terms of the Hamiltonian grouped by order. The
+        keys of the dictionary denote the order of the term in powers of complex
+        canonical variables. The values are PoissonSeries objects.
+    lmax : int
+        Order up to which the Birkhoff normalization should be carried out.
+
+    Returns
+    -------
+    chi : dict
+        Dictionary containing terms of the generating function. The
+        keys of the dictionary denote the order of the term in powers of complex
+        canonical variables. The values are PoissonSeries objects.
+    Hav : dict
+        Dictionary containing terms of the averaged Hamiltonian. The
+        keys of the dictionary denote the order of the term in powers of complex
+        canonical variables. The values are PoissonSeries objects.
+    """
     N = len(omega_vec)
-    chi,Phi,Hav = [defaultdict(lambda: PoissonSeries(N,0)) for _ in range(3)]
+    chi,Upsilon,Hav = [defaultdict(lambda: PoissonSeries(N,0)) for _ in range(3)]
     Hav[2] += H[2]
     for l in range(2,lmax+1):
-        Phi[(0,l)] += H[l]
+        Upsilon[(0,l)] += H[l]
         Psi = PoissonSeries(N,0)
-        Psi+= Phi[(0,l)]        
+        Psi+= Upsilon[(0,l)]        
         for n in range(1,l-1):
             kmax = l+1-n if n>1 else l-n
             for k in range(3,kmax+1):
-                Phi[(n,l)]+=chi[k].Lie_deriv(Phi[(n-1,l+2-k)])
-            Psi += Phi[(n,l)]*(1/factorial(n))
+                Upsilon[(n,l)]+=chi[k].Lie_deriv(Upsilon[(n-1,l+2-k)])
+            Psi += Upsilon[(n,l)]*(1/factorial(n))
         if l>2:
             chi[l],Hav[l] = Psi_to_chi_and_Hav(omega_vec,Psi,[])
-            Phi[(1,l)]+=chi[l].Lie_deriv(Phi[(0,2)])
-    return chi,Hav,Phi
+            Upsilon[(1,l)]+=chi[l].Lie_deriv(Upsilon[(0,2)])
+    return chi,Hav
 
 def expL(f,chi,lmax=None):
+    """
+    Calculate a finite-order truncation of the exponential of the Lie derivative
+    operator applied to a function.
+
+    Parameters
+    ----------
+    f : dict
+        Dictionary containing terms in the expansion of the target function
+        grouped by order. The keys of the dictionary denote the order of the
+        term in powers of complex canonical variables. The values are
+        PoissonSeries objects.    
+    chi : dict 
+        Dictionary containing generating function terms grouped by order.
+    lmax : int, optional
+        maximum order of the finite-order truncation. Defaults to value set by
+        maximum order terms appearing in f and chi.
+
+    Returns
+    -------
+    dict
+        Dictionary containing terms of the expansion of the transformed function
+        grouped by order.
+    """
     kmin = min(chi.keys())
     k1min = min(f.keys())
-    Phi = defaultdict(chi.default_factory)
+    Upsilon = defaultdict(chi.default_factory)
     E = defaultdict(chi.default_factory)
     if not lmax:
         lmax = max(chi.keys()) + k1min - 2
     for l in range(k1min,lmax+1):
-        Phi[0,l] += f[l]
-        E[l] += Phi[0,l]
+        Upsilon[0,l] += f[l]
+        E[l] += Upsilon[0,l]
         nmax = (l-k1min) // (kmin-2)
         lmin_n = k1min
         for n in range(1,nmax+1):
             kmax = l+2-lmin_n
             for k in range(kmin,kmax+1):
-                Phi[(n,l)]+=chi[k].Lie_deriv(Phi[(n-1,l+2-k)])
+                Upsilon[(n,l)]+=chi[k].Lie_deriv(Upsilon[(n-1,l+2-k)])
             lmin_n = kmin + lmin_n - 2 
-            E[l] += Phi[(n,l)] * (1/factorial(n))
+            E[l] += Upsilon[(n,l)] * (1/factorial(n))
     return E
 
 def expLinv(f,chi,lmax=None):
+    """
+    Calculate a finite-order truncation of the exponential of the inverse of the
+    Lie derivative operator applied to a function.
+
+    Parameters
+    ----------
+    f : dict
+        Dictionary containing terms in the expansion of the target function
+        grouped by order. The keys of the dictionary denote the order of the
+        term in powers of complex canonical variables. The values are
+        PoissonSeries objects.    
+    chi : dict 
+        Dictionary containing generating function terms grouped by order.
+    lmax : int, optional
+        maximum order of the finite-order truncation. Defaults to value set by
+        maximum order terms appearing in f and chi.
+
+    Returns
+    -------
+    dict
+        Dictionary containing terms of the expansion of the transformed function
+        grouped by order.
+    """
     if not lmax:
         lmax = max(chi.keys())    
     lmin = min(chi.keys())
