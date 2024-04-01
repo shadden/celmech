@@ -410,9 +410,6 @@ def expLinv(f,chi,lmax=None):
         Dictionary containing terms of the expansion of the transformed function
         grouped by order.
     """
-    if not lmax:
-        lmax = max(chi.keys())    
-    lmin = min(chi.keys())
     nchi = defaultdict(chi.default_factory)
     for key,val in chi.items():
         nchi[key] = val * (-1.)
