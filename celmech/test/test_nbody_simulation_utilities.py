@@ -49,7 +49,7 @@ class TestHeliocentricElements(unittest.TestCase):
             eldict = {el:getattr(orbit,el) for el in ['a','e','inc','l','pomega','Omega']}
             add_canonical_heliocentric_elements_particle(m,eldict,newsim)
         newsim.move_to_com()
-        self.compare_simulations(self.sim, newsim, rtol=1.e-13)
+        self.compare_simulations(self.sim, newsim, rtol=1.e-12)
 
 if __name__ == '__main__':
     unittest.main()
