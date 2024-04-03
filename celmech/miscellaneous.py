@@ -188,6 +188,75 @@ def getOmegaMatrix(n):
          np.concatenate([-I,zeros]).T
         )
     )
+####################################################
+################ Orbit linking #####################
+####################################################
+def EulerMatrix(Omega,inc,omega):
+    """
+    The Euler 3D rotation matrix for Euler angles (Omega,inc,omega). The (3,1,3)
+    convention is followed.
+
+    Parameters
+    ----------
+    Omega : float
+        First Euler angle (ascending node)
+    inc : float
+        Second Euler angle (inclination)
+    omega : float
+        Third Euler angle (argument of periapsis)
+
+    Returns
+    -------
+    numpy.array
+        3 x 3 rotation matrix
+    """
+    R = np.eye(3)
+    s,c = np.sin(omega),np.cos(omega)
+    R = np.array([[c,-s,0],[s,c,0],[0,0,1]]) @ R
+    s,c = np.sin(inc),np.cos(inc)
+    R = np.array([[1,0,0],[0,c,-s],[0,s,c]]) @ R
+    s,c = np.sin(Omega),np.cos(Omega)
+    R = np.array([[c,-s,0],[s,c,0],[0,0,1]]) @ R
+    return R
+
+def linking_l(orbit1,orbit2):
+    """
+    Computes the linking coefficient defined by `Kholshevnikov and Vassiliev
+    (1999) <https://ui.adsabs.harvard.edu/abs/1999CeMDA..75...67K/abstract>`_
+    for a pair of Keplerian orbits.
+
+    Parameters
+    ----------
+    orbit1 : rebound.Orbit
+        First orbit
+    orbit2 : rebound.Orbit
+        Second orbit
+
+    Returns
+    -------
+    float
+        The linking coefficient, :math:`l_1`, defined by Equation (1) of
+        Kholshevnikov and Vassiliev (1999)
+    """
+    mtrx1 = EulerMatrix(orbit1.Omega,orbit1.inc,orbit1.omega)
+    mtrx2 = EulerMatrix(orbit2.Omega,orbit2.inc,orbit2.omega)
+    P1,Q1,Z1 = mtrx1.T
+    P2,Q2,Z2 = mtrx2.T
+    wvec = np.cross(Z1,Z2)
+    w = np.linalg.norm(wvec)
+    a1,e1 = orbit1.a,orbit1.e
+    a2,e2 = orbit2.a,orbit2.e
+
+    p1 = a1 * (1 - e1*e1)
+    p2 = a2 * (1 - e2*e2)
+
+    R1 = p1 * w / (w - e1 * np.dot(P1,wvec))
+    R2 = p2 * w / (w - e2 * np.dot(P2,wvec))
+    r1 = p1 * w / (w + e1 * np.dot(P1,wvec))
+    r2 = p2 * w / (w + e2 * np.dot(P2,wvec))
+    return (r2-r1)*(R2-R1)
+
+
 ######################################################
 ################ AMD Calculation #####################
 ######################################################
