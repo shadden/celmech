@@ -40,6 +40,17 @@ class PSTerm():
         return PSTerm(val * self.C,self.k,self.kbar,self.p,self.q)
     # scalar multiply is commutative
     __rmul__ = __mul__
+    def as_series(self,**kwargs):
+        """
+        Get a :class:`.PoissonSeries` object representing a series comprised of
+        a single term.
+
+        Returns
+        -------
+        PoissonSeries
+            Series version of this term.
+        """
+        return PoissonSeries.from_PSTerms([self],**kwargs)
 
 class PoissonSeries():
     def __init__(self,N,M,**kwargs):
@@ -299,7 +310,7 @@ def Psi_to_chi_and_Hav(omega_vec,Psi,kres):
     hav=PoissonSeries.from_PSTerms(Hav_terms,N,0)
     return chi,hav
 
-def birkhoff_normalize(omega_vec,H,lmax):
+def birkhoff_normalize(omega_vec,H,lmax,kres = []):
     """
     Given an input frequency vector and Hamiltonian, carry out the Birkhoff
     normalization procedure up to maximum specified order.
@@ -314,17 +325,20 @@ def birkhoff_normalize(omega_vec,H,lmax):
         canonical variables. The values are PoissonSeries objects.
     lmax : int
         Order up to which the Birkhoff normalization should be carried out.
+    kres : list, optional
+        List of resonant wave vectors to retain in the transformed Hamiltonian.
+        Default is none.
 
     Returns
     -------
     chi : dict
-        Dictionary containing terms of the generating function. The
-        keys of the dictionary denote the order of the term in powers of complex
-        canonical variables. The values are PoissonSeries objects.
+        Dictionary containing terms of the generating function. The keys of the
+        dictionary denote the order of the term in powers of complex canonical
+        variables. The values are PoissonSeries objects.
     Hav : dict
-        Dictionary containing terms of the averaged Hamiltonian. The
-        keys of the dictionary denote the order of the term in powers of complex
-        canonical variables. The values are PoissonSeries objects.
+        Dictionary containing terms of the averaged Hamiltonian. The keys of the
+        dictionary denote the order of the term in powers of complex canonical
+        variables. The values are PoissonSeries objects.
     """
     N = len(omega_vec)
     chi,Upsilon,Hav = [defaultdict(lambda: PoissonSeries(N,0)) for _ in range(3)]
@@ -339,7 +353,7 @@ def birkhoff_normalize(omega_vec,H,lmax):
                 Upsilon[(n,l)]+=chi[k].Lie_deriv(Upsilon[(n-1,l+2-k)])
             Psi += Upsilon[(n,l)]*(1/factorial(n))
         if l>2:
-            chi[l],Hav[l] = Psi_to_chi_and_Hav(omega_vec,Psi,[])
+            chi[l],Hav[l] = Psi_to_chi_and_Hav(omega_vec,Psi,kres)
             Upsilon[(1,l)]+=chi[l].Lie_deriv(Upsilon[(0,2)])
     return chi,Hav
 
