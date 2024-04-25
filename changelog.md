@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.5.0
+* Addition of `poisson_series` module
+
 ### Version 1.4.0
 * Phases out defunct `theano` dependencies in numerical resonance models. Automatic differentiation now uses `pytensor` and `exoplanet-core` packages. 
 
