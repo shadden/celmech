@@ -9,10 +9,9 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.9"
-    # You can also specify other tool versions:
-    # nodejs: "20"
-    # rust: "1.70"
-    # golang: "1.20"
+  commands:
+    - pip install -r requirements.txt
+    - python setup.py build_ext --inplace  # For compiling Python C extensions
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
