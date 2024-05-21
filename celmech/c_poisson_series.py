@@ -16,42 +16,47 @@ SeriesTerm._fields_ = [
             ("coeff",c_double),
             ("next",POINTER(SeriesTerm))
             ]
+import os
+if not os.getenv('READTHEDOCS'):
+    _evaluate_series = clibcelmech.evaluate_series
+    _evaluate_series.argtypes = [
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        POINTER(SeriesTerm),
+        c_int,
+        c_int,
+        POINTER(c_double),
+        POINTER(c_double)
+    ]
+    _evaluate_series.restype = None
 
-_evaluate_series = clibcelmech.evaluate_series
-_evaluate_series.argtypes = [
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    POINTER(SeriesTerm),
-    c_int,
-    c_int,
-    POINTER(c_double),
-    POINTER(c_double)
-]
-_evaluate_series.restype = None
+    _evaluate_series_and_derivs = clibcelmech.evaluate_series_and_derivs
+    _evaluate_series_and_derivs.argtypes = [
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        POINTER(SeriesTerm),
+        c_int,
+        c_int,
+        POINTER(c_double),
+        POINTER(c_double),
+    ] + [(4 * c_double) for _ in range(4)]
+    _evaluate_series_and_derivs.restype = None
 
-_evaluate_series_and_derivs = clibcelmech.evaluate_series_and_derivs
-_evaluate_series_and_derivs.argtypes = [
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    POINTER(SeriesTerm),
-    c_int,
-    c_int,
-    POINTER(c_double),
-    POINTER(c_double),
-] + [(4 * c_double) for _ in range(4)]
-_evaluate_series_and_derivs.restype = None
+    _evaluate_series_and_jacobian = clibcelmech.evaluate_series_and_jacobian
+    _evaluate_series_and_jacobian.argtypes = [
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
+        POINTER(SeriesTerm),
+        c_int,
+        c_int,
+        POINTER(c_double),
+        POINTER(c_double),
+    ] + [(4 * c_double) for _ in range(4)] + [(64 * c_double) for _ in range(2)]
+    _evaluate_series_and_jacobian.restype = None
+else:
+    _evaluate_series = lambda *args: None
+    _evaluate_series_and_jacobian = lambda *args: None
 
-_evaluate_series_and_jacobian = clibcelmech.evaluate_series_and_jacobian
-_evaluate_series_and_jacobian.argtypes = [
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    np.ctypeslib.ndpointer(dtype = np.complex128,ndim=1),
-    POINTER(SeriesTerm),
-    c_int,
-    c_int,
-    POINTER(c_double),
-    POINTER(c_double),
-] + [(4 * c_double) for _ in range(4)] + [(64 * c_double) for _ in range(2)]
-_evaluate_series_and_jacobian.restype = None
 
 def get_generic_df_coefficient_symbol(k1,k2,k3,k4,k5,k6,z1,z2,z3,z4):
     return symbols("C_{0}\,{1}\,{2}\,{3}\,{4}\,{5}^{6}\,{7}\,{8}\,{9}".format(
