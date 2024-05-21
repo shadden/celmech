@@ -9,8 +9,6 @@ build:
   os: ubuntu-22.04
   tools:
     python: "3.9"
-  commands:
-    - python setup.py build_ext --inplace  # For compiling Python C extensions
 
 # Build documentation in the "docs/" directory with Sphinx
 sphinx:
