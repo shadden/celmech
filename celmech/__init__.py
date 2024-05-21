@@ -31,7 +31,6 @@ else:
     class DummyObject(object):
         pass
     clibcelmech = DummyObject()
-    clibcelmech.fmft_wrapper = None
 
 
 # Check for version

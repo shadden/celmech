@@ -473,14 +473,19 @@ def AMD_stability_coefficients(sim,overlap=False):
 ######################## FMFT ########################
 ######################################################
 p2d = np.ctypeslib.ndpointer(dtype = np.float64,ndim = 2,flags = 'C')
-_fmft = clibcelmech.fmft_wrapper
-_fmft.argtypes =[p2d, c_int, c_double, c_double, c_int, p2d, c_long]
-_fmft.restype = c_int
-def _check_errors(ret, func, args):
-    if ret<=0:
-        raise RuntimeError("FMFT returned error code %d for the given arguments"%ret)
-    return ret
-_fmft.errcheck = _check_errors
+import os
+if not os.getenv('READTHEDOCS'):
+    _fmft = clibcelmech.fmft_wrapper
+    _fmft.argtypes =[p2d, c_int, c_double, c_double, c_int, p2d, c_long]
+    _fmft.restype = c_int
+    def _check_errors(ret, func, args):
+        if ret<=0:
+            raise RuntimeError("FMFT returned error code %d for the given arguments"%ret)
+        return ret
+    _fmft.errcheck = _check_errors
+else:
+    _fmft = lambda *args: pass
+    
 def _nearest_pow2(x):
 	return int(2**np.floor(np.log2(x)))
 def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
