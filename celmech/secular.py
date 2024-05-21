@@ -237,26 +237,28 @@ class LaplaceLagrangeSystem(Poincare):
         return {key:val.T for key,val in solution.items()}
     def diagonalize_eccentricity(self):
         r"""
-        Solve for matrix S, that diagonalizes the
-        matrix T in the equations of motion:
+        Solve for matrix :math:`\mathbf{T}_e`, that diagonalizes the matrix
+        :math:`\mathbf{S}_e` in the equations of motion:
 
         .. math::
 
-            \frac{d}{dt}(\eta + i\kappa) = i A \cdot (\eta + i\kappa)
+            \frac{d}{dt}(\eta + \mathrm{i}\kappa) = \mathrm{i} \mathbf{S}_e
+            \cdot (\eta + \mathrm{i}\kappa)
 
-        The matrix S satisfies
+        The matrix :math:`\mathbf{T}_e` satisfies
 
         .. math::
 
-                T^{T} \cdot A \cdot T = D
+                \mathbf{T}_e^{T} \cdot \mathbf{S}_e \cdot \mathbf{T}_e =
+                \mathbf{D}_e
         
-        where D is a diagonal matrix.
-        The equations of motion are decoupled harmonic
-        oscillators in the variables (P,Q) defined by 
+        where D is the diagonal matrix of eccentricity eigenvalues. The secular
+        mode components are given by 
 
         .. math::
 
-            H + i K = S^{T} \cdot (\eta + i \kappa)
+            \mathbf{H} + \mathrm{i} \mathbf{K} = \mathbf{T}_e^{T} \cdot
+            (\pmb{\eta} + \mathrm{i} \pmb{\kappa})
         
         Returns
         -------
@@ -267,27 +269,27 @@ class LaplaceLagrangeSystem(Poincare):
 
     def diagonalize_inclination(self):
         r"""
-        Solve for matrix U, that diagonalizes the
-        matrix B in the equations of motion:
+        Solve for matrix :math:`\mathbf{T}_I`, that diagonalizes the matrix
+        :math:`\mathbf{S}_I` in the equations of motion:
         
         .. math::
-            \frac{d}{dt}(\rho + i\sigma) = i B \cdot (\rho + i\sigma)
+            \frac{d}{dt}(\rho + \mathrm{i}\sigma) = \mathrm{i} \mathbf{S}_I \cdot (\rho + \mathrm{i}\sigma)
 
-        The matrix S satisfies
-
-        .. math::
-                U^{T} \cdot B \cdot U = D
-
-        where D is a diagonal matrix.
-        The equations of motion are decoupled harmonic
-        oscillators in the variables :math:`(R,S)` defined by 
+        The matrix :math:`\mathbf{T}_I` satisfies
 
         .. math::
-            R + i S = U^{T} \cdot (\rho + i \sigma)
+                \mathbf{T}_I^{T} \cdot \mathbf{S}_I \cdot \mathbf{T}_I = \mathbf{D}_I
+
+        where :math:`\mathbf{D}_I` is a diagonal matrix. The equations of motion
+        are decoupled harmonic oscillators in the variables :math:`(R,S)`
+        defined by 
+
+        .. math::
+            R + i S = \mathbf{T}_I^{T}  \cdot (\rho + i \sigma)
         
         Returns
         -------
-        (U , D) : tuple of n x n numpy arrays
+        (T , D) : tuple of n x n numpy arrays
         """
         vals,U = np.linalg.eigh(self.Ninclination_matrix)
         return U, self._chop(np.diag(vals))
