@@ -31,7 +31,6 @@ else:
     class DummyObject(object):
         pass
     clibcelmech = DummyObject()
-    clibcelmech.evaluate_series = lambda *args: None
 
 # Check for version
 try:

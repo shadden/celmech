@@ -30,7 +30,6 @@ You may also want to check out the `Git repository <https://github.com/shadden/c
     canonical_transformations
     secular
     numerical_resonance_models   
-    andoyer
     maps
     nbody_simulation_utilities
     miscellaneous 
