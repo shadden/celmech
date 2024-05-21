@@ -360,7 +360,7 @@ and define our generating function as
        \chi(q',p') = \sum_{\mathbf{k}\notin \mathcal{K}_\mathrm{res}(D)} \frac{A_{\mathbf{k}}(p)}{i\mathbf{k}\cdot\omega(p')} e^{i\mathbf{k}\cdot q}~.
 
 The sum above will generally include an inifinte number of :math:`k` vectors.
-    However, the Fourier properties of smooth functions generally guarantee that
+However, the Fourier properties of smooth functions generally guarantee that
 :math:`A_\mathbf{k}(p')\sim \exp(-|\mathbf{k}|_{1})` where
 :math:`|\mathbf{k}|_{1}=\sum_i|k_i|`. If we're interested in constructing a
 perturbation theory to first order in :math:`\epsilon`, then we only need to
