@@ -22,7 +22,7 @@ First, we run a short simulation of a pair of planets, saving results to a simul
         sim.add(m=1)
         sim.add(m=1e-4,P=1)
         sim.add(m=1e-4,P=2,e=0.1)
-        sim.automateSimulationArchive("save.sa",interval = 10.)
+        sim.save_to_file("save.sa",interval = 10.)
         sim.integrate(1e4)
 
 Now, we'll use :func:`get_simarchive_integration_results<celmech.nbody_simulation_utilities.get_simarchive_integration_results>` to read the results of our simulation.

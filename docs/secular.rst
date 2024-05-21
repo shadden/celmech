@@ -100,7 +100,7 @@ and get the results using the :func:`get_simarchive_integration_results <celmech
         Tsec = llsystem.Tsec # Shortest secular mode period of the system
         sim.automateSimulationArchive("secular_example.sa",interval=Tsec/100,deletefile=True)
         sim.integrate(10 * Tsec)
-        sa = rb.SimulationArchive("secular_example.sa")
+        sa = rb.Simulationarchive("secular_example.sa")
         nbody_results = get_simarchive_integration_results(sa,coordinates='heliocentric')
 
 :meth:`secular_solution <celmech.secular.LaplaceLagrangeSystem.secular_solution>` generates a secular solution as a dictionary:
