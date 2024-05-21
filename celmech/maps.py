@@ -121,20 +121,20 @@ class StandardMap():
         Evaluate The action zero-form,
 
         .. math::
-        \lambda(\theta,w) = 2\pi\left(\frac{w'^2}{2}- \frac{\epsilon}{2\pi}  F_\beta(\theta)\right)~,
+            \lambda(\theta, w) = 2\pi \left( \frac{w'^2}{2} - \frac{\epsilon}{2\pi} F_\beta(\theta) \right),
 
         where :math:`w' = w - \epsilon \partial_\theta F_\beta(\theta)`. The action zero-form satisfies
-        :math:`T^*(w d\theta) - w d\theta = d\lambda` where :math:`T^*` is the pullback of the map.
+        :math:`T^*(w d\theta) - w d\theta = d\lambda`, where :math:`T^*` is the pullback of the map.
 
         Parameters
         ----------
         pt : array-like
-            the point :math:`(\theta,w)` at which to evlauate the action.
+            The point :math:`(\theta, w)` at which to evaluate the action.
 
         Returns
         -------
         float
-            The value of the action zero-form, :math:`\lambda(\theta,w)`
+            The value of the action zero-form, :math:`\lambda(\theta, w)`.
         """
         theta,p = pt
         K = self.K
@@ -183,16 +183,15 @@ class StandardMap():
 
         Returns
         -------
-        T : array, shape (2,Nmax+1,Nmax+1)
+        T : array, shape (2, Nmax+1, Nmax+1)
             The partial derivatives of the map.
             Writing the value of the map at a point
-            :math:`(x_1,x_2)` as 
-            :math:`T(x_1,x_2) = (T_1(x_1,x_2),T_2(x_1,x_2))`,
-            the entry T[i,n,m] stores
-            .. math::
-                \frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i
+            :math:`(x_1, x_2)` as 
+            :math:`T(x_1, x_2) = (T_1(x_1, x_2), T_2(x_1, x_2))`,
+            the entry T[i, n, m] stores
+            :math:`\frac{\partial^{(n+m)}}{\partial x_1^n \partial x_2^m} T_i`
 
-            Note that ``T[:,0,0]`` give the value of the map.
+            Note that ``T[:, 0, 0]`` gives the value of the map.
         """
         theta,p = x
         c,s = np.cos(theta),np.sin(theta)
@@ -290,43 +289,38 @@ class StandardMap():
 
 class EncounterMap():
     r"""
-    A class representing the encounter map.
-    The map depends on three parameters,
-    :math:`\epsilon,y`, and :math:`J`.
-    The map is defined by the equations
+    A class representing the encounter map. The map depends on three parameters,
+    :math:`\epsilon`, :math:`y`, and :math:`J`. The map is defined by the equations
 
     .. math::
         \begin{align}
-        x' &= x + \epsilon f(\theta;y)
-        \\
-        \theta' &= \theta + 2\pi(J-x')
+        x' &= x + \epsilon f(\theta; y) \\
+        \theta' &= \theta + 2\pi(J - x')
         \end{align}
 
     By default, the map is defined on the cylinder with
     the :math:`\theta` coordinate taken mod :math:`2\pi`.
-    The parameter `mod_p=True` can be set to take the 
+    The parameter ``mod_p=True`` can be set to take the 
     :math:`p` coordinate modulo :math:`2\pi` as well.
 
-    .. _Chirikov standard map: https://en.wikipedia.org/wiki/Standard_map
+    See also the `Chirikov standard map <https://en.wikipedia.org/wiki/Standard_map>`_.
 
     Parameters
     ----------
     m : float
-        Planet-star mass ratio
+        Planet-star mass ratio.
     y : float
         The eccentricity divided by the orbit-crossing eccentricity.
     J : float
-        Center the map on the :math:`J`::math:`J-1` MMR. For integer J, the map
-        is centered on a first order MMR. For rational :math:`J=p/q`, the map is
-        centered on a :math:`q`th order MMR
+        Center the map on the :math:`J`:`J-1` MMR. For integer J, the map
+        is centered on a first-order MMR. For rational :math:`J = p/q`, the map is
+        centered on a :math:`q`-th order MMR.
     mod_theta : bool, optional
-        If True, the :math:`\theta` coordinate
-        is taken modulo :math:`2\pi`.
-        Default is `True`
+        If True, the :math:`\theta` coordinate is taken modulo :math:`2\pi`.
+        Default is True.
     mod_p : bool, optional
-        If True, the :math:`p` coordinate
-        is taken modulo :math:`2\pi`.
-        Default is `False`.
+        If True, the :math:`p` coordinate is taken modulo :math:`2\pi`.
+        Default is False.
     """
     def __init__(self,m,J,y0, Nmax=7, mod = True):
         self.m = m
@@ -1094,23 +1088,23 @@ class CometMap():
     
     def action(self,pt):
         r"""
-        Evaluate The action zero-form,
+        Evaluate the action zero-form,
 
         .. math::
-        \lambda(\theta,w) = 2\pi\left(\frac{w'^2}{2}- \frac{\epsilon}{2\pi}  F_\beta(\theta)\right)~,
+            \lambda(\theta, w) = 2\pi \left( \frac{w'^2}{2} - \frac{\epsilon}{2\pi} F_\beta(\theta) \right),
 
         where :math:`w' = w - \epsilon \partial_\theta F_\beta(\theta)`. The action zero-form satisfies
-        :math:`T^*(w d\theta) - w d\theta = d\lambda` where :math:`T^*` is the pullback of the map.
+        :math:`T^*(w d\theta) - w d\theta = d\lambda`, where :math:`T^*` is the pullback of the map.
 
         Parameters
         ----------
         pt : array-like
-            the point :math:`(\theta,w)` at which to evlauate the action.
+            The point :math:`(\theta, w)` at which to evaluate the action.
 
         Returns
         -------
         float
-            The value of the action zero-form, :math:`\lambda(\theta,w)`
+            The value of the action zero-form, :math:`\lambda(\theta, w)`.
         """
         theta,w = pt
         eps = self.eps
