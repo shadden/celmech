@@ -22,6 +22,7 @@ autodoc_mock_imports = [
     "rebound",
     "reboundx",
     "pytensor",
+    "exoplanet_core",
     "mpmath",
     "IPython",
     "tqdm",
@@ -40,6 +41,7 @@ copyright = u"{0} {1}".format(year, author)
 version = ''
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
+language = 'en'
 
 #)sys.path.append('../')
 
@@ -112,7 +114,8 @@ html_theme_options = {
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# html_static_path = ['_static']
+html_static_path = []  # If you don't use this folder
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -206,7 +209,7 @@ epub_exclude_files = ['search.html']
 # -- Options for intersphinx extension ---------------------------------------
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {'python': ('https://docs.python.org/3', None)}
 
 # -- Options for todo extension ----------------------------------------------
 
