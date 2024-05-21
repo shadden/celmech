@@ -28,7 +28,10 @@ if not os.getenv('READTHEDOCS'):
 
 else:
     # Mock or skip loading the library on RTD or some mock object
-    clibcelmech = None  
+    class DummyObject(object):
+        pass
+    clibcelmech = DummyObject()
+    clibcelmech.fmft_wrapper = None
 
 
 # Check for version
