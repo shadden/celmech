@@ -21,7 +21,7 @@ autodoc_mock_imports = [
     "sympy",
     "rebound",
     "reboundx",
-    "theano",
+    "pytensor",
     "mpmath",
     "IPython",
     "tqdm",
