@@ -4,5 +4,5 @@ numpydoc
 sympy
 rebound
 reboundx
-theano
+pytensor
 mpmath
