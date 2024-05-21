@@ -13,16 +13,23 @@ import os
 import warnings
 pymodulepath = os.path.dirname(__file__)
 from ctypes import cdll, c_char_p
-clibcelmech = cdll.LoadLibrary(pymodulepath+"/../libcelmech"+suffix)
 
-# Version
-__version__ = c_char_p.in_dll(clibcelmech, "celmech_version_str").value.decode('ascii')
+if not os.getenv('READTHEDOCS'):
+    # Normal import when not on Read the Docs
+    clibcelmech = cdll.LoadLibrary(pymodulepath+"/../libcelmech"+suffix)
+    # Version
+    __version__ = c_char_p.in_dll(clibcelmech, "celmech_version_str").value.decode('ascii')
 
-# Build
-__build__ = c_char_p.in_dll(clibcelmech, "celmech_build_str").value.decode('ascii')
+    # Build
+    __build__ = c_char_p.in_dll(clibcelmech, "celmech_build_str").value.decode('ascii')
 
-# Githash
-__githash__ = c_char_p.in_dll(clibcelmech, "celmech_githash_str").value.decode('ascii')
+    # Githash
+    __githash__ = c_char_p.in_dll(clibcelmech, "celmech_githash_str").value.decode('ascii')
+
+else:
+    # Mock or skip loading the library on RTD or some mock object
+    clibcelmech = None  
+
 
 # Check for version
 try:
