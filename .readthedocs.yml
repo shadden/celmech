@@ -10,7 +10,6 @@ build:
   tools:
     python: "3.9"
   commands:
-    - pip install -r requirements.txt
     - python setup.py build_ext --inplace  # For compiling Python C extensions
 
 # Build documentation in the "docs/" directory with Sphinx
