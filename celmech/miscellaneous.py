@@ -484,8 +484,8 @@ if not os.getenv('READTHEDOCS'):
         return ret
     _fmft.errcheck = _check_errors
 else:
-    _fmft = lambda *args: pass
-    
+    _fmft = lambda *args: None
+
 def _nearest_pow2(x):
 	return int(2**np.floor(np.log2(x)))
 def frequency_modified_fourier_transform(time, z, Nfreq, method_flag = 3, min_freq = None, max_freq = None):
