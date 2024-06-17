@@ -17,7 +17,7 @@ def _my_elliptic_e(*args):
     else:
         return scipy.special.ellipeinc(*args)
 
-_lambdify_kwargs = {'modules':['numpy', {
+_default_lambdify_kwargs = {'modules':['numpy', {
     'elliptic_k': scipy.special.ellipk,
     'elliptic_f': scipy.special.ellipkinc,
     'elliptic_e': _my_elliptic_e
@@ -154,6 +154,7 @@ class Hamiltonian(object):
         self.state = state
         self._full_qp_vars = full_qp_vars
         self._needs_update = True
+        self._lambdify_kwargs = _default_lambdify_kwargs
         
     @property
     def t(self):
@@ -466,9 +467,9 @@ class Hamiltonian(object):
         self._jacobian = Matrix(N_dim,N_dim, lambda i,j: diff(flow[i],qp_vars[j]))
         self._N_jacobian = Matrix(N_dim,N_dim, lambda i,j: diff(Nflow[i],qp_vars[j]))
 
-        self._H_func = lambdify(qp_vars,self._N_H,**_lambdify_kwargs)
-        self._flow_func = lambdify(qp_vars,self._N_flow,**_lambdify_kwargs)
-        self._jacobian_func = lambdify(qp_vars,self._N_jacobian,**_lambdify_kwargs)
+        self._H_func = lambdify(qp_vars,self._N_H,**self._lambdify_kwargs)
+        self._flow_func = lambdify(qp_vars,self._N_flow,**self._lambdify_kwargs)
+        self._jacobian_func = lambdify(qp_vars,self._N_jacobian,**self._lambdify_kwargs)
 
         self._integrator = ode(
                 lambda t,y: self._flow_func(*y),
