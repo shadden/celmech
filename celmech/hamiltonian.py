@@ -217,7 +217,7 @@ class Hamiltonian(object):
         return self.state.values
     @values.setter
     def values(self,vals):
-        self.state.values = values
+        self.state.values = vals
 
     @property
     def full_values(self):
