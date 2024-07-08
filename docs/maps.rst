@@ -17,6 +17,13 @@ parameter, :math:`K`, defined by the equations
         \\
         \theta' &= \theta + p'~.
 
+Comet Map
+-------------
+
+The comet map is a symplectic map that approximates the dynamics of particles on
+highly eccentric orbits perturbed by a planet on a circular orbit.  It is
+described in `Hadden & Tremaine (2024)
+<https://ui.adsabs.harvard.edu/abs/2024MNRAS.527.3054H/abstract>`_.
 
 Encounter Map
 -------------
@@ -41,4 +48,4 @@ and the :math:`s_k(y)` are the resonance amplitude functions given by the
 API
 ---
 .. automodule:: celmech.maps
-    :members: StandardMap, EncounterMap
+    :members: StandardMap, CometMap, EncounterMap
