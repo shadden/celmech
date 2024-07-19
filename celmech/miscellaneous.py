@@ -411,13 +411,15 @@ def AMD_stable_Q(sim):
         orbOut = pOut.orbit(pstar)
         alpha = orbIn.a / orbOut.a
         gamma = pIn.m / pOut.m
-        LmbdaOut = pOut.m * np.sqrt(orbOut.a)
+        # Lambda of outer particle
+        Mi = pstar.m + pOut.m
+        mu_i = pOut.m * pstar.m / Mi
+        LmbdaOut = mu_i * np.sqrt(sim.G * Mi * orbOut.a)
         Ccrit = critical_relative_AMD(alpha,gamma)
         C = AMD / LmbdaOut
         if C>Ccrit:
             return False
     return True
-
 def AMD_stability_coefficients(sim,overlap=False):
     r"""
     Compute AMD stability coefficients 
@@ -459,7 +461,10 @@ def AMD_stability_coefficients(sim,overlap=False):
         orbOut = pOut.orbit(pstar)
         alpha = orbIn.a / orbOut.a
         gamma = pIn.m / pOut.m
-        LmbdaOut = pOut.m * np.sqrt(orbOut.a)
+        # Calculate Lambda of the outer particle
+        Mi = pstar.m + pOut.m
+        mu_i = pOut.m * pstar.m / Mi
+        LmbdaOut = mu_i * np.sqrt(sim.G * Mi * orbOut.a)
         if overlap:
             mutot = (pIn.m + pOut.m) / pstar.m
             Ccrit = critical_relative_AMD_resonance_overlap(alpha,gamma,mutot)
