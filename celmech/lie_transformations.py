@@ -5,10 +5,9 @@ from sympy import lambdify as sym_lambdify
 from sympy.functions import elliptic_f,elliptic_k, elliptic_e
 from sympy.core import pi
 from .disturbing_function import  _p1_p2_from_k_nu, evaluate_df_coefficient_delta_expansion
-from .disturbing_function import df_coefficient_C,evaluate_df_coefficient_dict,get_df_coefficient_symbol
-from .disturbing_function import  list_resonance_terms, _nucombos, _lcombos
+from .disturbing_function import df_coefficient_C,get_df_coefficient_symbol
+from .disturbing_function import  _nucombos, _lcombos
 from .poincare import get_re_im_components, _get_Lambda0_symbol, _get_a0_symbol
-from .hamiltonian import _my_elliptic_e, _lambdify_kwargs
 import warnings
 
 def _zeroth_order_term_Q_and_dQ(alpha,psi):
@@ -439,6 +438,6 @@ class FirstOrderGeneratingFunction(PoincareHamiltonian):
         result = pt_solution.subs(subsrule)
         if lambdify:
             args = list(free_variables) + [t]
-            return sym_lambdify(args,result , **_lambdify_kwargs)
+            return sym_lambdify(args,result , **self._lambdify_kwargs)
         else:
             return result
