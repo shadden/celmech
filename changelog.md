@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.5.2
+* Minor bug fixes.
+
 ### Version 1.5.1
 * Made lambidfy_kwargs an attribute of the celmech.Hamiltonian. This can be
   useful when creating Hamiltonians that involve special functions.
