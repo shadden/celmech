@@ -42,7 +42,7 @@ libcelmechmodule = Extension('libcelmech',
                     )
 
 if not os.getenv('READTHEDOCS'):
-    packages = ['exoplanet-core==0.3.0rc2','pytensor>=2.18' ,'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=4.0.0', 'rebound>=4.0.1', 'mpmath>=1.0.0']
+    packages = ['exoplanet-core>=0.3.0','pytensor>=2.18' ,'sympy>=1.1.1', 'numpy', 'scipy>=1.2.0', 'reboundx>=4.0.0', 'rebound>=4.0.1', 'mpmath>=1.0.0']
     try:
         install_requires += packages
     except:
