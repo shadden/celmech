@@ -799,7 +799,10 @@ def df_coefficient_Ctilde(k1,k2,k3,k4,k5,k6,nu1,nu2,nu3,nu4,include_indirect = T
         for i in getrange(0,nu1+nu2,1):
             for p in getrange(i%2,i,2):
                 for u in getrange(0,2*nu3+2*nu4):
-                    cf = FX(0,0,i,p,u,j,j,j,j,nu1,nu2,nu3,nu4) 
+                    # Change by SH on 01/14/2025:
+                    #   added factor of (2 - (j==0)) because the DF should
+                    #   include terms with both negative and positive j.
+                    cf = FX(0,0,i,p,u,j,j,j,j,nu1,nu2,nu3,nu4) * (2 - (j==0)) 
                     if not np.isclose(cf,0):
                         total[(i+u,(i+1/2,abs(j+p),u))]+=cf
                         if p != 0:
