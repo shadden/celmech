@@ -86,30 +86,32 @@ class StandardMap():
     
     def with_variational(self,X,dX):
         r"""
-        Apply the map along with the tangent map to point plus variationals.
-        In particular, 
+        Apply the map along with the tangent map to a point plus variationals.
+
+        In particular,
 
         .. math::
-            \begin{align}
-            (\theta', w') &=& T(\theta, w) 
-            \\
-            (\delta \theta',\delta  w') &=& DT(\theta, w) \cdot (\delta \theta,\delta  w) 
-        
+                \begin{aligned}
+                (\theta', p') &= T(\theta, p) 
+                \\
+                (\delta \theta', \delta p') &= DT(\theta, p) \cdot (\delta \theta, \delta p)
+                \end{aligned}
+
         where :math:`T` is the usual map and :math:`DT` is the Jacobian of the map.
 
         Parameters
         ----------
         X : array-like
-            The point :math:`X = (\theta,w)`
+            The point :math:`X = (\theta, w)`.
         dX : array-like
-            The variational vector :math:`(\delta\theta,\delta w)`
-        
+            The variational vector :math:`(\delta \theta, \delta w)`.
+
         Returns
         -------
         X' : array-like
-            The new point
-        dX' : array-lke
-            The new variationl vector
+            The new point :math:`(\theta', w')`.
+        dX' : array-like
+            The new variational vector :math:`(\delta \theta', \delta w')`.
         """
         jac = self.jac(X)
         X1 = self.__call__(X)
@@ -834,42 +836,47 @@ def _comet_map_get_ck_arrays(q : float, rtol: float, atol: float, kmax : int):
 
 class CometMap():
     r"""
-    A class representing the comet map. The map depends on the pericenter
-    distance to perturber semi-major axis ratio, :math:`q/a_p`, the
-    comet-perturber semi-major axis ratio, :math:`a/a_p`, and the
-    perturber-star mass ratio, :math:`mu`. The map is defined by the equations 
+    A class representing the comet map.
+
+    The map depends on the pericenter distance to perturber semi-major axis ratio, 
+    :math:`q/a_p`, the comet-perturber semi-major axis ratio, :math:`a/a_p`, 
+    and the perturber-star mass ratio, :math:`\mu`. The map is defined by the equations:
 
     .. math::
+
         \begin{align}
         w' &= w + \epsilon f(\theta; q/a_p) \\
         \theta' &= \theta + 2\pi\left(N + w'\right)
         \end{align}
 
-    By default, the map is defined on the cylinder with
-    the :math:`\theta` coordinate taken mod :math:`2\pi`.
-    The parameter `mod_p=True` can be set to take the 
-    :math:`p` coordinate modulo :math:`2\pi` as well.
+    By default, the map is defined on the cylinder with the :math:`\theta` coordinate taken modulo :math:`2\pi`.  
+    The parameter `mod_p=True` can be set to take the :math:`p` coordinate modulo :math:`2\pi` as well.
+
+    Example Usage
+    -------------
+    To initialize the map:
+
+    .. code-block:: python
+
+        comet_map = CometMap(m=5e-5, q=4/3, N=20, max_kmax=32, rtol=0.05, atol=1e-8, mod=True)
 
     Parameters
     ----------
     m : float
-        Planet-star mass ratio.
+        Planet-star mass ratio (:math:`\mu`).
     q : float
-        Pericenter distance of comet, measured in units of the perturber
-        semi-major axis.
+        Pericenter distance of the comet, measured in units of the perturber semi-major axis (:math:`q/a_p`).
     N : int
-        Center the map on an an  :math:`N:1` MMR.
+        Center the map on an :math:`N:1` mean-motion resonance (MMR).
     max_kmax : int
-        Maximum order of Fourier amplitude to include before resorting to asymptotic
-        approximation of Fourier amplitudes.
+        Maximum order of Fourier amplitude to include before resorting to an asymptotic approximation.
     rtol : float
-        Relative tolerance to achieve in calculation of Fourier amplitudes before resorting to asymptotic formula
+        Relative tolerance for Fourier amplitude calculations before using the asymptotic formula.
     atol : float
-        Absolute tolerance to achieve in calculation of Fourier amplitudes before resorting to asymptotic formula.
+        Absolute tolerance for Fourier amplitude calculations before using the asymptotic formula.
     mod : bool, optional
-        If True, the :math:`\theta` coordinate
-        is taken modulo :math:`2\pi`.
-        Default is `True`
+        If :code:`True`, the :math:`\theta` coordinate is taken modulo :math:`2\pi`. Default is :code:`True`.
+
     """
     def __init__(self,m,N,q, max_kmax=32, rtol = 0.05, atol =1.49e-8, mod=True):
         self.m = m
@@ -1031,7 +1038,7 @@ class CometMap():
     
     def F(self, theta):
         r"""
-        The `potential function', :math:`F_\beta(\theta)` from which the map's kick function is derived.
+        The 'potential function', :math:`F_\beta(\theta)` from which the map's kick function is derived.
 
         Parameters
         ----------
@@ -1118,10 +1125,11 @@ class CometMap():
         In particular, 
 
         .. math::
-            \begin{align}
-            (\theta', w') &=& T(\theta, w) 
+            \begin{aligned}
+            (\theta', w') &= T(\theta, w) 
             \\
-            (\delta \theta',\delta  w') &=& DT(\theta, w) \cdot (\delta \theta,\delta  w) 
+            (\delta \theta',\delta  w') &= DT(\theta, w) \cdot (\delta \theta,\delta  w) 
+            \end{aligned}
         
         where :math:`T` is the usual map and :math:`DT` is the Jacobian of the map.
 
@@ -1146,25 +1154,26 @@ class CometMap():
 
     def full_map(self,pt):
         r"""
-        Use version of map, defined as
+        Use version of the map, defined as:
+
         .. math::
-            \begin{align}
-                x' &=& x - 2\mu \pd{F_\beta(\theta)}{\theta} 
+                \begin{aligned}
+                x' &= x - 2\mu \frac{\partial F_\beta(\theta)}{\partial \theta} 
                 \\
-                \theta' &=& \theta + \frac{2\pi}{x'^{3/2}}~.
-            \end{eqnarray}
+                \theta' &= \theta + \frac{2\pi}{x'^{3/2}}~.
+                \end{aligned}
 
         where :math:`x` represents the test particle's inverse semi-major axis.
 
-        Arguments
-        ---------
-        pt : array-like 
-            The point :math:`(\theta,x)` to map
-        
+        Parameters
+        ----------
+        pt : array-like
+            The point :math:`(\theta, x)` to map.
+
         Returns
         -------
         pt1 : array
-            Resulting point :math:`(\theta',x')`
+            Resulting point :math:`(\theta', x')`.
         """
         theta,x = pt
         x1 = x - 2 * self.m * self.f(theta)
@@ -1284,7 +1293,7 @@ class CometMap():
         diffusion coefficient given by 
 
         .. math::
-            D_mathrm{QL} = \frac{1}{2}\epsilon^2\sum_{k}k^2C_{k}(\beta)^2
+            D_\mathrm{QL} = \frac{1}{2}\epsilon^2\sum_{k}k^2C_{k}(\beta)^2
 
         Returns
         -------
