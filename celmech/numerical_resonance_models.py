@@ -854,7 +854,7 @@ class PlanarResonanceEquations():
             return self._find_conservative_equilibrium(guess,tolerance,max_iter)
 
     def _find_dissipative_equilibrium(self,guess,tolerance=1e-9,max_iter=10):
-        y = guess
+        y = guess.copy()
         fun = self.flow
         jac = self.flow_jac
         f = fun(y)
@@ -871,7 +871,7 @@ class PlanarResonanceEquations():
                 warn("Newton's method failed to converge before the maximum of {} iterations were completed. Try re-running with a higher value of 'max_iter' or choose a better initial guess for the equilibrium configuration.".format(max_iter))
         return y
     def _find_conservative_equilibrium(self,guess,tolerance=1e-9,max_iter=10):
-        y = guess
+        y = guess.copy()
         fun = self.H_flow
         jac = self.H_flow_jac
         f = fun(y)[:-1]
@@ -885,7 +885,7 @@ class PlanarResonanceEquations():
             J = jac(y)[:-1,:-1]
             it+=1
             if it==max_iter:
-                raise RuntimeError("Max iterations reached!")
+                warn("Newton's method failed to converge before the maximum of {} iterations were completed. Try re-running with a higher value of 'max_iter' or choose a better initial guess for the equilibrium configuration.".format(max_iter))
         return y
 
     def dyvars_to_rebound_simulation(self,z,Q=0,pomega1=0,osculating_correction = True,include_dissipation = False,**kwargs):
