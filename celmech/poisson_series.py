@@ -526,8 +526,8 @@ def DFTerm_as_PSterms(pham,i,j,kvec,nuvec,lvec):
     m = np.abs(kvec[4]) + np.abs(kvec[5]) + 2 * (nuvec[0] + nuvec[1])
     pwr = 0.5 * (n1 + n2) - m - 1
     prefactor = -G * mi * mj * 2**pwr / aj0
-    prefactor *= Lambda_i0**(-0.5 * n1)
-    prefactor *= Lambda_j0**(-0.5 * n2)  
+    prefactor *= Lambda_i0**(-0.5 * n1 - lvec[0])
+    prefactor *= Lambda_j0**(-0.5 * n2 - lvec[1])  
     return [PSTerm(prefactor * Cval,k,kbar,p,q),PSTerm(prefactor * Cval,kbar,k,p,-1*q)]
 
 
@@ -604,7 +604,7 @@ def get_N_planet_poisson_series_symbols(Npl):
     cvar_symbols = list(sp.symbols(f"x(1:{Npl+1}),y(1:{Npl+1})")) 
     cvar_symbols += [get_symbol(r"\bar{x}",subscript=i) for i in range(1,Npl+1)] 
     cvar_symbols += [get_symbol(r"\bar{y}",subscript=i) for i in range(1,Npl+1)] 
-    pvar_symbols = [get_symbol("\delta\Lambda",i,real=True) for i in range(1,Npl+1)]
+    pvar_symbols = [get_symbol(r"\delta\Lambda",i,real=True) for i in range(1,Npl+1)]
     thetavar_symbols = sp.symbols(f"lambda(1:{Npl+1})",real=True)
     symbol_kwargs = {
         'cvar_symbols':cvar_symbols,
