@@ -403,7 +403,24 @@ class LaplaceLagrangeSystem(Poincare):
         # changes (indexIn,indexOut)
         self.ecc_entries[(indexOut,indexIn)] += InOut
         self.ecc_entries[(indexOut,indexOut)] += OutOut
-        
+
+    def add_general_relativity_correction(self,speed_of_light):
+        """
+        Include a correction that accounts for general relativistic precession at leading order in eccentricity 
+
+        Arguments
+        ---------
+        speed_of_light : float
+        """
+        G,c_s = symbols('G,c')
+        self.params[c_s] = speed_of_light
+        for pid in range(1,self.N):
+            p = self.particles[pid]
+            mu,M,Lambda = symbols('mu{0},M{0},Lambda{0}'.format(pid)) 
+            a = Lambda*Lambda / (mu * mu) / (G*M)
+            gr_precession = -3 * G * G * M * M * mu / (Lambda * a * a * c_s * c_s)
+            self.ecc_entries[(pid,pid)] += gr_precession
+            
 def _get_pair_SecularHamiltonian_coefficients(Nmin,Nmax,G,mIn,mOut,MIn,MOut,Lambda0In,Lambda0Out,res_jk_list=[]):
     """
     Calculate the coefficients appearing in secular Hamiltonian expansion.
