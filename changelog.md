@@ -2,6 +2,10 @@
 
 ## Version 1.x
 
+### Version 1.5.3
+* Added GR correction for LaplaceLagrangeSystem
+* Minor bug fixes.
+
 ### Version 1.5.2
 * Minor bug fixes.
 
