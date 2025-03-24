@@ -515,20 +515,19 @@ def DFTerm_as_PSterms(pham,i,j,kvec,nuvec,lvec):
     mj = pham.particles[j].m
     
     aj0 = pham.H_params[_get_a0_symbol(j)]
-    Lambda_i0 = pham.H_params[pham.Lambda0s[i]]
-    Lambda_j0 = pham.H_params[pham.Lambda0s[j]]
-    alpha_ij = pham.H_params[sp.symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))]    
+    Lambda_i0 = float(pham.H_params[pham.Lambda0s[i]])
+    Lambda_j0 = float(pham.H_params[pham.Lambda0s[j]])
+    alpha_ij = float(pham.H_params[sp.symbols(r"\alpha_{{{0}\,{1}}}".format(i,j))])
     dfcoeff = df_coefficient_C(*kvec,*nuvec,*lvec)    
     Cval = evaluate_df_coefficient_dict(dfcoeff,alpha_ij)
-    
     n1 = np.abs(kvec[2]) + np.abs(kvec[4]) + 2 * (nuvec[0] + nuvec[2])
     n2 = np.abs(kvec[3]) + np.abs(kvec[5]) + 2 * (nuvec[1] + nuvec[3])
     m = np.abs(kvec[4]) + np.abs(kvec[5]) + 2 * (nuvec[0] + nuvec[1])
     pwr = 0.5 * (n1 + n2) - m - 1
     prefactor = -G * mi * mj * 2**pwr / aj0
     prefactor *= Lambda_i0**(-0.5 * n1 - lvec[0])
-    prefactor *= Lambda_j0**(-0.5 * n2 - lvec[1])  
-    return [PSTerm(prefactor * Cval,k,kbar,p,q),PSTerm(prefactor * Cval,kbar,k,p,-1*q)]
+    prefactor *= Lambda_j0**(-0.5 * n2 - lvec[1])
+    return [PSTerm(complex(prefactor * Cval),k,kbar,p,q),PSTerm(complex(prefactor * Cval),kbar,k,p,-1*q)]
 
 
 def Perturbation_PSTerm_to_GeneratingFunction_PSTerms(ps_term,omega_vec,domega_vec):
