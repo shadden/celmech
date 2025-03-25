@@ -1,7 +1,7 @@
 import numpy as np
 from sympy import symbols, S, binomial, summation, sqrt, cos, sin, Function,atan2,expand_trig
 from celmech.hamiltonian import Hamiltonian
-from celmech.disturbing_function import get_fg_coeffs, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
+from celmech.disturbing_function import get_fg_coefficients, general_order_coefficient, secular_DF,laplace_B, laplace_coefficient
 from celmech.transformations import masses_to_jacobi, masses_from_jacobi
 from celmech.resonances import resonance_jk_list
 from itertools import combinations
