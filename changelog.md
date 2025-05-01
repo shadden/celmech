@@ -2,6 +2,9 @@
 
 ## Version 1.x
 
+### Version 1.5.4
+* Addition of PoissonSeriesHamiltonian class
+
 ### Version 1.5.3
 * Added GR correction for LaplaceLagrangeSystem
 * Minor bug fixes.
