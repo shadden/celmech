@@ -732,6 +732,39 @@ class PoissonSeriesHamiltonian:
         dPdot_dvar = np.real(jj[self.N:self.N + self.M, :])
         dQdot_dvar = np.real(jj[self.N + self.M:, :])
         return np.vstack([dydot_dvar, dQdot_dvar, dxdot_dvar, dPdot_dvar])
+    
+    def flow_and_jacobian(self, real_vars):
+        """
+        Compute the time derivatives of the real-valued state vector (Hamiltonian flow)
+        along with the The Jacobian matrix of the flow, shape (2N+2M, 2N+2M)
+
+        Parameters
+        ----------
+        real_vars : array_like
+            Real-valued phase space coordinates.
+
+        Returns
+        -------
+        ndarray
+            Time derivatives [dy/dt, dQ/dt, dx/dt, dP/dt] of the real variables.
+        ndarray
+            The Jacobian matrix of the flow, shape (2N+2M, 2N+2M)
+        """
+        z, P, Q = self._real_vars_to_cvars(real_vars)
+        zdot = np.array([f(z, P, Q) for f in self._cvar_flow[:self.N]])
+        Pdot = np.real([f(z, P, Q) for f in self._cvar_flow[self.N:self.N + self.M]])
+        Qdot = np.real([f(z, P, Q) for f in self._cvar_flow[self.N + self.M:]])
+        flow = np.concatenate((-np.imag(zdot) * _RT2, Qdot, np.real(zdot) * _RT2, Pdot))
+        jj = np.array([[series(z, P, Q) for series in row] for row in self._cvar_real_flow_jacobian])
+        dzdot_dvar = jj[:self.N, :]
+        dxdot_dvar = _RT2 * np.real(dzdot_dvar)
+        dydot_dvar = -_RT2 * np.imag(dzdot_dvar)
+        dPdot_dvar = np.real(jj[self.N:self.N + self.M, :])
+        dQdot_dvar = np.real(jj[self.N + self.M:, :])
+        jacobian = np.vstack([dydot_dvar, dQdot_dvar, dxdot_dvar, dPdot_dvar])
+        
+        return flow,jacobian
+
 
 
 def _hamiltonian_series_to_flow_series_list(ham_series):
