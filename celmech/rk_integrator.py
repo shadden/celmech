@@ -115,7 +115,7 @@ class RKIntegrator():
 
         if self.rk_root_method=='explicit':
             for i,ai  in enumerate(self.rk_a):
-                assert np.alltrue(ai[i:]==0), "RK tableau cannot be solved explicitly"
+                assert np.all(ai[i:]==0), "RK tableau cannot be solved explicitly"
 
     @property 
     def rk_root_method(self):
@@ -196,7 +196,7 @@ class RKIntegrator():
             g,Dg = self._implicit_step_root_eqn(K,y)
             dK = -1 * lin_solve(Dg,g)
             K += dK
-            if np.alltrue( np.abs(dK) < rtol * np.abs(K) + atol ):
+            if np.all( np.abs(dK) < rtol * np.abs(K) + atol ):
                 break
         else:
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
@@ -262,7 +262,7 @@ class RKIntegrator():
             ytemps = y + h * a @ k 
             k = np.array([f(ytemp) for ytemp in ytemps])
             delta_ks = np.abs(k-k_old)
-            if np.alltrue( delta_ks < rtol * np.abs(k_old) + atol ):
+            if np.all( delta_ks < rtol * np.abs(k_old) + atol ):
                 break
         else:
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
@@ -307,7 +307,7 @@ class RKIntegrator():
             dK = -1 * Dgdy0_inv @ g
             dk = dK.reshape(s,Ndim)
             k += dk
-            if np.alltrue( np.abs(dk) < rtol * np.abs(k) + atol ):
+            if np.all( np.abs(dk) < rtol * np.abs(k) + atol ):
                 break
         else:
             warnings.warn("'implicit_rk_step' reached maximum number of iterations ({})".format(max_iter))
