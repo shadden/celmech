@@ -379,13 +379,14 @@ def evaluate_df_coefficient_dict(coeff_dict,alpha):
     """
     tot = 0
     for key,val in coeff_dict.items():
+        f_val = float(val)
         if key[0] == 'indirect':
             pwer = key[1]
             rt_alpha_inv = 1 / np.sqrt(alpha) 
-            tot += val * rt_alpha_inv**pwer
+            tot += f_val * rt_alpha_inv**pwer
         else:
             p,arg = key
-            tot += val * alpha**p * laplace_b(*arg,alpha)
+            tot += f_val * alpha**p * laplace_b(*arg,alpha)
     return tot
 
 
