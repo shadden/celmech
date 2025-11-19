@@ -1,2 +1,1 @@
-* Added changelog
-* Added upload_pypi.yml workflow to automatically upload new version to PyPI when new version is tagged and released
+* Updated workflows to upload to PyPI correctly
