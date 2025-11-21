@@ -1,8 +1,6 @@
 import rebound as rb
 import reboundx
 import numpy as np
-# import theano
-# import theano.tensor as T
 import pytensor.tensor as T
 import pytensor
 from warnings import warn

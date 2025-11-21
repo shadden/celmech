@@ -1,5 +1,3 @@
-#import theano.tensor as T
-#from celmech.theano_ops.kepler import KeplerOp
 import  pytensor.tensor as T
 from exoplanet_core.pymc import ops
 def planar_els2xv(a,lmbda,h,k,GMstar):
