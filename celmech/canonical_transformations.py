@@ -461,7 +461,7 @@ class CanonicalTransformation():
             warn(msg)
             n2o = dict(zip(new_qp_vars,n2o_soln[0]))
 
-        return cls(old_qp_vars,new_qp_vars,old_to_new_rule=o2n,new_to_old_rule = n2o)
+        return cls(old_qp_vars,new_qp_vars,old_to_new_rule=o2n,new_to_old_rule = n2o,**kwargs)
     
     @classmethod
     def cartesian_to_polar(cls,old_qp_vars,indices=None,polar_symbol_pairs=None,**kwargs):
