@@ -46,7 +46,7 @@ def resonance_pratio_span(mu1,mu2,Z0,res_j,res_k):
     res_pratio = float(res_j - res_k) /float(res_j)
     alpha = res_pratio**(2./3.)
     beta = mu2 / mu1 / np.sqrt(alpha)
-    f,g = df.get_fg_coeffs(res_j,res_k)
+    f,g = df.get_fg_coefficients(res_j,res_k)
 
     # Pendulum approximation: 
     #        H(P,Q) =     (1/2)A P^2 + B cos(Q)
@@ -63,7 +63,7 @@ def pendulum_approx_coeffs(mu1,mu2,res_j,res_k):
     res_pratio = float(res_j - res_k) /float(res_j)
     alpha = res_pratio**(2./3.)
     beta = mu2 / mu1 / np.sqrt(alpha)
-    f,g = df.get_fg_coeffs(res_j,res_k)
+    f,g = df.get_fg_coefficients(res_j,res_k)
     # Pendulum approximation: 
     #        H(P,Q) =     (1/2)A P^2 + B * Z0^k cos(Q)
     A = 1.5 * (res_j*res_j + beta * res_j * (res_j-res_k))
