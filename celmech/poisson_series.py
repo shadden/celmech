@@ -290,14 +290,15 @@ def Psi_to_chi_and_Hav(omega_vec,Psi,kres):
     chi_terms = []
     Hav_terms = []
     Nkres = len(kres)
-    N = len(omega_vec)
+    N,M = Psi.N,Psi.M
+    assert N >= 0, "M={} is larger then the length of the frequency vector omega_vec={}".format(M,omega_vec)
     if Nkres>0:
         kres_matrix = np.vstack(kres)
     else:
         kres_matrix = np.zeros(len(omega_vec))
     assert np.linalg.matrix_rank(kres_matrix) == Nkres, "Resonance vectors {} are not linearly independent!".format(kres)
     for term in Psi.terms:
-        kvec = term.kbar - term.k
+        kvec = np.concatenate((term.kbar - term.k , term.q))
         mat = np.vstack((kres_matrix,kvec))
         r = np.linalg.matrix_rank(mat)
         if r>Nkres:
@@ -306,8 +307,8 @@ def Psi_to_chi_and_Hav(omega_vec,Psi,kres):
             chi_terms.append(PSTerm(amp,term.k,term.kbar,term.p,term.q))
         else:
             Hav_terms.append(term)
-    chi = PoissonSeries.from_PSTerms(chi_terms,N,0)
-    hav=PoissonSeries.from_PSTerms(Hav_terms,N,0)
+    chi = PoissonSeries.from_PSTerms(chi_terms,N,M)
+    hav = PoissonSeries.from_PSTerms(Hav_terms,N,M)
     return chi,hav
 
 def birkhoff_normalize(omega_vec,H,lmax,kres = []):
@@ -318,13 +319,15 @@ def birkhoff_normalize(omega_vec,H,lmax,kres = []):
     Parameters
     ----------
     omega_vec : 1-d array
-        Frequency of 
+        Frequency of lowest order
     H : dict
         Dictionary containing terms of the Hamiltonian grouped by order. The
         keys of the dictionary denote the order of the term in powers of complex
         canonical variables. The values are PoissonSeries objects.
     lmax : int
         Order up to which the Birkhoff normalization should be carried out.
+    M : int, optional
+        Number of real-valued action/angle degrees of freedom. Default is M=0.
     kres : list, optional
         List of resonant wave vectors to retain in the transformed Hamiltonian.
         Default is none.
@@ -340,12 +343,13 @@ def birkhoff_normalize(omega_vec,H,lmax,kres = []):
         dictionary denote the order of the term in powers of complex canonical
         variables. The values are PoissonSeries objects.
     """
-    N = len(omega_vec)
-    chi,Upsilon,Hav = [defaultdict(lambda: PoissonSeries(N,0)) for _ in range(3)]
-    Hav[2] += H[2]
+    H2 = H[2]
+    N,M = H2.N,H2.M
+    chi,Upsilon,Hav = [defaultdict(lambda: PoissonSeries(N,M)) for _ in range(3)]
+    Hav[2] += H2
     for l in range(2,lmax+1):
         Upsilon[(0,l)] += H[l]
-        Psi = PoissonSeries(N,0)
+        Psi = PoissonSeries(N,M)
         Psi+= Upsilon[(0,l)]        
         for n in range(1,l-1):
             kmax = l+1-n if n>1 else l-n
