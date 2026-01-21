@@ -25,7 +25,7 @@ jobs:
           pip install pytest coverage
           pip install pytest wheel setuptools numpy matplotlib IPython
       - name: Build package
-        run: pip install -e . -v
+        run: pip install --no-build-isolation -e . -v
         env:
           FFP_CONTRACT_OFF: 1
           COVERAGE: 1
