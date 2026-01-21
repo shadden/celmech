@@ -31,7 +31,7 @@ jobs:
           COVERAGE: 1
       - name: Running unittests
         run: |
-          python -m coverage run -m unittest discover -s celmech/tests/ -v
+          python -m coverage run -m unittest discover -s celmech/test/ -v
       - name: Upload coverage reports
         run: |
           ./codecov --verbose upload-process -t ${{ secrets.CODECOV_TOKEN }}
