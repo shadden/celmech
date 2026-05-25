@@ -188,6 +188,119 @@ def getOmegaMatrix(n):
          np.concatenate([-I,zeros]).T
         )
     )
+###############################################
+######## Sundman Convergence Criterion ########
+###############################################
+def _sundman_w(g):
+    """
+    Solve for variable 'w' as a function of 'g' in the Sundman convergence criterion for the expansion of 
+    the disturbing function in eccentricity. See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ 
+    , Equation (3) for details. 
+
+    Parameters
+    ----------
+    g : float   
+        input parameter. Must be less than 0.662743 for a solution to exist. 
+        See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_
+
+    Returns
+    -------
+    float
+        w value corresponding to input g in the Sundman convergence criterion.
+    """
+    assert g < 0.662743,"No solution! Eccentricity too high"
+    f = lambda w: w - g * np.cosh(w)
+    Df = lambda w: 1 - g * np.sinh(w)
+    D2f = lambda w: - g * np.cosh(w)
+    root = root_scalar(f,x0 = g,fprime = Df,fprime2=D2f)
+    return root.root
+def _sundman_F1(g):
+    """
+    Sundman's function F1. See Equations (2) of 
+    `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ for details.
+
+    
+
+    Parameters
+    ----------
+    g : float
+        input parameter. Must be less than 0.662743 for a solution to exist. 
+        See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ , Equation (2) for details.
+
+    Returns
+    -------
+    float
+        F1 value corresponding to input g in the Sundman convergence criterion.
+    """
+    w = _sundman_w(g)
+    return np.sqrt(1+g*g) * np.cosh(w) + g + np.sinh(w)
+
+def _sundman_F0(g):
+    """
+    Sundman's function F0. See Equations (2) of 
+    `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ for details.
+
+    
+    Parameters
+    ----------
+    g : float
+        input parameter. Must be less than 0.662743 for a solution to exist. 
+        See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ , Equation (2) for details.
+
+    Returns
+    -------
+    float
+        F0 value corresponding to input g in the Sundman convergence criterion.
+    """
+    w = _sundman_w(g)
+    return np.sqrt(1+g*g) * np.cosh(w) - g - np.sinh(w)
+
+def sundman_factor(p1,p2):
+    """
+    Determine whether the expansion of the disturbing function in eccentricity converges for a pair of orbits based on the Sundman criterion. 
+    See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ for details.
+
+    Parameters
+    ----------
+    p1 : rebound.Particle or celmech.PoincareParticle 
+        One of the particles in the pair for which to compute the Sundman factor.  
+    p2 : rebound.Particle or celmech.PoincareParticle 
+        The other particle in the pair for which to compute the Sundman factor.
+
+    Returns
+    -------
+    float
+        Value of the Sundman factor for the pair of orbits. 
+        If this value is less than 1, the expansion of the disturbing function in eccentricity converges. 
+        If it is greater than 1, the expansion does not converge.
+    """
+    if p1.a > p2.a:
+        p1,p2 = p2,p1
+    num = p1.a * _sundman_F1(p1.e)
+    denom = p2.a * _sundman_F0(p2.e)
+    return num / denom
+def sundman_convergence(sim):
+    """
+    Determine whether the expansion of the disturbing function in eccentricity converges for all pairs of orbits in a planetary system based on the Sundman criterion. 
+    See `Ferraz-Mello (1994) <https://ui.adsabs.harvard.edu/abs/1994CeMDA..58...37F/abstract>`_ for details.
+
+    Parameters
+    ----------
+    sim : rebound.Simulation
+        A REBOUND simulation of a planetary system.
+
+    Returns
+    -------
+    bool
+        :code:`True` if the expansion of the disturbing function in eccentricity converges for all pairs of orbits in the system, otherwise :code:`False`.
+    """
+    ps = sim.particles[1:]
+    for i in range(len(ps)-1):
+        for j in range(i+1,len(ps)):
+            if sundman_factor(ps[i],ps[j])>1:
+                return False
+    return True
+
 ####################################################
 ################ Orbit linking #####################
 ####################################################
@@ -260,7 +373,7 @@ def linking_l(orbit1,orbit2):
 ######################################################
 ################ AMD Calculation #####################
 ######################################################
-from scipy.optimize import brenth
+from scipy.optimize import brenth, root_scalar
 def _F(e,alpha,gamma):
     """Equation 35 of Laskar & Petit (2017)"""
     denom = np.sqrt(alpha*(1-e*e)+gamma*gamma*e*e)
@@ -690,7 +803,7 @@ def truncated_expansion(exprn,order_rules,max_order):
 
 from scipy.linalg import lu_factor, lu_solve
 def linsolve(A,y):
-    """
+    r"""
     Solve linear system of equations
     
     .. math::
