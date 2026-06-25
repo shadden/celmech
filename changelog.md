@@ -2,6 +2,10 @@
 
 This changelog only includes the most important changes in recent updates. For a full log of all changes, please refer to git.
 
+### Version 1.5.8
+
+* Added Sundman convergence criterion test
+
 ### Version 1.5.7
 
 * Updated workflows to upload to PyPI correctly
